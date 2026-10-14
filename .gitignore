@@ -1,0 +1,28 @@
+# .NET
+bin/
+obj/
+*.user
+.vs/
+TestResults/
+# runtime data (uploads, dev mail, import reports)
+**/App_Data/
+import-report/
+# Node / Next.js
+node_modules/
+.next/
+out/
+coverage/
+playwright-report/
+test-results/
+*.tsbuildinfo
+next-env.d.ts
+# local env
+.env
+.env.local
+.env.*.local
+
+# tool state
+.claude-flow/
+
+# tool state
+.claude-flow/

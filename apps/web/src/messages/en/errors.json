@@ -1,0 +1,115 @@
+{
+  "generic": "Something went wrong. Try again.",
+  "network": "Can't reach the server. Check your connection and try again.",
+  "status": {
+    "400": "The request couldn't be processed. Check the form and try again.",
+    "401": "Sign in to continue.",
+    "403": "You don't have permission to do that.",
+    "404": "It no longer exists or was moved.",
+    "409": "This changed in the meantime. Reload and try again.",
+    "413": "The upload is too large.",
+    "429": "Too many attempts. Wait a minute and try again.",
+    "500": "The server ran into a problem. Try again in a moment."
+  },
+  "bid": {
+    "invalid_amount": "Enter a valid amount with at most two decimals.",
+    "not_found": "This auction doesn't exist.",
+    "inactive": "This auction isn't open for bidding.",
+    "not_started": "Bidding hasn't started yet.",
+    "ended": "Bidding has closed for this auction.",
+    "account_blocked": "Your account can't place bids. Contact support.",
+    "admin_cannot_bid": "Administrator accounts can't bid.",
+    "own_auction": "You can't bid on your own auction.",
+    "insufficient_insurance": "Your wallet must hold at least {insurance} to bid on this auction.",
+    "below_minimum": "Your bid must be at least {minimum}."
+  },
+  "auth": {
+    "invalid_credentials": "Email or password is incorrect, or the account isn't active.",
+    "locked": "Too many failed attempts. Try again in {minutes} minutes.",
+    "password_policy": "Use at least {min} characters.",
+    "email_taken": "An account with this email already exists.",
+    "email_invalid": "Enter a valid email address.",
+    "current_password_wrong": "The current password is incorrect.",
+    "reset_token_invalid": "This reset link is invalid or has expired. Request a new one.",
+    "required": "Sign in to continue.",
+    "forbidden": "You don't have permission to do that."
+  },
+  "csrf": { "invalid": "Your session changed. Reload the page and try again." },
+  "rate": { "limited": "Too many requests. Wait a minute and try again." },
+  "wallet": {
+    "invalid_amount": "Enter an amount greater than zero and no more than {max}, with at most two decimals.",
+    "not_pending": "This request was already approved or rejected.",
+    "not_approved": "Only approved credits can be reversed.",
+    "delete_not_allowed": "Approved credits can't be deleted. Reverse the credit instead.",
+    "conflict": "This request was submitted twice. Reload to see its status.",
+    "invalid_idempotency_key": "The request couldn't be identified. Reload and try again."
+  },
+  "auction": {
+    "not_found": "This auction doesn't exist or isn't public.",
+    "title_required": "Enter a title in English or Arabic.",
+    "title_too_long": "Keep the title under 300 characters.",
+    "invalid_start_price": "Enter a starting price greater than zero, with at most two decimals.",
+    "invalid_increment": "Enter a bid increment greater than zero, with at most two decimals.",
+    "invalid_insurance": "Enter an insurance amount of zero or more, with at most two decimals.",
+    "end_before_start": "The end must be after the start.",
+    "end_in_past": "The end must be in the future.",
+    "main_image_required": "Add a main image.",
+    "invalid_video_url": "Enter a full video link starting with https://.",
+    "too_many_specs": "Use at most {max} detail rows.",
+    "spec_title_required": "Every detail row needs a name.",
+    "terms_frozen": "Bids exist, so the start price, increment, insurance, start time and country can't change.",
+    "has_bids": "This auction has bids and can't be deleted. Deactivate it instead.",
+    "has_transactions": "Wallet transactions reference this auction, so it can't be deleted.",
+    "too_many_images": "An auction can have at most {max} images."
+  },
+  "store": { "not_found": "This store doesn't exist." },
+  "file": {
+    "type_not_allowed": "This file type isn't accepted. Use JPG, PNG, WebP or PDF.",
+    "too_large": "The file is larger than 10 MB.",
+    "empty": "The file is empty.",
+    "content_mismatch": "The file's content doesn't match its type."
+  },
+  "review": {
+    "invalid_rating": "Choose a rating from 1 to 5.",
+    "comment_too_long": "Keep the review under 2,000 characters.",
+    "already_reviewed": "You've already reviewed this auction."
+  },
+  "application": {
+    "name_required": "Enter your name.",
+    "email_invalid": "Enter a valid email address.",
+    "already_pending": "An application with this email is already waiting for review.",
+    "not_pending": "This application was already decided."
+  },
+  "contact": {
+    "name_required": "Enter your name.",
+    "email_invalid": "Enter a valid email address.",
+    "message_required": "Write a message (up to 4,000 characters)."
+  },
+  "profile": { "name_required": "Enter a name." },
+  "country": { "invalid": "Choose a country.", "name_required": "Enter the country name.", "in_use": "This country is still used by accounts, auctions or content." },
+  "category": { "invalid": "Choose a category from the auction's country.", "title_required": "Enter a title.", "in_use": "This category is still used by auctions or applications." },
+  "publisher": { "invalid": "Choose a publisher.", "in_use": "This publisher has auctions or wallet history. Deactivate it instead." },
+  "user": { "cannot_deactivate_self": "You can't deactivate your own account." },
+  "cms": { "image_required": "Add an image.", "invalid_link": "Enter a full link starting with https:// or a path starting with /.", "title_required": "Enter a title.", "invalid_number": "Enter zero or a positive number." },
+  "faq": { "question_required": "Enter the question." },
+  "faqcategory": { "invalid": "Choose a category.", "not_empty": "Move or delete the questions in this category first." },
+  "setting": { "invalid_key": "Use lowercase letters, digits and hyphens for the key.", "key_taken": "A setting with this key exists.", "required": "This page is required and can't be deleted." },
+  "translation": { "invalid_locale": "Choose English or Arabic.", "invalid_key": "Unknown text key.", "invalid_value": "Enter the text (up to 4,000 characters)." },
+  "calendar": { "invalid_range": "Choose a range of up to two months." },
+  "request": { "too_large": "The upload is too large.", "invalid_json": "The form data couldn't be read.", "multipart_required": "The form couldn't be sent.", "data_required": "The form couldn't be sent.", "invalid": "The request couldn't be processed." },
+  "server": { "error": "The server ran into a problem. Try again in a moment." },
+  "winner": { "not_found": "This auction has no winner yet." },
+  "validation": {
+    "required": "This field is required.",
+    "email": "Enter a valid email address.",
+    "min": "Use at least {min} characters.",
+    "max": "Use at most {max} characters.",
+    "amount": "Enter an amount with at most two decimals.",
+    "positive": "Enter a number greater than zero.",
+    "nonNegative": "Enter zero or a positive number.",
+    "match": "The passwords don't match.",
+    "url": "Enter a full link starting with https://.",
+    "date": "Choose a date and time.",
+    "endAfterStart": "The end must be after the start."
+  }
+}

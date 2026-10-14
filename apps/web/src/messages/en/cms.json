@@ -1,0 +1,172 @@
+{
+  "common": {
+    "edit": "Edit",
+    "save": "Save changes",
+    "create": "Create",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "saved": "Saved.",
+    "deleted": "Deleted.",
+    "yes": "Yes",
+    "no": "No",
+    "actions": "Actions",
+    "required": "This field is required.",
+    "currentFile": "Current file kept unless you choose another"
+  },
+  "fields": {
+    "countryId": "Country",
+    "countryName": "Country",
+    "titleEn": "Title (English)",
+    "titleAr": "Title (Arabic)",
+    "descEn": "Text (English)",
+    "descAr": "Text (Arabic)",
+    "nameEn": "Name (English)",
+    "nameAr": "Name (Arabic)",
+    "code": "Country code",
+    "sortOrder": "Display order",
+    "sortOrderHint": "Lower numbers are shown first.",
+    "isActive": "Shown on the site",
+    "icon": "Icon",
+    "image": "Image",
+    "flag": "Flag",
+    "title": "Title",
+    "link": "Link",
+    "type": "Shown on",
+    "typeWeb": "Website",
+    "typeMobile": "Phones",
+    "firstImage": "First image",
+    "secondImage": "Second image",
+    "totalBidders": "Registered bidders to show",
+    "guidelinesVideoUrl": "Guidelines video link",
+    "categoryId": "Section",
+    "questionEn": "Question (English)",
+    "questionAr": "Question (Arabic)",
+    "answerEn": "Answer (English)",
+    "answerAr": "Answer (Arabic)",
+    "mobile": "Phone",
+    "address": "Address",
+    "email": "Email",
+    "mapUrl": "Map link",
+    "facebook": "Facebook link",
+    "instagram": "Instagram link",
+    "twitter": "X (Twitter) link",
+    "linkedin": "LinkedIn link",
+    "key": "Page address",
+    "keyHint": "Lowercase letters, numbers and dashes, for example terms.",
+    "valueEn": "Content (English)",
+    "valueAr": "Content (Arabic)",
+    "auctions": "Auctions",
+    "faqCount": "Questions"
+  },
+  "categories": {
+    "title": "Categories",
+    "description": "The sections auctions are listed under, per country.",
+    "add": "Add a category",
+    "empty": "No categories yet.",
+    "deleteTitle": "Delete this category?",
+    "deleteBody": "Categories with auctions can't be deleted; hide them instead."
+  },
+  "countries": {
+    "title": "Countries",
+    "description": "Countries visitors can filter by.",
+    "add": "Add a country",
+    "empty": "No countries yet.",
+    "deleteTitle": "Delete this country?",
+    "deleteBody": "Countries that have categories, auctions or accounts can't be deleted; hide them instead."
+  },
+  "sliders": {
+    "title": "Homepage slides",
+    "description": "The banner images at the top of the homepage.",
+    "add": "Add a slide",
+    "empty": "No slides yet.",
+    "deleteTitle": "Delete this slide?"
+  },
+  "announcements": {
+    "title": "Announcements",
+    "description": "Banner images in the homepage announcements strip.",
+    "add": "Add an announcement",
+    "empty": "No announcements yet.",
+    "deleteTitle": "Delete this announcement?"
+  },
+  "about": {
+    "title": "About page",
+    "description": "The text, pictures and numbers on the About page.",
+    "add": "Add the About content",
+    "empty": "The About page has no content yet.",
+    "deleteTitle": "Delete the About content?"
+  },
+  "benefits": {
+    "title": "Benefits",
+    "description": "The benefits listed on the Benefits page.",
+    "add": "Add a benefit",
+    "empty": "No benefits yet.",
+    "deleteTitle": "Delete this benefit?"
+  },
+  "howTo": {
+    "title": "How-to steps",
+    "description": "The steps shown on the How to buy page.",
+    "add": "Add a step",
+    "empty": "No steps yet.",
+    "deleteTitle": "Delete this step?"
+  },
+  "faq": {
+    "title": "FAQ",
+    "description": "Questions and answers grouped into sections.",
+    "add": "Add a question",
+    "empty": "No questions yet.",
+    "deleteTitle": "Delete this question?"
+  },
+  "faqSections": {
+    "title": "FAQ sections",
+    "add": "Add a section",
+    "empty": "No sections yet.",
+    "deleteTitle": "Delete this section?",
+    "deleteBody": "Only empty sections can be deleted."
+  },
+  "contactInfo": {
+    "title": "Contact details",
+    "description": "Phone, email, address and social links shown on the Contact page, per country.",
+    "add": "Add contact details",
+    "empty": "No contact details yet.",
+    "deleteTitle": "Delete these contact details?"
+  },
+  "settings": {
+    "title": "Pages & settings",
+    "description": "Long-form pages such as the terms and the privacy policy.",
+    "add": "Add a page",
+    "empty": "No pages yet.",
+    "deleteTitle": "Delete this page?"
+  },
+  "messages": {
+    "title": "Messages",
+    "description": "Messages sent from the Contact page.",
+    "unread": "Unread only",
+    "all": "All",
+    "empty": "No messages.",
+    "markRead": "Mark as read",
+    "from": "From",
+    "received": "Received",
+    "deleteTitle": "Delete this message?",
+    "deleted": "Message deleted.",
+    "read": "Marked as read."
+  },
+  "translations": {
+    "title": "Translations",
+    "description": "Change any interface text. Overrides apply to the whole site within a minute; “Reset” returns to the shipped text.",
+    "locale": "Language",
+    "search": "Search key or text",
+    "area": "Area",
+    "allAreas": "All areas",
+    "key": "Text key",
+    "default": "Shipped text",
+    "override": "Your text",
+    "save": "Save",
+    "reset": "Reset",
+    "overridden": "Changed",
+    "saved": "Text saved.",
+    "resetDone": "Text reset.",
+    "placeholders": "Keep any word in curly braces, such as '{'name'}', exactly as it is, or the text will show an error.",
+    "empty": "No texts match.",
+    "count": "{count} texts"
+  }
+}

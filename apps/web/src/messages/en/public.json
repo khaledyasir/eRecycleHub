@@ -1,0 +1,110 @@
+{
+  "home": {
+    "metaTitle": "Online auctions for scrap and recyclable materials",
+    "heroTitle": "Sell surplus materials to recyclers. Buy scrap by open bid.",
+    "heroBody": "Factories, warehouses and contractors list lots of metal, plastic, paper, e-waste and used equipment. Licensed dealers and recyclers bid in the open until the clock runs out.",
+    "browse": "Browse live auctions",
+    "sell": "Sell with eRecycleHub",
+    "closingNext": "Closing next",
+    "closingEmpty": "No lots are live right now. Upcoming lots are listed below.",
+    "liveNow": "{count, plural, =0 {No live lots} one {# lot live now} other {# lots live now}}",
+    "stats": "{live, plural, one {# live lot} other {# live lots}}, {stores, plural, one {# store} other {# stores}} and {bids, plural, one {# bid placed} other {# bids placed}}",
+    "live": "Live auctions",
+    "upcoming": "Starting soon",
+    "ended": "Recently closed",
+    "categories": "Browse by material",
+    "stores": "Stores with active lots",
+    "steps": "How bidding works",
+    "stepsBody": "Every rule is checked by the server at the moment your bid arrives.",
+    "rules": {
+      "minimum": "Each bid must be at least the current price plus the lot's increment.",
+      "insurance": "Some lots require an insurance balance in your wallet. It's a check, not a charge.",
+      "clock": "The highest bid when the clock reaches zero wins."
+    },
+    "announcements": "Announcements",
+    "seeAll": "See all",
+    "sellerTitle": "Have material to sell?",
+    "sellerBody": "Apply for a seller account. Once approved, you can list lots, set the starting price and increment, and follow every bid from your portal.",
+    "sellerCta": "Apply to sell"
+  },
+  "stores": {
+    "title": "Stores",
+    "description": "Companies selling recyclable materials and surplus equipment on eRecycleHub.",
+    "search": "Search stores",
+    "lots": "{count, plural, =0 {No lots} one {# lot} other {# lots}}",
+    "live": "{count, plural, =0 {Nothing live} one {# live} other {# live}}",
+    "emptyTitle": "No stores found",
+    "emptyBody": "Try a different name, or choose all countries.",
+    "view": "View store",
+    "rating": "{rating} / 5 ({count, plural, one {# review} other {# reviews}})",
+    "noRating": "No reviews yet",
+    "contact": "Contact",
+    "lotsTitle": "Lots from this store",
+    "lotsEmpty": "This store has no lots matching these filters."
+  },
+  "clients": {
+    "title": "Some of our clients",
+    "description": "Companies that buy through eRecycleHub.",
+    "empty": "Client logos will appear here."
+  },
+  "about": {
+    "title": "About eRecycleHub",
+    "bidders": "{count}k registered bidders",
+    "empty": "This page hasn't been written yet."
+  },
+  "benefits": {
+    "title": "Membership benefits",
+    "description": "What you get with an eRecycleHub account.",
+    "empty": "No benefits are listed yet."
+  },
+  "howTo": {
+    "buyTitle": "How to buy",
+    "buyDescription": "From creating an account to winning your first lot.",
+    "sellTitle": "How to sell",
+    "sellDescription": "Steps for companies that want to list materials.",
+    "step": "Step {n}",
+    "video": "Watch the guidelines video",
+    "empty": "The guide hasn't been written yet.",
+    "applyCta": "Apply to sell",
+    "browseCta": "Browse auctions"
+  },
+  "faq": {
+    "title": "Frequently asked questions",
+    "description": "Answers about accounts, wallets, bidding and selling.",
+    "empty": "No questions have been published yet.",
+    "search": "Search questions",
+    "noMatch": "No questions match “{q}”.",
+    "stillNeed": "Didn't find your answer?",
+    "contact": "Contact us"
+  },
+  "support": {
+    "title": "Support center",
+    "description": "Find an answer or reach the team.",
+    "topics": "Popular questions",
+    "reach": "Talk to us",
+    "reachBody": "Send a message and the team replies by email, usually within one working day."
+  },
+  "contact": {
+    "title": "Contact us",
+    "description": "Questions about an auction, your account or selling? Send a message.",
+    "name": "Your name",
+    "email": "Email",
+    "mobile": "Mobile",
+    "message": "Message",
+    "send": "Send message",
+    "sent": "Message sent. We'll reply by email.",
+    "details": "Contact details",
+    "map": "Map"
+  },
+  "advertise": {
+    "title": "Advertise on eRecycleHub",
+    "body": "Reach companies that buy and sell recyclable materials. Contact the team to place an announcement on the homepage.",
+    "call": "Call",
+    "write": "Email"
+  },
+  "legal": {
+    "termsTitle": "Terms and conditions",
+    "privacyTitle": "Privacy policy",
+    "empty": "This page hasn't been published yet."
+  }
+}
