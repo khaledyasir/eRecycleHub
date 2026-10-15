@@ -11,9 +11,12 @@ public sealed record StepDto(int Id, string TitleEn, string TitleAr, string? Des
 public sealed record StoreCard(int Id, string Name, Guid? LogoFileId, Guid? BackgroundFileId, string? Address, string? Phone, string? SecondMobile, int AuctionCount, int LiveCount);
 public sealed record StoreDetails(StoreCard Store, string? Email, string? CountryNameEn, string? CountryNameAr, double RatingAverage, int RatingCount);
 public sealed record HomeStats(int LiveAuctions, int Stores, int TotalBids);
+public sealed record HeroDto(int Id, string? BadgeEn, string? BadgeAr, string? TitleEn, string? TitleAr, string? LeadEn, string? LeadAr,
+    string? PrimaryCtaEn, string? PrimaryCtaAr, string? PrimaryCtaUrl, string? SecondaryCtaEn, string? SecondaryCtaAr, string? SecondaryCtaUrl,
+    string? CardTitleEn, string? CardTitleAr, Guid? ImageFileId, string? ImageAltEn, string? ImageAltAr, bool ShowSearch, bool IsActive);
 public sealed record HomeDto(IReadOnlyList<SliderDto> Sliders, IReadOnlyList<AnnouncementDto> Announcements, IReadOnlyList<CategoryFacet> Categories,
     IReadOnlyList<AuctionCard> Live, IReadOnlyList<AuctionCard> Upcoming, IReadOnlyList<AuctionCard> Ended, IReadOnlyList<AuctionCard> Highest,
-    IReadOnlyList<StoreCard> Stores, IReadOnlyList<StepDto> Steps, HomeStats Stats);
+    IReadOnlyList<StoreCard> Stores, IReadOnlyList<StepDto> Steps, HomeStats Stats, HeroDto? Hero);
 public sealed record ClientDto(int Id, string? CompanyName, Guid? AvatarFileId);
 public sealed record AboutDto(int Id, string? TitleEn, string? TitleAr, string? DescEn, string? DescAr, Guid? FirstImageFileId, Guid? SecondImageFileId, int? TotalBidders, string? GuidelinesVideoUrl);
 public sealed record BenefitDto(int Id, string TitleEn, string TitleAr, string? DescEn, string? DescAr, Guid? IconFileId);
@@ -83,8 +86,16 @@ public sealed class PublicContent(AppDbContext db, AuctionQueries auctions, Pass
             await VisibleStores(countryId).CountAsync(ct),
             await db.Bids.CountAsync(b => q.Any(a => a.Id == b.AuctionId), ct));
 
-        return new HomeDto(sliders, announcements, facets.Categories.Take(8).ToList(), live, upcoming, ended, highest, stores, steps, stats);
+        var hero = await HeroQuery(db.HomeHeroes.AsNoTracking().Where(h => h.IsActive)).FirstOrDefaultAsync(ct);
+
+        return new HomeDto(sliders, announcements, facets.Categories.Take(8).ToList(), live, upcoming, ended, highest, stores, steps, stats, hero);
     }
+
+    /// <summary>Shared by the homepage and the admin editor.</summary>
+    internal static IQueryable<HeroDto> HeroQuery(IQueryable<HomeHero> q) =>
+        q.OrderBy(h => h.Id).Select(h => new HeroDto(h.Id, h.BadgeEn, h.BadgeAr, h.TitleEn, h.TitleAr, h.LeadEn, h.LeadAr,
+            h.PrimaryCtaEn, h.PrimaryCtaAr, h.PrimaryCtaUrl, h.SecondaryCtaEn, h.SecondaryCtaAr, h.SecondaryCtaUrl,
+            h.CardTitleEn, h.CardTitleAr, h.ImageFileId, h.ImageAltEn, h.ImageAltAr, h.ShowSearch, h.IsActive));
 
     public async Task<PagedResult<StoreCard>> StoresAsync(int? countryId, string? q, PageQuery page, CancellationToken ct = default)
     {

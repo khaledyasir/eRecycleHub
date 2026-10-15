@@ -27,6 +27,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<ContactMessage> ContactMessages => Set<ContactMessage>();
     public DbSet<ContactInfo> ContactInfos => Set<ContactInfo>();
     public DbSet<AboutSection> AboutSections => Set<AboutSection>();
+    public DbSet<HomeHero> HomeHeroes => Set<HomeHero>();
     public DbSet<Benefit> Benefits => Set<Benefit>();
     public DbSet<HowToStep> HowToSteps => Set<HowToStep>();
     public DbSet<FaqCategory> FaqCategories => Set<FaqCategory>();
@@ -231,6 +232,21 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(x => x.DescAr).HasColumnType("nvarchar(max)");
             FileFk(e, x => x.FirstImageFileId);
             FileFk(e, x => x.SecondImageFileId);
+        });
+        m.Entity<HomeHero>(e =>
+        {
+            foreach (var p in new[] { nameof(HomeHero.BadgeEn), nameof(HomeHero.BadgeAr), nameof(HomeHero.PrimaryCtaEn), nameof(HomeHero.PrimaryCtaAr),
+                         nameof(HomeHero.SecondaryCtaEn), nameof(HomeHero.SecondaryCtaAr), nameof(HomeHero.CardTitleEn), nameof(HomeHero.CardTitleAr) })
+                e.Property(p).HasMaxLength(120);
+            e.Property(x => x.TitleEn).HasMaxLength(300);
+            e.Property(x => x.TitleAr).HasMaxLength(300);
+            e.Property(x => x.LeadEn).HasMaxLength(1000);
+            e.Property(x => x.LeadAr).HasMaxLength(1000);
+            e.Property(x => x.PrimaryCtaUrl).HasMaxLength(2000);
+            e.Property(x => x.SecondaryCtaUrl).HasMaxLength(2000);
+            e.Property(x => x.ImageAltEn).HasMaxLength(300);
+            e.Property(x => x.ImageAltAr).HasMaxLength(300);
+            FileFk(e, x => x.ImageFileId);
         });
         m.Entity<Benefit>(e =>
         {

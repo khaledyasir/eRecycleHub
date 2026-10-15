@@ -1,11 +1,13 @@
-import { ArrowLeft, Gavel, Search, ShieldCheck, Timer, TrendingUp, Users } from "lucide-react";
+import { ArrowLeft, CirclePlay, Gavel, Leaf, Search, ShieldCheck, Timer, TrendingUp, Users } from "lucide-react";
 import type { Metadata } from "next";
+import type { ReactNode } from "react";
 import { getLocale, getTranslations } from "next-intl/server";
 import { AuctionGrid } from "@/components/auction/auction-card";
 import { RichHtml } from "@/components/rich-html";
 import { Link } from "@/i18n/navigation";
 import { getCountryId, load, serverApi } from "@/lib/api/server";
 import { fileUrl, nowMs, pick } from "@/lib/format";
+import { parseHeroTitle, type HeroTone } from "@/lib/hero-title";
 import { alternates } from "@/lib/seo";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -37,11 +39,27 @@ function SectionHead({ kicker, title, href, more }: { kicker?: string; title: st
   );
 }
 
+const heroTones: Record<HeroTone, string | undefined> = { plain: undefined, green: "text-patina", purple: "text-purple" };
+
+/** Hero button: site paths go through the locale-aware Link, full URLs (set by an admin) are plain links. */
+function HeroLink({ href, className, children }: { href: string; className: string; children: ReactNode }) {
+  return href.startsWith("/") ? (
+    <Link href={href} className={className}>{children}</Link>
+  ) : (
+    <a href={href} rel="noopener noreferrer" className={className}>{children}</a>
+  );
+}
+
 export default async function HomePage() {
   const [t, tc, locale, client, countryId] = await Promise.all([getTranslations("public.home"), getTranslations("common"), getLocale(), serverApi(), getCountryId()]);
   const home = await load(client.GET("/api/home", { params: { query: { countryId } } }));
   const serverNow = nowMs();
-  const heroImage = home.live.find((a) => a.mainImageFileId)?.mainImageFileId;
+  // Homepage hero edited in the admin panel; each empty field keeps the built-in text in the page's language (never the other
+  // language's custom text), no record keeps the built-in hero.
+  const hero = home.hero;
+  const custom = (en?: string | null, ar?: string | null) => (locale === "ar" ? ar : en) || undefined;
+  const heroTitle = custom(hero?.titleEn, hero?.titleAr);
+  const heroImage = hero?.imageFileId ?? home.live.find((a) => a.mainImageFileId)?.mainImageFileId;
   const stats = [
     { icon: Gavel, tile: "bg-patina-50 text-patina", value: home.stats.liveAuctions, label: t("statLive") },
     { icon: Timer, tile: "bg-orange/10 text-orange", value: home.stats.stores, label: t("statStores") },
@@ -56,32 +74,47 @@ export default async function HomePage() {
         <span className="pointer-events-none absolute start-1/3 top-8 h-16 w-16 rounded-full bg-purple opacity-[.18]" aria-hidden />
         <div className="container-page relative grid items-center gap-12 py-14 lg:grid-cols-2 lg:py-24">
           <div className="relative z-10">
-            <span className="inline-flex items-center gap-2 rounded-full border border-patina-100 bg-surface px-4 py-2 text-xs font-extrabold text-patina shadow-sm sm:text-sm">
-              <Gavel className="h-4 w-4" aria-hidden />
-              {t("badge")}
+            <span className="inline-flex items-center gap-2 rounded-full border border-patina-100 bg-surface/90 px-4 py-2 text-xs font-extrabold text-patina shadow-sm shadow-patina/5 sm:px-5 sm:text-sm">
+              <Leaf className="h-4 w-4 shrink-0" aria-hidden />
+              {custom(hero?.badgeEn, hero?.badgeAr) ?? t("badge")}
             </span>
-            <h1 className="mt-7 max-w-[20ch] text-[length:var(--text-display)] font-black leading-[var(--text-display--line-height)]">{t("heroTitle")}</h1>
-            <p className="mt-6 max-w-xl text-base leading-9 text-ink-2 sm:text-lg">{t("heroBody")}</p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Link href="/auctions?status=live" className="inline-flex items-center gap-2 rounded-xl bg-patina px-7 py-4 font-extrabold text-white shadow-lg shadow-patina/15 transition hover:-translate-y-1 motion-reduce:transform-none">
+            <h1 className="mt-6 text-[length:var(--text-display)] font-black leading-[var(--text-display--line-height)] text-ink sm:mt-8">
+              {heroTitle
+                ? parseHeroTitle(heroTitle).map((line, i) => (
+                    <span key={i} className={i > 0 ? "block" : undefined}>
+                      {line.map((s, j) => <span key={j} className={heroTones[s.tone]}>{s.text}</span>)}
+                    </span>
+                  ))
+                : t.rich("heroTitle", {
+                    hl: (chunks) => <span className="text-patina">{chunks}</span>,
+                    dot: (chunks) => <span className="text-orange">{chunks}</span>,
+                    line: (chunks) => <span className="block">{chunks}</span>,
+                    accent: (chunks) => <span className="text-purple">{chunks}</span>,
+                  })}
+            </h1>
+            <p className="mt-5 max-w-xl whitespace-pre-line text-base leading-8 text-ink-2 sm:mt-6 sm:text-lg sm:leading-9">{custom(hero?.leadEn, hero?.leadAr) ?? t("heroLead")}</p>
+            <div className="mt-8 flex flex-col gap-3 sm:mt-9 sm:flex-row sm:flex-wrap sm:gap-4">
+              <HeroLink href={hero?.primaryCtaUrl || "/auctions?status=live"} className="inline-flex items-center justify-center gap-2.5 rounded-2xl bg-patina px-8 py-4 font-extrabold text-white shadow-lg shadow-patina/25 transition hover:-translate-y-0.5 hover:bg-patina-700 motion-reduce:transform-none">
                 <Gavel className="h-5 w-5" aria-hidden />
-                {t("browse")}
-              </Link>
-              <Link href="/apply" className="inline-flex items-center gap-2 rounded-xl border border-line-strong bg-surface px-7 py-4 font-extrabold transition hover:border-patina">
-                <TrendingUp className="h-5 w-5 text-purple" aria-hidden />
-                {t("sell")}
-              </Link>
+                {custom(hero?.primaryCtaEn, hero?.primaryCtaAr) ?? t("heroBrowse")}
+              </HeroLink>
+              <HeroLink href={hero?.secondaryCtaUrl || "/how-to-buy"} className="inline-flex items-center justify-center gap-2.5 rounded-2xl border border-line-strong/70 bg-surface px-8 py-4 font-extrabold text-ink transition hover:-translate-y-0.5 hover:border-purple/40 motion-reduce:transform-none">
+                <CirclePlay className="h-5 w-5 text-purple" aria-hidden />
+                {custom(hero?.secondaryCtaEn, hero?.secondaryCtaAr) ?? t("heroHow")}
+              </HeroLink>
             </div>
-            <form action="/auctions" role="search" className="mt-9 flex max-w-xl gap-2 rounded-xl border border-line bg-surface p-2 shadow-xl shadow-slate-200/70">
-              <label className="flex flex-1 items-center gap-2 px-3">
-                <Search className="h-5 w-5 text-muted" aria-hidden />
-                <span className="sr-only">{tc("search")}</span>
-                <input name="q" type="search" placeholder={tc("searchPlaceholder")} className="w-full bg-transparent py-3 text-sm outline-none" />
-              </label>
-              <button type="submit" className="rounded-md bg-purple px-6 font-bold text-white hover:brightness-110">
-                {t("searchBtn")}
-              </button>
-            </form>
+            {(hero?.showSearch ?? true) && (
+              <form action="/auctions" role="search" className="mt-9 flex max-w-xl items-center gap-2 rounded-2xl border border-line bg-surface p-2 shadow-xl shadow-slate-200/60 sm:mt-10">
+                <label className="flex min-w-0 flex-1 items-center gap-2.5 px-3">
+                  <Search className="h-5 w-5 shrink-0 text-muted" aria-hidden />
+                  <span className="sr-only">{tc("search")}</span>
+                  <input name="q" type="search" placeholder={t("searchPlaceholder")} className="w-full min-w-0 bg-transparent py-3 text-sm outline-none placeholder:text-muted" />
+                </label>
+                <button type="submit" className="shrink-0 rounded-xl bg-purple px-6 py-3 font-extrabold text-white transition hover:brightness-110 sm:px-8">
+                  {t("searchBtn")}
+                </button>
+              </form>
+            )}
           </div>
 
           <div className="relative">
@@ -89,7 +122,7 @@ export default async function HomePage() {
             <div className="relative rounded-[2rem] border border-white bg-surface p-3 shadow-2xl shadow-slate-300/40 ltr:-rotate-1 rtl:rotate-1">
               {heroImage ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={fileUrl(heroImage)} alt="" className="h-[340px] w-full rounded-[1.5rem] object-cover sm:h-[440px]" />
+                <img src={fileUrl(heroImage)} alt={(hero?.imageFileId && custom(hero.imageAltEn, hero.imageAltAr)) || ""} className="h-[340px] w-full rounded-[1.5rem] object-cover sm:h-[440px]" />
               ) : (
                 <div className="grid h-[340px] w-full place-items-center rounded-[1.5rem] bg-patina-50 text-patina sm:h-[440px]" aria-hidden>
                   <Gavel className="h-24 w-24" />
@@ -98,7 +131,7 @@ export default async function HomePage() {
               <div className="absolute inset-x-7 bottom-8 flex items-center justify-between gap-2 rounded-xl bg-surface/95 p-4 shadow-lg backdrop-blur">
                 <div>
                   <div className="text-xs text-muted">{t("liveNow", { count: home.stats.liveAuctions })}</div>
-                  <div className="text-xl font-black text-patina">{t("heroCardTitle")}</div>
+                  <div className="text-xl font-black text-patina">{custom(hero?.cardTitleEn, hero?.cardTitleAr) ?? t("heroCardTitle")}</div>
                 </div>
                 <span className="grid h-12 w-12 place-items-center rounded-full bg-lime/20 text-patina">
                   <TrendingUp aria-hidden />

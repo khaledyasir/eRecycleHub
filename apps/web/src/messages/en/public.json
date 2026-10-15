@@ -1,10 +1,12 @@
 {
   "home": {
     "metaTitle": "Online auctions for scrap and recyclable materials",
-    "heroTitle": "Sell surplus materials to recyclers. Buy scrap by open bid.",
+    "heroTitle": "Your chance starts <hl>here</hl><dot>.</dot> <line>Bid, win, <accent>and recycle</accent></line>",
     "heroBody": "Factories, warehouses and contractors list lots of metal, plastic, paper, e-waste and used equipment. Licensed dealers and recyclers bid in the open until the clock runs out.",
+    "heroLead": "Discover the best auctions for recyclable materials, and bid with ease, transparency and confidence.",
     "browse": "Browse live auctions",
-    "sell": "Sell with eRecycleHub",
+    "heroBrowse": "Browse auctions",
+    "heroHow": "How does the platform work?",
     "closingNext": "Closing next",
     "closingEmpty": "No lots are live right now. Upcoming lots are listed below.",
     "liveNow": "{count, plural, =0 {No live lots} one {# lot live now} other {# lots live now}}",
@@ -35,7 +37,8 @@
     "stepsKicker": "Simple steps",
     "liveKicker": "Chances worth competing for",
     "heroCardTitle": "New lots every day",
-    "heroCardHint": "Live now"
+    "heroCardHint": "Live now",
+    "searchPlaceholder": "Search for an auction, material or reference number..."
   },
   "stores": {
     "title": "Stores",

@@ -13,6 +13,9 @@ public sealed record AnnouncementInput(int CountryId, int SortOrder, bool IsActi
 public sealed record AdminSlider(int Id, string? Title, string? Link, string Type, Guid? ImageFileId, int SortOrder, bool IsActive);
 public sealed record SliderInput(string? Title, string? Link, string? Type, int SortOrder, bool IsActive);
 public sealed record AboutInput(string? TitleEn, string? TitleAr, string? DescEn, string? DescAr, int? TotalBidders, string? GuidelinesVideoUrl);
+public sealed record HeroInput(string? BadgeEn, string? BadgeAr, string? TitleEn, string? TitleAr, string? LeadEn, string? LeadAr,
+    string? PrimaryCtaEn, string? PrimaryCtaAr, string? PrimaryCtaUrl, string? SecondaryCtaEn, string? SecondaryCtaAr, string? SecondaryCtaUrl,
+    string? CardTitleEn, string? CardTitleAr, string? ImageAltEn, string? ImageAltAr, bool ShowSearch, bool IsActive);
 public sealed record AdminBenefit(int Id, string TitleEn, string TitleAr, string? DescEn, string? DescAr, Guid? IconFileId, int SortOrder, bool IsActive);
 public sealed record BenefitInput(string? TitleEn, string? TitleAr, string? DescEn, string? DescAr, int SortOrder, bool IsActive);
 public sealed record AdminStep(int Id, string TitleEn, string TitleAr, string? DescEn, string? DescAr, int SortOrder, bool IsActive);
@@ -180,6 +183,44 @@ public sealed class CmsService(AppDbContext db, FileService files, TimeProvider 
     {
         db.AboutSections.Remove(await FindAsync(db.AboutSections, id, ct));
         await SaveAsync(admin, "about.delete", nameof(AboutSection), () => id, ct);
+    }
+
+    // ---------- homepage hero ----------
+    public Task<List<HeroDto>> HeroesAsync(CancellationToken ct = default) =>
+        PublicContent.HeroQuery(db.HomeHeroes.AsNoTracking()).ToListAsync(ct);
+
+    /// <summary>Plain text (rendered as text, never as HTML); the {…}/[…] highlight markup is interpreted by the web app.</summary>
+    private static string? Short(string? value, int max)
+    {
+        var v = Normalize.Text(value);
+        return v is not null && v.Length > max ? throw new AppException("cms.too_long", 400, new { limit = max }) : v;
+    }
+
+    public async Task<int> SaveHeroAsync(Actor admin, int? id, HeroInput i, UploadInput? image, CancellationToken ct = default)
+    {
+        // One record only, otherwise the homepage would have to choose between them.
+        if (id is null && await db.HomeHeroes.AnyAsync(ct)) throw AppException.Conflict("cms.hero_exists");
+        var h = id is null ? db.HomeHeroes.Add(new HomeHero()).Entity : await FindAsync(db.HomeHeroes, id.Value, ct);
+        h.BadgeEn = Short(i.BadgeEn, 120); h.BadgeAr = Short(i.BadgeAr, 120);
+        h.TitleEn = Short(i.TitleEn, 300); h.TitleAr = Short(i.TitleAr, 300);
+        h.LeadEn = Short(i.LeadEn, 1000); h.LeadAr = Short(i.LeadAr, 1000);
+        h.PrimaryCtaEn = Short(i.PrimaryCtaEn, 120); h.PrimaryCtaAr = Short(i.PrimaryCtaAr, 120);
+        h.PrimaryCtaUrl = Url(Short(i.PrimaryCtaUrl, 2000), "cms.invalid_link");
+        h.SecondaryCtaEn = Short(i.SecondaryCtaEn, 120); h.SecondaryCtaAr = Short(i.SecondaryCtaAr, 120);
+        h.SecondaryCtaUrl = Url(Short(i.SecondaryCtaUrl, 2000), "cms.invalid_link");
+        h.CardTitleEn = Short(i.CardTitleEn, 120); h.CardTitleAr = Short(i.CardTitleAr, 120);
+        h.ImageAltEn = Short(i.ImageAltEn, 300); h.ImageAltAr = Short(i.ImageAltAr, 300);
+        h.ShowSearch = i.ShowSearch; h.IsActive = i.IsActive;
+        h.ImageFileId = await files.SaveOptionalAsync(image, FileCategory.Cms, admin.UserId, h.ImageFileId, ct);
+        h.UpdatedAtUtc = clock.GetUtcNow().UtcDateTime;
+        await SaveAsync(admin, id is null ? "hero.create" : "hero.update", nameof(HomeHero), () => h.Id, ct);
+        return h.Id;
+    }
+
+    public async Task DeleteHeroAsync(Actor admin, int id, CancellationToken ct = default)
+    {
+        db.HomeHeroes.Remove(await FindAsync(db.HomeHeroes, id, ct));
+        await SaveAsync(admin, "hero.delete", nameof(HomeHero), () => id, ct);
     }
 
     // ---------- benefits ----------

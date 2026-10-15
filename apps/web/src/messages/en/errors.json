@@ -90,7 +90,7 @@
   "category": { "invalid": "Choose a category from the auction's country.", "title_required": "Enter a title.", "in_use": "This category is still used by auctions or applications." },
   "publisher": { "invalid": "Choose a publisher.", "in_use": "This publisher has auctions or wallet history. Deactivate it instead." },
   "user": { "cannot_deactivate_self": "You can't deactivate your own account." },
-  "cms": { "image_required": "Add an image.", "invalid_link": "Enter a full link starting with https:// or a path starting with /.", "title_required": "Enter a title.", "invalid_number": "Enter zero or a positive number." },
+  "cms": { "image_required": "Add an image.", "invalid_link": "Enter a full link starting with https:// or a path starting with /.", "title_required": "Enter a title.", "invalid_number": "Enter zero or a positive number.", "too_long": "Keep this under {limit} characters.", "hero_exists": "The homepage hero already exists. Edit it instead." },
   "faq": { "question_required": "Enter the question." },
   "faqcategory": { "invalid": "Choose a category.", "not_empty": "Move or delete the questions in this category first." },
   "setting": { "invalid_key": "Use lowercase letters, digits and hyphens for the key.", "key_taken": "A setting with this key exists.", "required": "This page is required and can't be deleted." },

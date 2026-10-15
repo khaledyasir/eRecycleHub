@@ -2,7 +2,7 @@
 
 import {
   BarChart3, Bell, BookOpen, Building2, CalendarDays, CircleHelp, ClipboardList, Eye, FileText, Flag, Gavel, Globe2, Heart, Image as ImageIcon,
-  KeyRound, Languages, LayoutDashboard, ListChecks, Mail, Megaphone, MessageSquare, Phone, ScrollText, Settings, Shapes, ShieldCheck, Sparkles,
+  KeyRound, Languages, LayoutDashboard, ListChecks, Mail, Megaphone, MessageSquare, PanelTop, Phone, ScrollText, Settings, Shapes, ShieldCheck, Sparkles,
   Star, Store, Trophy, UserRound, Users, Wallet,
 } from "lucide-react";
 import { Link, usePathname } from "@/i18n/navigation";
@@ -11,7 +11,7 @@ import { cn } from "@/lib/format";
 /** Icons available to portal navigation (names are passed from server components). */
 export const portalIcons = {
   BarChart3, Bell, BookOpen, Building2, CalendarDays, CircleHelp, ClipboardList, Eye, FileText, Flag, Gavel, Globe2, Heart, ImageIcon, KeyRound,
-  Languages, LayoutDashboard, ListChecks, Mail, Megaphone, MessageSquare, Phone, ScrollText, Settings, Shapes, ShieldCheck, Sparkles, Star, Store,
+  Languages, LayoutDashboard, ListChecks, Mail, Megaphone, MessageSquare, PanelTop, Phone, ScrollText, Settings, Shapes, ShieldCheck, Sparkles, Star, Store,
   Trophy, UserRound, Users, Wallet,
 };
 export type PortalIcon = keyof typeof portalIcons;

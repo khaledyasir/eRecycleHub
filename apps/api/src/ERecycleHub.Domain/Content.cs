@@ -15,6 +15,35 @@ public class AboutSection
     public string? GuidelinesVideoUrl { get; set; }
 }
 
+/// <summary>The homepage "soft hero" (one record). Empty fields fall back to the texts shipped with the web app; no record = the built-in hero.
+/// Titles use a small markup: {text} highlights in green, [text] in purple, a line break starts a new line.</summary>
+public class HomeHero
+{
+    public int Id { get; set; }
+    public string? BadgeEn { get; set; }
+    public string? BadgeAr { get; set; }
+    public string? TitleEn { get; set; }
+    public string? TitleAr { get; set; }
+    public string? LeadEn { get; set; }
+    public string? LeadAr { get; set; }
+    public string? PrimaryCtaEn { get; set; }
+    public string? PrimaryCtaAr { get; set; }
+    public string? PrimaryCtaUrl { get; set; }
+    public string? SecondaryCtaEn { get; set; }
+    public string? SecondaryCtaAr { get; set; }
+    public string? SecondaryCtaUrl { get; set; }
+    public string? CardTitleEn { get; set; }
+    public string? CardTitleAr { get; set; }
+    /// <summary>Null = the picture of the first live auction (the built-in behaviour).</summary>
+    public Guid? ImageFileId { get; set; }
+    public string? ImageAltEn { get; set; }
+    public string? ImageAltAr { get; set; }
+    public bool ShowSearch { get; set; } = true;
+    /// <summary>When false the homepage shows the built-in hero, so a draft can be prepared without publishing it.</summary>
+    public bool IsActive { get; set; } = true;
+    public DateTime UpdatedAtUtc { get; set; }
+}
+
 public class Benefit
 {
     public int Id { get; set; }

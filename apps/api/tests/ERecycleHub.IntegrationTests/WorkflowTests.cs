@@ -191,6 +191,38 @@ public class AdminWorkflowTests(ApiFactory f)
     }
 
     [Fact]
+    public async Task Homepage_hero_is_a_single_record_served_on_home_only_while_active()
+    {
+        var admin = await f.SignedInAsync(DevSeed.AdminEmail, DevSeed.AdminPassword);
+        await f.DbAsync(db => db.HomeHeroes.ExecuteDeleteAsync());
+        Assert.Equal(JsonValueKind.Null, (await f.Client().GetJsonAsync<JsonElement>("/api/home")).GetProperty("hero").ValueKind);
+
+        var input = new { titleEn = "Sell {scrap}\n[fast]", titleAr = "بع {الخردة}", leadEn = "Lead", primaryCtaUrl = "/auctions", secondaryCtaUrl = "https://example.com/x", showSearch = false, isActive = true };
+        var r = await admin.MultipartAsync(HttpMethod.Post, "/api/admin/hero", input, ("image", "hero.png", TestFiles.Png));
+        Assert.Equal(HttpStatusCode.OK, r.StatusCode);
+        var id = (await r.Content.ReadFromJsonAsync<JsonElement>(ApiClient.Json)).GetProperty("id").GetInt32();
+        Assert.Equal("cms.hero_exists", await ApiClient.CodeAsync(await admin.MultipartAsync(HttpMethod.Post, "/api/admin/hero", input)));
+        Assert.Equal("cms.invalid_link", await ApiClient.CodeAsync(await admin.MultipartAsync(HttpMethod.Put, $"/api/admin/hero/{id}", input with { primaryCtaUrl = "javascript:alert(1)" })));
+        Assert.Equal("cms.too_long", await ApiClient.CodeAsync(await admin.MultipartAsync(HttpMethod.Put, $"/api/admin/hero/{id}", input with { titleEn = new string('x', 301) })));
+
+        var hero = (await f.Client().GetJsonAsync<JsonElement>("/api/home")).GetProperty("hero");
+        Assert.Equal("Sell {scrap}\n[fast]", hero.GetProperty("titleEn").GetString());
+        Assert.False(hero.GetProperty("showSearch").GetBoolean());
+        var imageId = hero.GetProperty("imageFileId").GetString();
+        Assert.Equal(HttpStatusCode.OK, (await f.Client().GetAsync($"/api/files/{imageId}")).StatusCode);
+
+        // Saving without a new picture keeps the current one; deactivating hides it from the homepage but keeps it for the admin.
+        Assert.Equal(HttpStatusCode.OK, (await admin.MultipartAsync(HttpMethod.Put, $"/api/admin/hero/{id}", input with { isActive = false })).StatusCode);
+        Assert.Equal(JsonValueKind.Null, (await f.Client().GetJsonAsync<JsonElement>("/api/home")).GetProperty("hero").ValueKind);
+        var rows = await admin.GetJsonAsync<JsonElement[]>("/api/admin/hero");
+        Assert.Equal(imageId, Assert.Single(rows).GetProperty("imageFileId").GetString());
+
+        Assert.Equal(HttpStatusCode.Forbidden, (await (await f.SignedInAsync(DevSeed.CustomerEmail, DevSeed.CustomerPassword)).GetAsync("/api/admin/hero")).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await admin.DeleteAsync($"/api/admin/hero/{id}")).StatusCode);
+        Assert.True(await f.DbAsync(db => db.AuditLogs.AnyAsync(a => a.Action == "hero.delete")));
+    }
+
+    [Fact]
     public async Task Report_csv_neutralises_formula_injection()
     {
         var auction = await f.NewAuctionAsync(startHours: -3, endHours: -1);

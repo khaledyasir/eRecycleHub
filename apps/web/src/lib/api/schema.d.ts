@@ -4352,6 +4352,124 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/hero": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["HeroDto"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "multipart/form-data": components["schemas"]["HeroInput"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["IdResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/hero/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "multipart/form-data": components["schemas"]["HeroInput"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["IdResponse"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/about": {
         parameters: {
             query?: never;
@@ -6085,6 +6203,50 @@ export interface components {
         ForgotPasswordRequest: {
             email: string;
         };
+        HeroDto: {
+            /** Format: int32 */
+            id: number;
+            badgeEn: null | string;
+            badgeAr: null | string;
+            titleEn: null | string;
+            titleAr: null | string;
+            leadEn: null | string;
+            leadAr: null | string;
+            primaryCtaEn: null | string;
+            primaryCtaAr: null | string;
+            primaryCtaUrl: null | string;
+            secondaryCtaEn: null | string;
+            secondaryCtaAr: null | string;
+            secondaryCtaUrl: null | string;
+            cardTitleEn: null | string;
+            cardTitleAr: null | string;
+            /** Format: uuid */
+            imageFileId: null | string;
+            imageAltEn: null | string;
+            imageAltAr: null | string;
+            showSearch: boolean;
+            isActive: boolean;
+        };
+        HeroInput: {
+            badgeEn: null | string;
+            badgeAr: null | string;
+            titleEn: null | string;
+            titleAr: null | string;
+            leadEn: null | string;
+            leadAr: null | string;
+            primaryCtaEn: null | string;
+            primaryCtaAr: null | string;
+            primaryCtaUrl: null | string;
+            secondaryCtaEn: null | string;
+            secondaryCtaAr: null | string;
+            secondaryCtaUrl: null | string;
+            cardTitleEn: null | string;
+            cardTitleAr: null | string;
+            imageAltEn: null | string;
+            imageAltAr: null | string;
+            showSearch: boolean;
+            isActive: boolean;
+        };
         HomeDto: {
             sliders: components["schemas"]["SliderDto"][];
             announcements: components["schemas"]["AnnouncementDto"][];
@@ -6096,6 +6258,7 @@ export interface components {
             stores: components["schemas"]["StoreCard"][];
             steps: components["schemas"]["StepDto"][];
             stats: components["schemas"]["HomeStats"];
+            hero: null | components["schemas"]["HeroDto"];
         };
         HomeStats: {
             /** Format: int32 */

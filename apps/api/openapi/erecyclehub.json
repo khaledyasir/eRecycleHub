@@ -3930,6 +3930,116 @@
         }
       }
     },
+    "/api/admin/hero": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/HeroDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/HeroInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/hero/{id}": {
+      "put": {
+        "tags": [
+          "Admin"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/HeroInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Admin"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/admin/about": {
       "get": {
         "tags": [
@@ -7387,6 +7497,273 @@
           }
         }
       },
+      "HeroDto": {
+        "required": [
+          "id",
+          "badgeEn",
+          "badgeAr",
+          "titleEn",
+          "titleAr",
+          "leadEn",
+          "leadAr",
+          "primaryCtaEn",
+          "primaryCtaAr",
+          "primaryCtaUrl",
+          "secondaryCtaEn",
+          "secondaryCtaAr",
+          "secondaryCtaUrl",
+          "cardTitleEn",
+          "cardTitleAr",
+          "imageFileId",
+          "imageAltEn",
+          "imageAltAr",
+          "showSearch",
+          "isActive"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "badgeEn": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "badgeAr": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "titleEn": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "titleAr": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "leadEn": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "leadAr": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "primaryCtaEn": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "primaryCtaAr": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "primaryCtaUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "secondaryCtaEn": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "secondaryCtaAr": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "secondaryCtaUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "cardTitleEn": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "cardTitleAr": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "imageFileId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "imageAltEn": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "imageAltAr": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "showSearch": {
+            "type": "boolean"
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        }
+      },
+      "HeroInput": {
+        "required": [
+          "badgeEn",
+          "badgeAr",
+          "titleEn",
+          "titleAr",
+          "leadEn",
+          "leadAr",
+          "primaryCtaEn",
+          "primaryCtaAr",
+          "primaryCtaUrl",
+          "secondaryCtaEn",
+          "secondaryCtaAr",
+          "secondaryCtaUrl",
+          "cardTitleEn",
+          "cardTitleAr",
+          "imageAltEn",
+          "imageAltAr",
+          "showSearch",
+          "isActive"
+        ],
+        "type": "object",
+        "properties": {
+          "badgeEn": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "badgeAr": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "titleEn": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "titleAr": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "leadEn": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "leadAr": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "primaryCtaEn": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "primaryCtaAr": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "primaryCtaUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "secondaryCtaEn": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "secondaryCtaAr": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "secondaryCtaUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "cardTitleEn": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "cardTitleAr": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "imageAltEn": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "imageAltAr": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "showSearch": {
+            "type": "boolean"
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        }
+      },
       "HomeDto": {
         "required": [
           "sliders",
@@ -7398,7 +7775,8 @@
           "highest",
           "stores",
           "steps",
-          "stats"
+          "stats",
+          "hero"
         ],
         "type": "object",
         "properties": {
@@ -7458,6 +7836,16 @@
           },
           "stats": {
             "$ref": "#/components/schemas/HomeStats"
+          },
+          "hero": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/HeroDto"
+              }
+            ]
           }
         }
       },

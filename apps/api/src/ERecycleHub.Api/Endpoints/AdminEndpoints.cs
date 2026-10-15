@@ -143,6 +143,15 @@ public static class AdminEndpoints
             .Accepts<SliderInput>("multipart/form-data").Produces<IdResponse>();
         g.MapDelete("/sliders/{id:int}", async (int id, HttpContext ctx, CmsService c, CancellationToken ct) => { await c.DeleteSliderAsync(ctx.Actor(), id, ct); return Results.NoContent(); });
 
+        g.MapGet("/hero", (CmsService c, CancellationToken ct) => c.HeroesAsync(ct));
+        g.MapPost("/hero", async (HttpContext ctx, CmsService c, CancellationToken ct) =>
+        { var (d, f) = await ctx.Request.ReadMultipartAsync<HeroInput>(ct); return new IdResponse(await c.SaveHeroAsync(ctx.Actor(), null, d, f.Upload("image"), ct)); })
+            .Accepts<HeroInput>("multipart/form-data").Produces<IdResponse>();
+        g.MapPut("/hero/{id:int}", async (int id, HttpContext ctx, CmsService c, CancellationToken ct) =>
+        { var (d, f) = await ctx.Request.ReadMultipartAsync<HeroInput>(ct); return new IdResponse(await c.SaveHeroAsync(ctx.Actor(), id, d, f.Upload("image"), ct)); })
+            .Accepts<HeroInput>("multipart/form-data").Produces<IdResponse>();
+        g.MapDelete("/hero/{id:int}", async (int id, HttpContext ctx, CmsService c, CancellationToken ct) => { await c.DeleteHeroAsync(ctx.Actor(), id, ct); return Results.NoContent(); });
+
         g.MapGet("/about", (CmsService c, CancellationToken ct) => c.AboutAsync(ct));
         g.MapPost("/about", async (HttpContext ctx, CmsService c, CancellationToken ct) =>
         { var (d, f) = await ctx.Request.ReadMultipartAsync<AboutInput>(ct); return new IdResponse(await c.SaveAboutAsync(ctx.Actor(), null, d, f.Upload("firstImage"), f.Upload("secondImage"), ct)); })
