@@ -32,7 +32,7 @@ export default async function Customers({ searchParams }: { searchParams: Promis
         {!active && <input type="hidden" name="active" value="false" />}
         <label htmlFor="uq" className="sr-only">{t("search")}</label>
         <input id="uq" name="q" type="search" defaultValue={sp.q} placeholder={t("search")} className="h-9 w-full max-w-sm rounded-md border border-line-strong bg-surface px-3 text-sm" />
-        <button className="h-9 rounded-md bg-ink px-3 text-sm font-medium text-white">{tc("search")}</button>
+        <button className="h-9 rounded-md bg-patina px-4 text-sm font-bold text-white hover:bg-patina-700">{tc("search")}</button>
       </form>
       {r.items.length === 0 ? <EmptyState icon={<Users className="h-8 w-8" />} title={t("empty")} /> : (
         <Table>

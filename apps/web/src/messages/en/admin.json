@@ -27,7 +27,10 @@
     "messages": "Messages",
     "settings": "Pages & settings",
     "translations": "Translations",
-    "audit": "Audit log"
+    "audit": "Audit log",
+    "backToSite": "Back to the site",
+    "menu": "Menu",
+    "close": "Close"
   },
   "login": {
     "title": "Administrator sign-in",
@@ -188,7 +191,11 @@
     "approved": "Approved",
     "rejected": "Rejected",
     "all": "All",
-    "status": { "Pending": "Waiting", "Approved": "Approved", "Rejected": "Rejected" },
+    "status": {
+      "Pending": "Waiting",
+      "Approved": "Approved",
+      "Rejected": "Rejected"
+    },
     "company": "Company",
     "categories": "Sells",
     "submitted": "Submitted",
@@ -216,7 +223,12 @@
     "new": "Add credit",
     "status": "Status",
     "statusAny": "Any status",
-    "statusLabel": { "Pending": "Pending", "Approved": "Approved", "Rejected": "Rejected", "Reversed": "Reversed" },
+    "statusLabel": {
+      "Pending": "Pending",
+      "Approved": "Approved",
+      "Rejected": "Rejected",
+      "Reversed": "Reversed"
+    },
     "search": "Customer name or email",
     "from": "From",
     "to": "To",

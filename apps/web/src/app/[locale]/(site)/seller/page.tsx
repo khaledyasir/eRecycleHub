@@ -1,3 +1,4 @@
+import { Gavel, TrendingUp, Users } from "lucide-react";
 import type { Metadata } from "next";
 import { Star } from "lucide-react";
 import { getLocale, getTranslations } from "next-intl/server";
@@ -20,14 +21,14 @@ export default async function SellerHome() {
         actions={<Link href="/seller/auctions/new" className="inline-flex h-10 items-center rounded-md bg-patina px-4 text-sm font-medium text-white hover:bg-patina-700">{t("create")}</Link>}
       />
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Stat label={t("live")} value={number(d.live, locale)} tone={d.live > 0 ? "attention" : undefined} />
+        <Stat icon={Gavel} accent="purple" label={t("live")} value={number(d.live, locale)} tone={d.live > 0 ? "attention" : undefined} />
         <Stat label={t("upcoming")} value={number(d.upcoming, locale)} />
         <Stat label={t("ended")} value={number(d.ended, locale)} />
         <Stat label={t("inactive")} value={number(d.inactive, locale)} hint={`${t("total")}: ${number(d.total, locale)}`} />
-        <Stat label={t("bids")} value={number(d.bids, locale)} />
-        <Stat label={t("bidders")} value={number(d.bidders, locale)} />
+        <Stat icon={TrendingUp} accent="orange" label={t("bids")} value={number(d.bids, locale)} />
+        <Stat icon={Users} accent="lime" label={t("bidders")} value={number(d.bidders, locale)} />
         <Stat label={t("highest")} value={money(d.highestBid, locale)} />
-        <Stat label={t("reviews")} value={number(d.reviews, locale)} hint={d.reviews > 0 ? t("rating", { rating: d.ratingAverage }) : t("noRating")} />
+        <Stat icon={Star} accent="pink" label={t("reviews")} value={number(d.reviews, locale)} hint={d.reviews > 0 ? t("rating", { rating: d.ratingAverage }) : t("noRating")} />
       </div>
       <div className="mt-6 grid gap-4 lg:grid-cols-2">
         <Panel title={t("recentBids")} bodyClassName="p-0">

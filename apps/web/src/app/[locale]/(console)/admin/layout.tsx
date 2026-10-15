@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 import type { PortalNavGroup } from "@/components/portal/portal-nav";
-import { PortalShell } from "@/components/portal/portal-shell";
+import { AdminShell } from "@/components/portal/admin-shell";
 import { requireRole } from "@/lib/guard";
 
 export const metadata: Metadata = { robots: { index: false } };
@@ -42,8 +42,8 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     { label: t("system"), items: [{ href: "/admin/audit", label: t("audit"), icon: "ScrollText" }] },
   ];
   return (
-    <PortalShell title={t("title")} subtitle={user.email} groups={groups} navLabel={t("label")}>
+    <AdminShell title={t("title")} subtitle={user.email} groups={groups} navLabel={t("label")}>
       {children}
-    </PortalShell>
+    </AdminShell>
   );
 }

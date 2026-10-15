@@ -19,7 +19,7 @@ export default async function Audit({ searchParams }: { searchParams: Promise<Re
       <PageHeader title={t("title")} description={t("description")} />
       <form className="mb-4 flex flex-wrap items-end gap-2">
         <label className="flex flex-col gap-1 text-xs text-muted">{t("filterAction")}<input name="action" defaultValue={sp.action} placeholder="wallet." className="h-9 rounded-md border border-line-strong bg-surface px-2 text-sm" dir="ltr" /></label>
-        <button className="h-9 rounded-md bg-ink px-3 text-sm font-medium text-white">{t("filter")}</button>
+        <button className="h-9 rounded-md bg-patina px-4 text-sm font-bold text-white hover:bg-patina-700">{t("filter")}</button>
       </form>
       {r.items.length === 0 ? <EmptyState title={t("empty")} /> : (
         <Table>

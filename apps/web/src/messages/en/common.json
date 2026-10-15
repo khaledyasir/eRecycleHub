@@ -43,7 +43,10 @@
   "country": "Country",
   "allCountries": "All countries",
   "language": "Language",
-  "languageNames": { "en": "English", "ar": "العربية" },
+  "languageNames": {
+    "en": "English",
+    "ar": "العربية"
+  },
   "currencyName": "Jordanian dinar",
   "timeZoneNote": "Times are shown in {zone}.",
   "nav": {
@@ -78,7 +81,8 @@
     "notifications": "Notifications",
     "wallet": "Wallet",
     "settings": "Account settings",
-    "unread": "{count, plural, =0 {No unread notifications} one {# unread notification} other {# unread notifications}}"
+    "unread": "{count, plural, =0 {No unread notifications} one {# unread notification} other {# unread notifications}}",
+    "viewAll": "View all notifications"
   },
   "phase": {
     "Live": "Live",
@@ -93,7 +97,7 @@
     "h": "h",
     "m": "m",
     "s": "s",
-    "label": "{days} days {hours} hours {minutes} minutes {seconds} seconds"
+    "label": "{days} days {hours} hours {minutes} minutes"
   },
   "file": {
     "choose": "Choose file",

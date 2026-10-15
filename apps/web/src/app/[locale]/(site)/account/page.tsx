@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import { Gavel } from "lucide-react";
+import { Gavel, TrendingUp, Trophy, Wallet } from "lucide-react";
 import { getLocale, getTranslations } from "next-intl/server";
-import { Badge, EmptyState, PageHeader, Stat, type Tone } from "@/components/ui/display";
+import { Badge, EmptyState, Stat, type Tone } from "@/components/ui/display";
 import { Table } from "@/components/ui/controls";
 import { Pagination } from "@/components/ui/pagination";
 import { Link } from "@/i18n/navigation";
@@ -21,12 +21,24 @@ export default async function AccountHome({ searchParams }: { searchParams: Prom
   const [d, bids] = await Promise.all([load(client.GET("/api/account/dashboard")), load(client.GET("/api/account/bids", { params: { query: { page } } }))]);
   return (
     <>
-      <PageHeader title={t("hello", { name: user?.fullName ?? "" })} />
+      <section className="soft-hero mb-7 flex flex-col items-center justify-between gap-6 rounded-[1.75rem] border border-patina-100 p-6 sm:p-9 md:flex-row">
+        <div>
+          <h1 className="text-2xl font-black sm:text-3xl">{t("hello", { name: user?.fullName ?? "" })}</h1>
+          <Link href="/auctions" className="mt-5 inline-flex items-center gap-2 rounded-md bg-patina px-5 py-3 text-sm font-bold text-white hover:bg-patina-700">
+            {t("browse")}
+          </Link>
+        </div>
+        <div className="grid h-36 w-36 shrink-0 place-items-center rounded-full bg-cyan/20" aria-hidden>
+          <div className="grid h-24 w-24 place-items-center rounded-full bg-patina text-white">
+            <Gavel className="h-12 w-12" />
+          </div>
+        </div>
+      </section>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Stat label={t("attended")} value={number(d.auctionsAttended, locale)} />
-        <Stat label={t("leading")} value={number(d.leading, locale)} />
-        <Stat label={t("won")} value={number(d.won, locale)} />
-        <Stat label={t("wallet")} value={money(d.walletBalance, locale)} hint={<Link href="/account/wallet" className="text-patina hover:underline">{t("walletLink")}</Link>} />
+        <Stat label={t("attended")} value={number(d.auctionsAttended, locale)} icon={Gavel} accent="purple" />
+        <Stat label={t("leading")} value={number(d.leading, locale)} icon={TrendingUp} accent="orange" />
+        <Stat label={t("won")} value={number(d.won, locale)} icon={Trophy} accent="lime" />
+        <Stat label={t("wallet")} value={money(d.walletBalance, locale)} icon={Wallet} hint={<Link href="/account/wallet" className="text-patina hover:underline">{t("walletLink")}</Link>} />
       </div>
       {d.unreadNotifications > 0 && (
         <p className="mt-3 text-sm">

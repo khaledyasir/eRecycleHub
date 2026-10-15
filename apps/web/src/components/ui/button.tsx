@@ -6,8 +6,8 @@ import { cn } from "@/lib/format";
 const variants = {
   primary: "bg-patina text-white hover:bg-patina-700 active:bg-patina-900",
   /** Reserved for placing a bid: the one hi-vis action on a page. */
-  bid: "bg-hivis text-hivis-ink hover:brightness-95 active:brightness-90 font-semibold",
-  secondary: "bg-surface text-ink border border-line-strong hover:bg-sunken",
+  bid: "bg-orange text-white hover:brightness-95 active:brightness-90 font-extrabold",
+  secondary: "bg-surface text-ink border border-line-strong hover:border-patina hover:text-patina",
   ghost: "text-ink-2 hover:bg-sunken",
   danger: "bg-rust text-white hover:brightness-95",
   link: "text-patina underline-offset-4 hover:underline px-0 h-auto",
@@ -36,7 +36,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
     <Comp
       ref={ref}
       className={cn(
-        "inline-flex select-none items-center justify-center whitespace-nowrap rounded-md font-medium transition-colors disabled:pointer-events-none disabled:opacity-50",
+        "inline-flex select-none items-center justify-center whitespace-nowrap rounded-md font-bold transition-colors disabled:pointer-events-none disabled:opacity-50",
         variants[variant],
         sizes[size],
         className,

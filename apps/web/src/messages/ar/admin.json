@@ -27,7 +27,10 @@
     "messages": "الرسائل",
     "settings": "الصفحات والإعدادات",
     "translations": "الترجمات",
-    "audit": "سجل التدقيق"
+    "audit": "سجل التدقيق",
+    "backToSite": "العودة إلى الموقع",
+    "menu": "القائمة",
+    "close": "إغلاق"
   },
   "login": {
     "title": "دخول المسؤولين",
@@ -188,7 +191,11 @@
     "approved": "مقبولة",
     "rejected": "مرفوضة",
     "all": "الكل",
-    "status": { "Pending": "بالانتظار", "Approved": "مقبول", "Rejected": "مرفوض" },
+    "status": {
+      "Pending": "بالانتظار",
+      "Approved": "مقبول",
+      "Rejected": "مرفوض"
+    },
     "company": "الشركة",
     "categories": "يبيع",
     "submitted": "تاريخ التقديم",
@@ -216,7 +223,12 @@
     "new": "أضف رصيداً",
     "status": "الحالة",
     "statusAny": "أي حالة",
-    "statusLabel": { "Pending": "قيد الانتظار", "Approved": "مقبول", "Rejected": "مرفوض", "Reversed": "معكوس" },
+    "statusLabel": {
+      "Pending": "قيد الانتظار",
+      "Approved": "مقبول",
+      "Rejected": "مرفوض",
+      "Reversed": "معكوس"
+    },
     "search": "اسم العميل أو بريده",
     "from": "من",
     "to": "إلى",

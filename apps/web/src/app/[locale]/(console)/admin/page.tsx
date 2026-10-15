@@ -1,3 +1,4 @@
+import { CircleDollarSign, Gavel, Store, TrendingUp, Users, Wallet } from "lucide-react";
 import type { Metadata } from "next";
 import { getLocale, getTranslations } from "next-intl/server";
 import { BidsChart } from "@/components/admin/bar-chart";
@@ -23,10 +24,10 @@ export default async function AdminDashboard() {
     <>
       <PageHeader title={t("title")} />
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Stat label={t("live")} value={number(d.live, locale)} tone={d.live > 0 ? "attention" : undefined} hint={`${t("upcoming")}: ${number(d.upcoming, locale)} / ${t("ended")}: ${number(d.ended, locale)}`} />
-        <Stat label={t("customers")} value={number(d.customers, locale)} />
-        <Stat label={t("publishers")} value={number(d.publishers, locale)} />
-        <Stat label={t("walletTotal")} value={money(d.walletTotal, locale)} />
+        <Stat icon={Gavel} accent="purple" label={t("live")} value={number(d.live, locale)} tone={d.live > 0 ? "attention" : undefined} hint={`${t("upcoming")}: ${number(d.upcoming, locale)} / ${t("ended")}: ${number(d.ended, locale)}`} />
+        <Stat icon={Users} accent="orange" label={t("customers")} value={number(d.customers, locale)} />
+        <Stat icon={Store} accent="lime" label={t("publishers")} value={number(d.publishers, locale)} />
+        <Stat icon={Wallet} accent="patina" label={t("walletTotal")} value={money(d.walletTotal, locale)} />
       </div>
       <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_1.4fr]">
         <Panel title={t("attention")} bodyClassName="p-0">
@@ -44,8 +45,8 @@ export default async function AdminDashboard() {
         </Panel>
       </div>
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        <Stat label={t("bidsMonth")} value={number(d.bidsThisMonth, locale)} hint={t("bidsCompare", { last: d.bidsLastMonth })} />
-        <Stat label={t("volumeMonth")} value={money(d.volumeThisMonth, locale)} hint={t("volumeCompare", { amount: money(d.volumeLastMonth, locale) })} />
+        <Stat icon={TrendingUp} accent="pink" label={t("bidsMonth")} value={number(d.bidsThisMonth, locale)} hint={t("bidsCompare", { last: d.bidsLastMonth })} />
+        <Stat icon={CircleDollarSign} accent="purple" label={t("volumeMonth")} value={money(d.volumeThisMonth, locale)} hint={t("volumeCompare", { amount: money(d.volumeLastMonth, locale) })} />
       </div>
       <div className="mt-4 grid gap-4 xl:grid-cols-3">
         <Panel title={t("recentAuctions")} actions={<Link href="/admin/auctions" className="text-sm text-patina hover:underline">{t("viewAll")}</Link>} bodyClassName="p-0">

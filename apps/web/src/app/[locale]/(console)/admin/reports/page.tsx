@@ -41,7 +41,7 @@ export default async function Reports({ searchParams }: { searchParams: Promise<
             {countries.map((c) => <option key={c.id} value={c.id}>{pick(locale, c.nameEn, c.nameAr)}</option>)}
           </select>
         </label>
-        <button className="h-9 rounded-md bg-ink px-3 text-sm font-medium text-white">{t("apply")}</button>
+        <button className="h-9 rounded-md bg-patina px-4 text-sm font-bold text-white hover:bg-patina-700">{t("apply")}</button>
       </form>
       <div className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Stat label={t("totalAuctions")} value={number(r.totalAuctions, locale)} />

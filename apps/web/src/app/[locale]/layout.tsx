@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { IBM_Plex_Sans, IBM_Plex_Sans_Arabic } from "next/font/google";
+import { Cairo } from "next/font/google";
 import { notFound } from "next/navigation";
 import { hasLocale, NextIntlClientProvider } from "next-intl";
 import { getTranslations, setRequestLocale } from "next-intl/server";
@@ -10,10 +10,9 @@ import { getSession } from "@/lib/api/server";
 import { siteUrl } from "@/lib/seo";
 import "../globals.css";
 
-const plex = IBM_Plex_Sans({ subsets: ["latin"], weight: ["400", "500", "600", "700"], variable: "--font-plex", display: "swap" });
-const plexArabic = IBM_Plex_Sans_Arabic({ subsets: ["arabic"], weight: ["400", "500", "600", "700"], variable: "--font-plex-arabic", display: "swap" });
+const cairo = Cairo({ subsets: ["latin", "arabic"], weight: ["400", "500", "600", "700", "800", "900"], variable: "--font-cairo", display: "swap" });
 
-export const viewport: Viewport = { themeColor: "#0e6b57", width: "device-width", initialScale: 1 };
+export const viewport: Viewport = { themeColor: "#087b70", width: "device-width", initialScale: 1 };
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
   const { locale } = await params;
@@ -39,7 +38,7 @@ export default async function LocaleLayout({ children, params }: { children: Rea
   const dir = isRtl(locale) ? "rtl" : "ltr";
   const t = await getTranslations("common");
   return (
-    <html lang={locale} dir={dir} className={`${plex.variable} ${plexArabic.variable}`}>
+    <html lang={locale} dir={dir} className={`${cairo.variable}`}>
       <body className="min-h-dvh antialiased">
         <a href="#main" className="sr-only z-50 rounded bg-ink px-3 py-2 text-white focus:not-sr-only focus:fixed focus:start-3 focus:top-3">
           {t("skipToContent")}

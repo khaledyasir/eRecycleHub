@@ -27,7 +27,7 @@ export async function Pagination({ page, totalPages, pathname, query, param = "p
       {pages.map((p, i) => (
         <span key={p} className="contents">
           {i > 0 && p - pages[i - 1] > 1 && <span className="px-1 text-muted">…</span>}
-          <Link href={href(p)} aria-current={p === page ? "page" : undefined} className={cn(item, "tabular", p === page ? "bg-ink text-white" : "hover:bg-sunken")}>
+          <Link href={href(p)} aria-current={p === page ? "page" : undefined} className={cn(item, "tabular", p === page ? "bg-patina text-white" : "hover:bg-sunken")}>
             {p}
           </Link>
         </span>

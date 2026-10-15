@@ -83,7 +83,7 @@ export async function AuctionList({ admin, sp }: { admin: boolean; sp: Search })
             </select>
           </label>
         )}
-        <button className="h-9 rounded-md bg-ink px-3 text-sm font-medium text-white">{t("filter")}</button>
+        <button className="h-9 rounded-md bg-patina px-4 text-sm font-bold text-white hover:bg-patina-700">{t("filter")}</button>
         {filtered && (
           <Link href={`${routeBase}?view=${view}`} className="inline-flex h-9 items-center px-2 text-sm text-ink-2 hover:underline">
             {t("clear")}

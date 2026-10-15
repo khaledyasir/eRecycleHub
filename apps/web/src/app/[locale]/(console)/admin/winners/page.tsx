@@ -44,7 +44,7 @@ export default async function Winners({ searchParams }: { searchParams: Promise<
           </select>
         </label>
       )}
-      <button className="h-9 rounded-md bg-ink px-3 text-sm font-medium text-white">{t("filter")}</button>
+      <button className="h-9 rounded-md bg-patina px-4 text-sm font-bold text-white hover:bg-patina-700">{t("filter")}</button>
     </form>
   );
 

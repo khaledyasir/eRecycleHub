@@ -1,19 +1,17 @@
-import { CalendarClock, ChevronRight, FileText, PlayCircle, Star, Store } from "lucide-react";
+import { CalendarClock, ChevronRight, FileText, PlayCircle, Store } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
 import { AuctionGrid, PhaseBadge } from "@/components/auction/auction-card";
-import { BidHistory } from "@/components/auction/bid-history";
 import { BidPanel } from "@/components/auction/bid-panel";
 import { Gallery } from "@/components/auction/gallery";
-import { ReviewForm } from "@/components/auction/review-form";
 import { FavoriteButton, WatchButton } from "@/components/auction/toggles";
 import { RichHtml } from "@/components/rich-html";
 import { Alert } from "@/components/ui/display";
 import { Tabs } from "@/components/ui/controls";
 import { Link } from "@/i18n/navigation";
 import { load, serverApi } from "@/lib/api/server";
-import { CURRENCY, date, dateTime, fileUrl, nowMs, pick } from "@/lib/format";
+import { CURRENCY, dateTime, fileUrl, nowMs, pick } from "@/lib/format";
 import { alternates, excerpt, siteUrl } from "@/lib/seo";
 
 type Params = { params: Promise<{ id: string; locale: string }> };
@@ -41,8 +39,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 
 export default async function AuctionPage({ params }: Params) {
   const { id } = await params;
-  const [a, t, tc, tr, locale, client] = await Promise.all([getAuction(id), getTranslations("auction.detail"), getTranslations("common"), getTranslations("auction.reviews"), getLocale(), serverApi()]);
-  const reviews = await load(client.GET("/api/auctions/{id}/reviews", { params: { path: { id: a.card.id } } }));
+  const [a, t, tc, locale] = await Promise.all([getAuction(id), getTranslations("auction.detail"), getTranslations("common"), getLocale()]);
   const serverNow = nowMs();
   const c = a.card;
   const title = pick(locale, c.titleEn, c.titleAr);
@@ -72,7 +69,6 @@ export default async function AuctionPage({ params }: Params) {
       url: `${siteUrl()}/${locale}/auctions/${c.id}`,
       ...(c.endsAtUtc ? { priceValidUntil: c.endsAtUtc.slice(0, 10) } : {}),
     },
-    ...(a.reviews.count > 0 ? { aggregateRating: { "@type": "AggregateRating", ratingValue: a.reviews.average, reviewCount: a.reviews.count } } : {}),
   };
 
   const tabs = [
@@ -127,37 +123,6 @@ export default async function AuctionPage({ params }: Params) {
         </ul>
       ) : (
         <p className="text-sm text-muted">{t("noDocuments")}</p>
-      ),
-    },
-    { value: "history", label: t("history"), content: <BidHistory auctionId={c.id} live={c.phase === "Live"} /> },
-    {
-      value: "reviews",
-      label: `${t("reviews")} (${a.reviews.count})`,
-      content: (
-        <div className="space-y-5">
-          {a.reviews.count > 0 && <p className="font-medium">{tr("average", { rating: a.reviews.average, count: a.reviews.count })}</p>}
-          {reviews.items.length === 0 ? (
-            <p className="text-sm text-muted">{tr("empty")}</p>
-          ) : (
-            <ul className="space-y-3">
-              {reviews.items.map((r) => (
-                <li key={r.id} className="rounded-lg border border-line bg-surface p-4">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="font-medium">{r.name}</span>
-                    <span className="text-xs text-muted">{date(r.createdAtUtc, locale)}</span>
-                  </div>
-                  <p className="mt-1 flex gap-0.5" aria-label={tr("stars", { n: r.rating })}>
-                    {[1, 2, 3, 4, 5].map((n) => (
-                      <Star key={n} className={n <= r.rating ? "h-4 w-4 fill-hivis text-hivis" : "h-4 w-4 text-line-strong"} aria-hidden />
-                    ))}
-                  </p>
-                  {r.comment && <p className="mt-2 text-sm text-ink-2">{r.comment}</p>}
-                </li>
-              ))}
-            </ul>
-          )}
-          <ReviewForm auctionId={c.id} hasReviewed={a.viewer.hasReviewed} />
-        </div>
       ),
     },
   ];
@@ -276,7 +241,7 @@ export default async function AuctionPage({ params }: Params) {
       {a.related.length > 0 && (
         <section className="mt-14">
           <h2 className="mb-5 text-xl font-semibold">{t("related")}</h2>
-          <AuctionGrid items={a.related.slice(0, 4)} serverNow={serverNow} />
+          <AuctionGrid items={a.related.slice(0, 3)} serverNow={serverNow} />
         </section>
       )}
     </div>

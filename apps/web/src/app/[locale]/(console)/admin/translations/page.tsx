@@ -49,7 +49,7 @@ export default async function Translations({ searchParams }: { searchParams: Pro
             {areas.map((a) => <option key={a} value={a}>{a}</option>)}
           </select>
         </label>
-        <button className="h-9 rounded-md bg-ink px-3 text-sm font-medium text-white">{t("search")}</button>
+        <button className="h-9 rounded-md bg-patina px-4 text-sm font-bold text-white hover:bg-patina-700">{t("search")}</button>
         <span className="pb-2 text-xs text-muted">{t("count", { count: hits.length })}</span>
       </form>
       {rows.length === 0 ? (

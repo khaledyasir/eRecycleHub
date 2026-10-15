@@ -25,7 +25,7 @@ export async function SiteFooter() {
     ] as const
   ).filter(([, url]) => !!url);
   return (
-    <footer className="mt-20 bg-ink text-white/80">
+    <footer className="mt-20 bg-footer text-white/80">
       <div className="container-page grid gap-10 py-12 md:grid-cols-[1.4fr_repeat(3,1fr)]">
         <div className="space-y-4">
           <Logo inverted />
@@ -34,7 +34,7 @@ export async function SiteFooter() {
             <ul className="space-y-2 text-sm">
               {info.mobile && (
                 <li className="flex items-center gap-2">
-                  <Phone className="h-4 w-4 text-hivis" aria-hidden />
+                  <Phone className="h-4 w-4 text-cyan" aria-hidden />
                   <a href={`tel:${info.mobile.replace(/\s/g, "")}`} className="hover:text-white" dir="ltr">
                     {info.mobile}
                   </a>
@@ -42,7 +42,7 @@ export async function SiteFooter() {
               )}
               {info.email && (
                 <li className="flex items-center gap-2">
-                  <Mail className="h-4 w-4 text-hivis" aria-hidden />
+                  <Mail className="h-4 w-4 text-cyan" aria-hidden />
                   <a href={`mailto:${info.email}`} className="hover:text-white">
                     {info.email}
                   </a>
@@ -50,7 +50,7 @@ export async function SiteFooter() {
               )}
               {info.address && (
                 <li className="flex items-center gap-2">
-                  <MapPin className="h-4 w-4 text-hivis" aria-hidden />
+                  <MapPin className="h-4 w-4 text-cyan" aria-hidden />
                   {info.address}
                 </li>
               )}
@@ -59,7 +59,7 @@ export async function SiteFooter() {
         </div>
         {columns.map((c) => (
           <nav key={c.title} aria-label={c.title}>
-            <h2 className="mb-3 text-sm font-semibold text-white">{c.title}</h2>
+            <h2 className="mb-5 font-extrabold text-white">{c.title}</h2>
             <ul className="space-y-2 text-sm">
               {c.links.map(([href, label]) => (
                 <li key={href}>
@@ -72,6 +72,7 @@ export async function SiteFooter() {
           </nav>
         ))}
       </div>
+      <div className="brand-gradient h-1" aria-hidden />
       <div className="border-t border-white/10">
         <div className="container-page flex flex-col gap-3 py-5 text-xs text-white/60 sm:flex-row sm:items-center sm:justify-between">
           <p>

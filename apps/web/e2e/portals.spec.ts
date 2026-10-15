@@ -171,7 +171,7 @@ test.describe("admin content management", () => {
   test("a text override is saved, served to the site, and can be reset", async ({ page }) => {
     await signIn(page, "admin");
     const text = `Sign in (${stamp()})`;
-    await page.goto("/en/admin/translations?q=auth.login.title");
+    await page.goto("/en/admin/translations?q=auth.login.title", { waitUntil: "networkidle" }); // fill before hydration would be lost
     const row = page.getByRole("row").filter({ hasText: "auth.login.title" }).first();
     await row.locator("textarea").fill(text);
     await row.getByRole("button", { name: "Save" }).click();

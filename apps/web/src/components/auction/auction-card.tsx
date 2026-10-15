@@ -13,7 +13,7 @@ export function PhaseBadge({ phase }: { phase: AuctionPhase }) {
   const t = useTranslations("common.phase");
   return (
     <Badge tone={phaseTone[phase]}>
-      {phase === "Live" && <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-hivis-ink motion-reduce:animate-none" aria-hidden />}
+      {phase === "Live" && <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-patina motion-reduce:animate-none" aria-hidden />}
       {t(phase)}
     </Badge>
   );
@@ -25,7 +25,7 @@ export function AuctionCard({ a, serverNow, className }: { a: Card; serverNow: n
   const locale = useLocale();
   const title = pick(locale, a.titleEn, a.titleAr);
   return (
-    <article className={cn("group relative flex flex-col overflow-hidden rounded-lg border border-line bg-surface transition-shadow hover:shadow-raise", className)}>
+    <article className={cn("group relative flex flex-col overflow-hidden rounded-xl border border-line bg-surface shadow-raise transition hover:-translate-y-1 hover:shadow-pop motion-reduce:transform-none", className)}>
       <div className="relative aspect-[4/3] overflow-hidden bg-sunken">
         {a.mainImageFileId ? (
           // eslint-disable-next-line @next/next/no-img-element -- uploaded files are served by the API with long-lived caching
@@ -38,7 +38,7 @@ export function AuctionCard({ a, serverNow, className }: { a: Card; serverNow: n
         <div className="absolute start-2 top-2">
           <PhaseBadge phase={a.phase} />
         </div>
-        <span className="tabular absolute bottom-2 start-2 rounded-sm border border-white/40 bg-ink/80 px-1.5 py-0.5 text-[11px] font-medium text-white" dir="ltr">
+        <span className="tabular absolute bottom-2 start-2 rounded-sm border border-white/40 bg-ink/75 px-2 py-0.5 text-[11px] font-medium text-white" dir="ltr">
           {t("lot", { ref: a.refNumber })}
         </span>
       </div>
@@ -62,7 +62,7 @@ export function AuctionCard({ a, serverNow, className }: { a: Card; serverNow: n
           <p className="tabular text-xl font-semibold">{money(a.currentPrice, locale)}</p>
         </div>
       </div>
-      <div className={cn("flex items-center justify-between gap-2 border-t px-4 py-2 text-sm", a.phase === "Live" ? "border-hivis bg-hivis-soft" : "border-line bg-ground")}>
+      <div className={cn("flex items-center justify-between gap-2 border-t px-4 py-2 text-sm", a.phase === "Live" ? "border-orange/20 bg-orange/5" : "border-line bg-ground")}>
         <span className="inline-flex items-center gap-1.5 text-ink-2">
           {a.phase === "Upcoming" ? (
             <>
@@ -86,7 +86,7 @@ export function AuctionCard({ a, serverNow, className }: { a: Card; serverNow: n
 
 export function AuctionGrid({ items, serverNow, className }: { items: Card[]; serverNow: number; className?: string }) {
   return (
-    <ul className={cn("grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4", className)}>
+    <ul className={cn("grid gap-4 sm:grid-cols-2 lg:grid-cols-3", className)}>
       {items.map((a) => (
         <li key={a.id} className="flex">
           <AuctionCard a={a} serverNow={serverNow} className="w-full" />

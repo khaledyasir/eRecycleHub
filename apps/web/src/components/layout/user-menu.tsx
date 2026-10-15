@@ -1,13 +1,14 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import { Bell, ChevronDown, Heart, LayoutDashboard, LogOut, Settings, Store, UserRound, Wallet, Eye } from "lucide-react";
+import { ChevronDown, Heart, LayoutDashboard, LogOut, Settings, Store, UserRound, Wallet, Eye } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Menu, MenuItem, MenuLabel, MenuSeparator } from "@/components/ui/overlay";
 import { useSession } from "@/components/providers";
 import { Link, useRouter } from "@/i18n/navigation";
 import { api, call, setCsrfToken } from "@/lib/api/client";
+
+export { NotificationBell } from "./notification-popover";
 
 export function useSignOut() {
   const router = useRouter();
@@ -19,25 +20,6 @@ export function useSignOut() {
   };
 }
 
-/** Unread notification badge, refreshed every minute while the tab is open. */
-export function NotificationBell() {
-  const t = useTranslations("common.user");
-  const { data } = useQuery({
-    queryKey: ["unread-count"],
-    queryFn: () => call(() => api.GET("/api/account/notifications/unread-count")),
-    refetchInterval: 60_000,
-  });
-  const count = data?.count ?? 0;
-  return (
-    <Link href="/account/notifications" className="relative inline-flex h-10 w-10 items-center justify-center rounded-md hover:bg-sunken" aria-label={`${t("notifications")} — ${t("unread", { count })}`}>
-      <Bell className="h-5 w-5" aria-hidden />
-      {count > 0 && (
-        <span className="tabular absolute end-1 top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-rust px-1 text-[10px] font-bold text-white">{count > 99 ? "99+" : count}</span>
-      )}
-    </Link>
-  );
-}
-
 export function UserMenu() {
   const t = useTranslations("common.user");
   const user = useSession();
@@ -46,7 +28,7 @@ export function UserMenu() {
   return (
     <Menu
       trigger={
-        <Button variant="ghost" className="gap-1.5 px-2" aria-label={t("account")}>
+        <Button variant="secondary" className="h-11 gap-1.5 px-3" aria-label={t("account")}>
           <UserRound className="h-5 w-5" aria-hidden />
           <span className="hidden max-w-36 truncate sm:inline">{user.fullName}</span>
           <ChevronDown className="h-4 w-4" aria-hidden />

@@ -63,12 +63,11 @@ export function Countdown({
       [p.days, t("d")],
       [p.hours, t("h")],
       [p.minutes, t("m")],
-      [p.seconds, t("s")],
     ] as const;
     return (
       <div role="timer" aria-label={label} className={cn("flex gap-2", className)} dir="ltr">
         {cells.map(([v, unit], i) => (
-          <div key={i} className={cn("flex min-w-14 flex-col items-center rounded-md px-2 py-1.5", soon ? "bg-rust text-white" : "bg-ink text-white")}>
+          <div key={i} className={cn("flex min-w-14 flex-col items-center rounded-md px-2 py-1.5", soon ? "bg-rust text-white" : "bg-patina text-white")}>
             <span className="tabular text-2xl font-semibold leading-none">{pad(v)}</span>
             <span className="mt-1 text-[11px] text-white/70">{unit}</span>
           </div>
@@ -78,11 +77,11 @@ export function Countdown({
   }
 
   return (
-    <span role="timer" aria-label={label} className={cn("tabular inline-flex items-baseline gap-1 font-semibold", soon && "text-rust", className)}>
+    <span role="timer" aria-label={label} className={cn("tabular inline-flex items-baseline gap-1 font-extrabold text-orange-ink", soon && "text-rust", className)}>
       <span className="sr-only">{mode === "end" ? t("endsIn") : t("startsIn")}</span>
       <span dir="ltr" aria-hidden>
         {p.days > 0 && `${p.days}${t("d")} `}
-        {pad(p.hours)}:{pad(p.minutes)}:{pad(p.seconds)}
+        {pad(p.hours)}:{pad(p.minutes)}
       </span>
     </span>
   );

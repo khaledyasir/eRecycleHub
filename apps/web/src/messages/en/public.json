@@ -25,7 +25,17 @@
     "seeAll": "See all",
     "sellerTitle": "Have material to sell?",
     "sellerBody": "Apply for a seller account. Once approved, you can list lots, set the starting price and increment, and follow every bid from your portal.",
-    "sellerCta": "Apply to sell"
+    "sellerCta": "Apply to sell",
+    "badge": "A more sustainable future starts here",
+    "searchBtn": "Search",
+    "statLive": "Live auctions",
+    "statStores": "Active stores",
+    "statBids": "Bids placed",
+    "exploreKicker": "Explore opportunities",
+    "stepsKicker": "Simple steps",
+    "liveKicker": "Chances worth competing for",
+    "heroCardTitle": "New lots every day",
+    "heroCardHint": "Live now"
   },
   "stores": {
     "title": "Stores",

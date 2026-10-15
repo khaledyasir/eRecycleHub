@@ -1,51 +1,60 @@
 @import "tailwindcss";
 
 /*
-  eRecycleHub design tokens.
-  Slag (ink) on a cool yard ground; Patina (oxidised copper) is the brand colour; Hi-vis safety yellow is reserved
-  for what is live and for the bid action; Rust only for errors and "ending soon".
+  eRecycleHUB design tokens (from the approved front-end mockup).
+  Teal is the brand colour; purple, pink, orange, lime and cyan are accents. Orange is for clocks and "ending soon".
+  Token names are kept from the first design so every shared component picks the new look up automatically.
 */
 @theme {
-  --font-sans: var(--font-plex), var(--font-plex-arabic), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-cairo), ui-sans-serif, system-ui, sans-serif;
 
-  --color-ink: #1c2321;
-  --color-ink-2: #3f4a46;
-  --color-muted: #66726d;
-  --color-ground: #f3f5f2;
+  --color-ink: #172b35;
+  --color-ink-2: #536573;
+  --color-muted: #64748b;
+  --color-ground: #f8fafc;
   --color-surface: #ffffff;
-  --color-sunken: #e9edea;
-  --color-line: #d5dad6;
-  --color-line-strong: #b7bfba;
+  --color-sunken: #f1f5f9;
+  --color-line: #e9eef1;
+  --color-line-strong: #cbd5e1;
 
-  --color-patina-50: #e8f3ef;
-  --color-patina-100: #cfe6de;
-  --color-patina-500: #13866d;
-  --color-patina: #0e6b57;
-  --color-patina-700: #0a5242;
-  --color-patina-900: #06302a;
+  --color-patina-50: #e7f5f1;
+  --color-patina-100: #c9ebe4;
+  --color-patina-500: #0a9486;
+  --color-patina: #087b70;
+  --color-patina-700: #065e56;
+  --color-patina-900: #0f2f33;
 
-  --color-hivis: #f2b705;
-  --color-hivis-soft: #fff4cc;
+  --color-purple: #702d87;
+  --color-pink: #e91e83;
+  --color-pink-ink: #c2185b;
+  --color-orange: #f36b25;
+  --color-orange-ink: #b5460a; /* orange for small text: passes AA on white */
+  --color-lime: #7ac143;
+  --color-cyan: #55c3e9;
+  --color-footer: #122c32;
+
+  --color-hivis: #f7c32e;
+  --color-hivis-soft: #fff6d6;
   --color-hivis-ink: #4a3800;
 
-  --color-rust: #b4441e;
-  --color-rust-soft: #fbe9e2;
-  --color-ok: #1f7a3d;
-  --color-ok-soft: #e3f3e8;
-  --color-info: #1d5d8a;
-  --color-info-soft: #e3eef6;
+  --color-rust: #c0392b;
+  --color-rust-soft: #fdecea;
+  --color-ok: #1f8a4c;
+  --color-ok-soft: #e4f6ec;
+  --color-info: #1d6fa5;
+  --color-info-soft: #e5f1f9;
 
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 10px;
-  --radius-xl: 14px;
+  --radius-sm: 8px;
+  --radius-md: 13px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
 
-  --shadow-raise: 0 1px 0 rgb(28 35 33 / 0.04), 0 2px 8px -4px rgb(28 35 33 / 0.18);
-  --shadow-pop: 0 12px 32px -12px rgb(28 35 33 / 0.35);
+  --shadow-raise: 0 5px 25px rgb(23 43 53 / 0.06);
+  --shadow-pop: 0 20px 45px -15px rgb(23 43 53 / 0.3);
 
-  --text-display: clamp(2rem, 1.2rem + 3vw, 3.25rem);
-  --text-display--line-height: 1.08;
-  --text-display--letter-spacing: -0.02em;
+  --text-display: clamp(2.1rem, 1.3rem + 3vw, 3.75rem);
+  --text-display--line-height: 1.35;
+  --text-display--letter-spacing: 0;
 }
 
 @layer base {
@@ -66,8 +75,8 @@
   }
   h1, h2, h3, h4 {
     line-height: 1.2;
-    font-weight: 600;
-    letter-spacing: -0.01em;
+    font-weight: 800;
+    letter-spacing: 0;
     text-wrap: balance;
   }
   :lang(ar) :is(h1, h2, h3, h4) {
@@ -78,12 +87,12 @@
     text-wrap: pretty;
   }
   :focus-visible {
-    outline: 2px solid var(--color-patina-500);
+    outline: 3px solid var(--color-cyan);
     outline-offset: 2px;
     border-radius: 2px;
   }
   ::selection {
-    background: var(--color-hivis-soft);
+    background: var(--color-patina-100);
   }
   [dir="rtl"] .flip-rtl {
     transform: scaleX(-1);
@@ -158,3 +167,22 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* Page backdrop used by hero and dashboard banners. */
+.soft-hero {
+  background:
+    radial-gradient(circle at 90% 5%, #55c3e936, transparent 38%),
+    radial-gradient(circle at 5% 90%, #e91e8318, transparent 36%),
+    linear-gradient(130deg, #f5fffc, #fff 55%, #f7f3ff);
+}
+.brand-gradient {
+  background: linear-gradient(110deg, #087b70, #702d87, #e91e83, #f36b25, #7ac143, #f7dd32, #55c3e9);
+}
+
+/* The mockup's display leading is tuned for Arabic; Latin needs less. */
+:lang(en) {
+  --text-display--line-height: 1.12;
+}
+[INFO] Recording command outcome: printf
+
+[OK] Command outcome recorded

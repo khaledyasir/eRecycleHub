@@ -37,7 +37,7 @@ export default async function Transactions({ searchParams }: { searchParams: Pro
         <label className="flex flex-col gap-1 text-xs text-muted">{t("search")}<input name="q" type="search" defaultValue={sp.q} className={input} /></label>
         <label className="flex flex-col gap-1 text-xs text-muted">{t("from")}<input type="date" name="from" defaultValue={sp.from} className={input} /></label>
         <label className="flex flex-col gap-1 text-xs text-muted">{t("to")}<input type="date" name="to" defaultValue={sp.to} className={input} /></label>
-        <button className="h-9 rounded-md bg-ink px-3 text-sm font-medium text-white">{t("filter")}</button>
+        <button className="h-9 rounded-md bg-patina px-4 text-sm font-bold text-white hover:bg-patina-700">{t("filter")}</button>
       </form>
       {r.items.length === 0 ? <EmptyState icon={<Wallet className="h-8 w-8" />} title={t("empty")} /> : (
         <Table>
