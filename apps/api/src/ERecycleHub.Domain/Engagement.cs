@@ -26,6 +26,8 @@ public static class NotificationKinds
     public const string TopUpApproved = "wallet.topup_approved";
     public const string TopUpRejected = "wallet.topup_rejected";
     public const string AuctionWon = "auction.won";
+    public const string SellerApproved = "seller.approved";
+    public const string SellerRejected = "seller.rejected";
 }
 
 /// <summary>In-app notification. <see cref="Kind"/> + auction fields let the UI render it in the reader's language.</summary>

@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Copy, Mail, Paperclip, RotateCcw, Search, Trash2, X } from "lucide-react";
+import { Check, Mail, Paperclip, RotateCcw, Search, Trash2, X } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -9,8 +9,8 @@ import { useAction } from "@/components/manage/manage-actions";
 import { PasswordInput } from "@/components/public/auth-forms";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/display";
-import { Checkbox, Field, FileInput, Input, Select } from "@/components/ui/form";
-import { ConfirmDialog, Dialog } from "@/components/ui/overlay";
+import { Checkbox, Field, FileInput, Input, Select, Textarea } from "@/components/ui/form";
+import { ConfirmDialog } from "@/components/ui/overlay";
 import { Switch } from "@/components/ui/controls";
 import { useRouter } from "@/i18n/navigation";
 import { api, call, sendForm, sendJson } from "@/lib/api/client";
@@ -214,7 +214,7 @@ export function DeleteButton({ path, title, body, label, done, redirectTo }: { p
 export function ApplicationActions({ app }: { app: Schema<"ApplicationRow"> }) {
   const t = useTranslations("admin.applications");
   const run = useAction();
-  const [temp, setTemp] = useState<string | null>(null);
+  const [reason, setReason] = useState("");
   return (
     <div className="flex flex-wrap gap-2">
       {app.status === "Pending" && (
@@ -225,17 +225,28 @@ export function ApplicationActions({ app }: { app: Schema<"ApplicationRow"> }) {
             title={t("approveTitle", { name: app.name })}
             body={t("approveBody", { email: app.email })}
             confirmLabel={t("approve")}
-            onConfirm={async () => {
-              const r = (await run(() => sendJson("POST", `/api/admin/applications/${app.id}/approve`), t("approvedToast"))) as Schema<"ApprovalResult">;
-              if (r?.temporaryPassword) setTemp(r.temporaryPassword);
-            }}
+            onConfirm={() => run(() => sendJson("POST", `/api/admin/applications/${app.id}/approve`), t("approvedToast"))}
           />
           <ConfirmDialog
             trigger={<Button size="sm" variant="secondary"><X className="h-4 w-4" aria-hidden /> {t("reject")}</Button>}
             title={t("rejectTitle", { name: app.name })}
-            body={t("rejectBody")}
+            body={
+              <div className="space-y-3">
+                <p>{t("rejectBody")}</p>
+                <Field label={t("reasonLabel")} required>
+                  {(p) => <Textarea {...p} rows={3} maxLength={1000} value={reason} onChange={(e) => setReason(e.target.value)} />}
+                </Field>
+              </div>
+            }
             confirmLabel={t("reject")}
-            onConfirm={() => run(() => sendJson("POST", `/api/admin/applications/${app.id}/reject`), t("rejectedToast"))}
+            onConfirm={async () => {
+              if (!reason.trim()) {
+                toast.error(t("reasonRequired"));
+                throw new Error("reason");
+              }
+              await run(() => sendJson("POST", `/api/admin/applications/${app.id}/reject`, { reason }), t("rejectedToast"));
+              setReason("");
+            }}
           />
         </>
       )}
@@ -245,24 +256,6 @@ export function ApplicationActions({ app }: { app: Schema<"ApplicationRow"> }) {
         confirmLabel={t("delete")}
         onConfirm={() => run(() => sendJson("DELETE", `/api/admin/applications/${app.id}`), t("deletedToast"))}
       />
-      <Dialog
-        open={temp !== null}
-        onOpenChange={(o) => !o && setTemp(null)}
-        title={t("tempTitle")}
-        description={t("tempBody")}
-        footer={
-          <Button
-            onClick={async () => {
-              await navigator.clipboard.writeText(temp ?? "");
-              toast.success(t("copied"));
-            }}
-          >
-            <Copy className="h-4 w-4" aria-hidden /> {t("copy")}
-          </Button>
-        }
-      >
-        <p className="tabular select-all rounded-md bg-sunken px-3 py-2 text-center font-mono text-lg" dir="ltr">{temp}</p>
-      </Dialog>
     </div>
   );
 }

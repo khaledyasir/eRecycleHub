@@ -14,11 +14,13 @@ test.describe("signing in", () => {
     await expect(page).toHaveURL(/\/en\/account$/);
   });
 
-  test("publisher and admin each have their own door", async ({ page }) => {
+  test("a seller signs in like any customer (one account type), and admin has their own door", async ({ page }) => {
     await page.goto("/en/login");
     await page.getByLabel("Email").fill(accounts.publisher.email);
     await page.getByLabel(/^Password/).fill(accounts.publisher.password);
     await page.getByRole("button", { name: "Sign in", exact: true }).click();
+    await expect(page).toHaveURL(/\/en\/account$/);
+    await page.goto("/en/seller"); // their seller profile opens the seller portal
     await expect(page).toHaveURL(/\/en\/seller$/);
     await page.context().clearCookies();
     // An administrator's credentials don't work on the public form's admin-only counterpart for other roles.
@@ -44,9 +46,9 @@ test.describe("signing in", () => {
 
 test.describe("role boundaries", () => {
   const cases: [Who, string, RegExp][] = [
-    ["customer", "/en/seller", /\/en\/account$/],
+    ["customer", "/en/seller", /\/en\/account\/become-seller$/],
     ["customer", "/en/admin", /\/en\/account$/],
-        ["publisher", "/en/admin/users", /\/en\/seller$/],
+    ["publisher", "/en/admin/users", /\/en\/account$/],
     ["admin", "/en/account", /\/en\/admin$/],
     ["admin", "/en/seller", /\/en\/admin$/],
   ];
@@ -58,12 +60,12 @@ test.describe("role boundaries", () => {
     });
   }
 
-  test("a publisher can also use the buyer area (they may bid on other sellers' lots), but never the admin area", async ({ page }) => {
+  test("a seller can also use the buyer area (they may bid on other sellers' lots), but never the admin area", async ({ page }) => {
     await signIn(page, "publisher");
     await page.goto("/en/account");
     await expect(page).toHaveURL(/\/en\/account$/);
     await page.goto("/en/admin");
-    await expect(page).toHaveURL(/\/en\/seller$/);
+    await expect(page).toHaveURL(/\/en\/account$/);
   });
 
   test("the API enforces roles regardless of the pages", async ({ page }) => {
@@ -199,6 +201,59 @@ test.describe("admin content management", () => {
     await card.getByRole("button", { name: "Mark as read" }).click();
     await expect(admin.getByText("Marked as read.")).toBeVisible();
     await visitor.context().close();
+    await admin.context().close();
+  });
+});
+
+test.describe("becoming a seller", () => {
+  test("a customer applies with documents, an admin approves, and the seller portal opens without signing in again", async ({ browser }) => {
+    test.setTimeout(120_000);
+    const email = `seller${stamp()}@test.local`;
+    const pdf = Buffer.from("%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF");
+
+    // A brand-new customer: signs up through the form (signs in automatically).
+    const user = await (await browser.newContext()).newPage();
+    const problems = watchProblems(user, [/^4\d\d .*\/api\/seller/]);
+    await user.goto("/en/register", { waitUntil: "networkidle" });
+    await user.getByLabel("Full name").fill("New Seller");
+    await user.getByLabel("Email").fill(email);
+    await user.getByLabel("Phone").fill("0790000777");
+    await user.getByLabel(/^Password/).fill("SellerPass#2026");
+    await user.getByLabel("Confirm password").fill("SellerPass#2026");
+    await user.getByRole("button", { name: "Create account" }).click();
+    await expect(user).toHaveURL(/\/en\/account$/);
+
+    // Not a seller yet: the seller portal sends them to the application page, and the API refuses.
+    await user.goto("/en/seller");
+    await expect(user).toHaveURL(/\/en\/account\/become-seller$/);
+    expect((await user.request.get("/api/seller/auctions")).status()).toBe(403);
+
+    // Documents are required; with them the application is accepted and shown as pending.
+    await user.getByLabel("Store name").fill("New Seller Store");
+    await user.getByRole("button", { name: "Send application" }).click();
+    await expect(user.getByText("Attach your commercial registration and identity documents.").first()).toBeVisible();
+    await user.getByLabel("Commercial registration document").setInputFiles({ name: "cr.pdf", mimeType: "application/pdf", buffer: pdf });
+    await user.getByLabel("Identity document").setInputFiles({ name: "id.pdf", mimeType: "application/pdf", buffer: pdf });
+    await user.getByRole("button", { name: "Send application" }).click();
+    await expect(user.getByText("Your application is under review")).toBeVisible();
+
+    // The admin sees it with the documents and approves.
+    const admin = await (await browser.newContext()).newPage();
+    await signIn(admin, "admin");
+    await admin.goto("/en/admin/applications", { waitUntil: "networkidle" });
+    const card = admin.getByRole("listitem").filter({ hasText: email });
+    await expect(card).toBeVisible();
+    await expect(card.getByRole("link", { name: "Commercial registration" })).toBeVisible();
+    await card.getByRole("button", { name: "Approve" }).click();
+    await admin.getByRole("dialog").getByRole("button", { name: "Approve" }).click();
+    await expect(admin.getByText("Application approved.")).toBeVisible();
+
+    // Same browser session, no new sign-in: the seller portal now opens.
+    await user.goto("/en/seller");
+    await expect(user).toHaveURL(/\/en\/seller$/);
+    expect((await user.request.get("/api/seller/auctions")).status()).toBe(200);
+    expect(problems).toEqual([]);
+    await user.context().close();
     await admin.context().close();
   });
 });

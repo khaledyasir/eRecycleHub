@@ -43,7 +43,7 @@ export function UserMenu() {
           </Link>
         </MenuItem>
       )}
-      {user.role === "Publisher" && (
+      {user.publisherId != null && (
         <MenuItem asChild>
           <Link href="/seller">
             <Store className="h-4 w-4" /> {t("sellerPortal")}

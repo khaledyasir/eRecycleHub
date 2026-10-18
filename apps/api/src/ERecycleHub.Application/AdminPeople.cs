@@ -16,9 +16,11 @@ public sealed record PublisherRow(int Id, int UserId, string Name, string Email,
 public sealed record PublisherInput(string FirstName, string? LastName, string? Address, string? SecondMobile, AccountFieldsInput Account);
 public sealed record PublisherFiles(UploadInput? Logo, UploadInput? Background, UploadInput? CrDocument, UploadInput? VatCertificate, UploadInput? IdDocument);
 public sealed record AdminPublisherDetails(PublisherRow Publisher, StoreProfileDto Profile, decimal WalletBalance, int BidsOnAuctions, int Bidders);
-public sealed record ApplicationRow(int Id, string Name, string Email, string? Mobile, string? Company, string? CountryNameEn, string? CountryNameAr,
-    ApplicationStatus Status, DateTime CreatedAtUtc, DateTime? DecidedAtUtc, IReadOnlyList<CategoryRef> Categories);
-public sealed record ApprovalResult(int UserId, int PublisherId, bool EmailSent, string? TemporaryPassword);
+public sealed record ApplicationRow(int Id, int UserId, string Name, string Email, string? Mobile, string? Company, string? Address, string? CountryNameEn, string? CountryNameAr,
+    ApplicationStatus Status, string? RejectionReason, DateTime CreatedAtUtc, DateTime? DecidedAtUtc, IReadOnlyList<CategoryRef> Categories,
+    FileRef? CrDocument, FileRef? VatCertificate, FileRef? IdDocument);
+public sealed record ApprovalResult(int UserId, int PublisherId, bool EmailSent);
+public sealed record RejectInput(string Reason);
 
 /// <summary>Administrator management of customers, publishers and publisher applications.</summary>
 public sealed class AdminPeople(AppDbContext db, PasswordService passwords, FileService files, WalletService wallet, AccountService accounts,
@@ -122,7 +124,7 @@ public sealed class AdminPeople(AppDbContext db, PasswordService passwords, File
     public async Task<AdminPublisherDetails> PublisherAsync(int id, SellerService seller, CancellationToken ct = default)
     {
         var row = await PublisherRows(db.Publishers.AsNoTracking().Where(p => p.Id == id)).FirstOrDefaultAsync(ct) ?? throw AppException.NotFound("publisher");
-        var actor = new Actor(row.UserId, UserRole.Publisher, id);
+        var actor = new Actor(row.UserId, UserRole.Customer, id);
         var profile = await seller.ProfileAsync(actor, ct);
         var balance = await db.Users.Where(u => u.Id == row.UserId).Select(u => u.WalletBalance).SingleAsync(ct);
         var bids = db.Bids.Where(b => b.Auction!.PublisherId == id);
@@ -132,7 +134,7 @@ public sealed class AdminPeople(AppDbContext db, PasswordService passwords, File
     public async Task<int> CreatePublisherAsync(Actor admin, PublisherInput input, PublisherFiles uploads, CancellationToken ct = default)
     {
         var first = Normalize.Text(input.FirstName) ?? throw new AppException("profile.name_required");
-        var user = await NewAccountAsync(input.Account with { FullName = (first + " " + (input.LastName ?? "")).Trim() }, UserRole.Publisher, ct);
+        var user = await NewAccountAsync(input.Account with { FullName = (first + " " + (input.LastName ?? "")).Trim() }, UserRole.Customer, ct);
         await using var tx = await db.Database.BeginTransactionAsync(ct);
         db.Users.Add(user);
         await db.SaveChangesAsync(ct);
@@ -208,18 +210,29 @@ public sealed class AdminPeople(AppDbContext db, PasswordService passwords, File
         var q = db.PublisherApplications.AsNoTracking();
         if (status is not null) q = q.Where(a => a.Status == status);
         var total = await q.CountAsync(ct);
-        var items = await q.OrderByDescending(a => a.Id).Skip(page.Skip).Take(page.SafeSize).Select(a => new ApplicationRow(a.Id, a.Name, a.Email, a.Mobile, a.Company,
-            db.Countries.Where(c => c.Id == a.CountryId).Select(c => c.NameEn).FirstOrDefault(), db.Countries.Where(c => c.Id == a.CountryId).Select(c => c.NameAr).FirstOrDefault(),
-            a.Status, a.CreatedAtUtc, a.DecidedAtUtc,
-            a.Categories.Select(c => new CategoryRef(c.CategoryId, c.Category!.TitleEn, c.Category.TitleAr)).ToList())).ToListAsync(ct);
+        var rows = await q.OrderByDescending(a => a.Id).Skip(page.Skip).Take(page.SafeSize).Select(a => new
+        {
+            a.Id, a.UserId, a.Name, a.User!.Email, a.Mobile, a.Company, a.Address,
+            CountryEn = db.Countries.Where(c => c.Id == a.CountryId).Select(c => c.NameEn).FirstOrDefault(),
+            CountryAr = db.Countries.Where(c => c.Id == a.CountryId).Select(c => c.NameAr).FirstOrDefault(),
+            a.Status, a.RejectionReason, a.CreatedAtUtc, a.DecidedAtUtc,
+            Categories = a.Categories.Select(c => new CategoryRef(c.CategoryId, c.Category!.TitleEn, c.Category.TitleAr)).ToList(),
+            a.CrDocumentFileId, a.VatCertificateFileId, a.IdDocumentFileId,
+        }).ToListAsync(ct);
+        var ids = rows.SelectMany(r => new[] { r.CrDocumentFileId, r.VatCertificateFileId, r.IdDocumentFileId }).Where(x => x != null).Select(x => x!.Value).ToList();
+        var docs = await db.Files.AsNoTracking().Where(f => ids.Contains(f.Id)).ToDictionaryAsync(f => f.Id, f => new FileRef(f.Id, f.OriginalName, f.ContentType), ct);
+        FileRef? Doc(Guid? id) => id is not null && docs.TryGetValue(id.Value, out var d) ? d : null;
+        var items = rows.Select(r => new ApplicationRow(r.Id, r.UserId, r.Name, r.Email, r.Mobile, r.Company, r.Address, r.CountryEn, r.CountryAr, r.Status, r.RejectionReason,
+            r.CreatedAtUtc, r.DecidedAtUtc, r.Categories, Doc(r.CrDocumentFileId), Doc(r.VatCertificateFileId), Doc(r.IdDocumentFileId))).ToList();
         return new(items, page.SafePage, page.SafeSize, total);
     }
 
     /// <summary>
-    /// Creates a publisher account (role Publisher — never Admin) with the password the applicant chose, or a random one that is e-mailed.
-    /// The status change is a conditional UPDATE, so a double click or replay cannot create two accounts.
+    /// Approving turns the applicant's existing customer account into a seller by creating its publisher profile (the role does not change).
+    /// The status change is a conditional UPDATE inside the transaction, so a double click or replay cannot create two profiles, and every
+    /// precondition (active customer, not already a seller) is re-checked at decision time, not only at submission.
     /// </summary>
-    public async Task<ApprovalResult> ApproveAsync(Actor admin, int id, string loginUrl, bool arabic, CancellationToken ct = default)
+    public async Task<ApprovalResult> ApproveAsync(Actor admin, int id, string accountUrl, bool arabic, CancellationToken ct = default)
     {
         var now = Now;
         await using var tx = await db.Database.BeginTransactionAsync(ct);
@@ -230,60 +243,63 @@ public sealed class AdminPeople(AppDbContext db, PasswordService passwords, File
             if (!await db.PublisherApplications.AnyAsync(a => a.Id == id, ct)) throw AppException.NotFound("application");
             throw AppException.Conflict("application.not_pending");
         }
-        var app = await db.PublisherApplications.SingleAsync(a => a.Id == id, ct);
-        if (await db.Users.AnyAsync(u => u.Email == app.Email, ct)) throw AppException.Conflict("auth.email_taken");
+        var app = await db.PublisherApplications.Include(a => a.User).SingleAsync(a => a.Id == id, ct);
+        var user = app.User!;
+        if (user.IsDeleted || !user.IsActive) throw AppException.Conflict("application.user_inactive");
+        if (user.Role != UserRole.Customer) throw AppException.Conflict("application.user_not_customer");
+        if (await db.Publishers.AnyAsync(p => p.UserId == user.Id, ct)) throw AppException.Conflict("application.already_seller");
 
-        var countryId = app.CountryId ?? await db.Countries.Where(c => c.IsActive).OrderBy(c => c.Id).Select(c => (int?)c.Id).FirstOrDefaultAsync(ct)
-            ?? throw new AppException("country.invalid");
-        var temp = app.PasswordHash is null ? PasswordService.RandomPassword() : null;
-        var user = new User
-        {
-            FullName = app.Name, Email = app.Email, Phone = app.Mobile, CountryId = countryId, Role = UserRole.Publisher, CompanyName = app.Company,
-            PasswordHash = app.PasswordHash ?? passwords.Hash(temp!), CreatedAtUtc = now,
-        };
-        db.Users.Add(user);
-        await db.SaveChangesAsync(ct);
-        var pub = new Publisher { UserId = user.Id, CountryId = countryId, FirstName = app.Name, CreatedAtUtc = now };
+        var pub = new Publisher { UserId = user.Id, CountryId = app.CountryId, FirstName = app.Name, Address = app.Address, SecondMobile = app.Mobile, CreatedAtUtc = now };
         db.Publishers.Add(pub);
-        app.PasswordHash = null;
-        app.CreatedUserId = user.Id;
-        audit.Record(admin, "application.approve", nameof(PublisherApplication), id, new { userId = user.Id });
+        user.CrDocumentFileId = app.CrDocumentFileId ?? user.CrDocumentFileId;
+        user.VatCertificateFileId = app.VatCertificateFileId ?? user.VatCertificateFileId;
+        user.IdDocumentFileId = app.IdDocumentFileId ?? user.IdDocumentFileId;
+        user.CompanyName ??= app.Company;
+        db.Notifications.Add(new Notification { UserId = user.Id, FromUserId = admin.UserId, Kind = NotificationKinds.SellerApproved, Url = "/seller", CreatedAtUtc = now });
+        await db.SaveChangesAsync(ct);
+        audit.Record(admin, "application.approve", nameof(PublisherApplication), id, new { userId = user.Id, publisherId = pub.Id });
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
 
         var sent = true;
         try
         {
-            var (subject, html) = EmailTemplates.ApplicationApproved(arabic, app.Email, temp, loginUrl);
-            await mailer.SendAsync(app.Email, subject, html, ct);
+            var (subject, html) = EmailTemplates.ApplicationApproved(arabic, accountUrl);
+            await mailer.SendAsync(user.Email, subject, html, ct);
         }
         catch (Exception ex)
         {
             sent = false;
             log.LogError(ex, "Approval e-mail for application {Id} failed", id);
         }
-        // If the e-mail failed, the one-time password is handed to the admin once so it is not lost (legacy behaviour).
-        return new ApprovalResult(user.Id, pub.Id, sent, sent ? null : temp);
+        return new ApprovalResult(user.Id, pub.Id, sent);
     }
 
-    public async Task RejectAsync(Actor admin, int id, bool arabic, CancellationToken ct = default)
+    /// <summary>A reason is mandatory: the applicant sees it and can correct the application before re-applying.</summary>
+    public async Task RejectAsync(Actor admin, int id, string? reason, bool arabic, CancellationToken ct = default)
     {
+        reason = Normalize.Text(reason);
+        if (reason is null) throw new AppException("application.reason_required");
+        if (reason.Length > 1000) throw new AppException("application.field_too_long");
         var now = Now;
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
         var rows = await db.PublisherApplications.Where(a => a.Id == id && a.Status == ApplicationStatus.Pending).ExecuteUpdateAsync(s => s
             .SetProperty(a => a.Status, ApplicationStatus.Rejected).SetProperty(a => a.DecidedAtUtc, now).SetProperty(a => a.DecidedByUserId, admin.UserId)
-            .SetProperty(a => a.PasswordHash, (string?)null), ct);
+            .SetProperty(a => a.RejectionReason, reason), ct);
         if (rows == 0)
         {
             if (!await db.PublisherApplications.AnyAsync(a => a.Id == id, ct)) throw AppException.NotFound("application");
             throw AppException.Conflict("application.not_pending");
         }
+        var target = await db.PublisherApplications.Where(a => a.Id == id).Select(a => new { a.UserId, a.User!.Email }).SingleAsync(ct);
+        db.Notifications.Add(new Notification { UserId = target.UserId, FromUserId = admin.UserId, Kind = NotificationKinds.SellerRejected, Body = reason, Url = "/account/become-seller", CreatedAtUtc = now });
         audit.Record(admin, "application.reject", nameof(PublisherApplication), id);
         await db.SaveChangesAsync(ct);
-        var email = await db.PublisherApplications.Where(a => a.Id == id).Select(a => a.Email).SingleAsync(ct);
+        await tx.CommitAsync(ct);
         try
         {
-            var (subject, html) = EmailTemplates.ApplicationRejected(arabic);
-            await mailer.SendAsync(email, subject, html, ct);
+            var (subject, html) = EmailTemplates.ApplicationRejected(arabic, reason);
+            await mailer.SendAsync(target.Email, subject, html, ct);
         }
         catch (Exception ex)
         {

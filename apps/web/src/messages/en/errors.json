@@ -34,8 +34,12 @@
     "required": "Sign in to continue.",
     "forbidden": "You don't have permission to do that."
   },
-  "csrf": { "invalid": "Your session changed. Reload the page and try again." },
-  "rate": { "limited": "Too many requests. Wait a minute and try again." },
+  "csrf": {
+    "invalid": "Your session changed. Reload the page and try again."
+  },
+  "rate": {
+    "limited": "Too many requests. Wait a minute and try again."
+  },
   "wallet": {
     "invalid_amount": "Enter an amount greater than zero and no more than {max}, with at most two decimals.",
     "not_pending": "This request was already approved or rejected.",
@@ -62,7 +66,9 @@
     "has_transactions": "Wallet transactions reference this auction, so it can't be deleted.",
     "too_many_images": "An auction can have at most {max} images."
   },
-  "store": { "not_found": "This store doesn't exist." },
+  "store": {
+    "not_found": "This store doesn't exist."
+  },
   "file": {
     "type_not_allowed": "This file type isn't accepted. Use JPG, PNG, WebP or PDF.",
     "too_large": "The file is larger than 10 MB.",
@@ -77,28 +83,82 @@
   "application": {
     "name_required": "Enter your name.",
     "email_invalid": "Enter a valid email address.",
-    "already_pending": "An application with this email is already waiting for review.",
-    "not_pending": "This application was already decided."
+    "already_pending": "You already have an application waiting for review.",
+    "not_pending": "This application was already decided.",
+    "already_seller": "This account is already a seller.",
+    "documents_required": "Attach your commercial registration and identity documents.",
+    "too_many": "Too many applications today. Try again tomorrow.",
+    "field_too_long": "One of the fields is too long.",
+    "reason_required": "Enter a reason for rejecting.",
+    "user_inactive": "This account is deactivated, so it can't be approved.",
+    "user_not_customer": "Only customer accounts can become sellers."
   },
   "contact": {
     "name_required": "Enter your name.",
     "email_invalid": "Enter a valid email address.",
     "message_required": "Write a message (up to 4,000 characters)."
   },
-  "profile": { "name_required": "Enter a name." },
-  "country": { "invalid": "Choose a country.", "name_required": "Enter the country name.", "in_use": "This country is still used by accounts, auctions or content." },
-  "category": { "invalid": "Choose a category from the auction's country.", "title_required": "Enter a title.", "in_use": "This category is still used by auctions or applications." },
-  "publisher": { "invalid": "Choose a publisher.", "in_use": "This publisher has auctions or wallet history. Deactivate it instead." },
-  "user": { "cannot_deactivate_self": "You can't deactivate your own account." },
-  "cms": { "image_required": "Add an image.", "invalid_link": "Enter a full link starting with https:// or a path starting with /.", "title_required": "Enter a title.", "invalid_number": "Enter zero or a positive number.", "too_long": "Keep this under {limit} characters.", "hero_exists": "The homepage hero already exists. Edit it instead." },
-  "faq": { "question_required": "Enter the question." },
-  "faqcategory": { "invalid": "Choose a category.", "not_empty": "Move or delete the questions in this category first." },
-  "setting": { "invalid_key": "Use lowercase letters, digits and hyphens for the key.", "key_taken": "A setting with this key exists.", "required": "This page is required and can't be deleted." },
-  "translation": { "invalid_locale": "Choose English or Arabic.", "invalid_key": "Unknown text key.", "invalid_value": "Enter the text (up to 4,000 characters)." },
-  "calendar": { "invalid_range": "Choose a range of up to two months." },
-  "request": { "too_large": "The upload is too large.", "invalid_json": "The form data couldn't be read.", "multipart_required": "The form couldn't be sent.", "data_required": "The form couldn't be sent.", "invalid": "The request couldn't be processed." },
-  "server": { "error": "The server ran into a problem. Try again in a moment." },
-  "winner": { "not_found": "This auction has no winner yet." },
+  "profile": {
+    "name_required": "Enter a name."
+  },
+  "country": {
+    "invalid": "Choose a country.",
+    "name_required": "Enter the country name.",
+    "in_use": "This country is still used by accounts, auctions or content."
+  },
+  "category": {
+    "invalid": "Choose a category from the auction's country.",
+    "title_required": "Enter a title.",
+    "in_use": "This category is still used by auctions or applications."
+  },
+  "publisher": {
+    "invalid": "Choose a publisher.",
+    "in_use": "This publisher has auctions or wallet history. Deactivate it instead."
+  },
+  "user": {
+    "cannot_deactivate_self": "You can't deactivate your own account."
+  },
+  "cms": {
+    "image_required": "Add an image.",
+    "invalid_link": "Enter a full link starting with https:// or a path starting with /.",
+    "title_required": "Enter a title.",
+    "invalid_number": "Enter zero or a positive number.",
+    "too_long": "Keep this under {limit} characters.",
+    "hero_exists": "The homepage hero already exists. Edit it instead."
+  },
+  "faq": {
+    "question_required": "Enter the question."
+  },
+  "faqcategory": {
+    "invalid": "Choose a category.",
+    "not_empty": "Move or delete the questions in this category first."
+  },
+  "setting": {
+    "invalid_key": "Use lowercase letters, digits and hyphens for the key.",
+    "key_taken": "A setting with this key exists.",
+    "required": "This page is required and can't be deleted."
+  },
+  "translation": {
+    "invalid_locale": "Choose English or Arabic.",
+    "invalid_key": "Unknown text key.",
+    "invalid_value": "Enter the text (up to 4,000 characters)."
+  },
+  "calendar": {
+    "invalid_range": "Choose a range of up to two months."
+  },
+  "request": {
+    "too_large": "The upload is too large.",
+    "invalid_json": "The form data couldn't be read.",
+    "multipart_required": "The form couldn't be sent.",
+    "data_required": "The form couldn't be sent.",
+    "invalid": "The request couldn't be processed."
+  },
+  "server": {
+    "error": "The server ran into a problem. Try again in a moment."
+  },
+  "winner": {
+    "not_found": "This auction has no winner yet."
+  },
   "validation": {
     "required": "This field is required.",
     "email": "Enter a valid email address.",

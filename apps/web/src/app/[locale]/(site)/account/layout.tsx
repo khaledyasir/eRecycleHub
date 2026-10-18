@@ -9,7 +9,7 @@ export const metadata: Metadata = { robots: { index: false } };
 
 export default async function AccountLayout({ children }: { children: ReactNode }) {
   // Administrators have no customer account; publishers do (they may bid on other stores' lots).
-  const user = await requireRole(["Customer", "Publisher"]);
+  const user = await requireRole(["Customer"]);
   const t = await getTranslations("account.nav");
   const groups: PortalNavGroup[] = [
     {
@@ -29,7 +29,7 @@ export default async function AccountLayout({ children }: { children: ReactNode 
         { href: "/account/wallet", label: t("wallet"), icon: "Wallet" },
         { href: "/account/settings", label: t("settings"), icon: "UserRound" },
         { href: "/account/password", label: t("password"), icon: "KeyRound" },
-        ...(user.role === "Publisher" ? [{ href: "/seller", label: t("seller"), icon: "Store" as const }] : []),
+        ...(user.publisherId != null ? [{ href: "/seller", label: t("seller"), icon: "Store" as const }] : [{ href: "/account/become-seller", label: t("becomeSeller"), icon: "Store" as const }]),
       ],
     },
   ];

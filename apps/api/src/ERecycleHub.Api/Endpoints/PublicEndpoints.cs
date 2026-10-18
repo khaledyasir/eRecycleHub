@@ -68,8 +68,6 @@ public static class PublicEndpoints
 
         g.MapPost("/contact", async (ContactInput req, PublicContent c, CancellationToken ct) => { await c.SubmitContactAsync(req, ct); return Results.NoContent(); })
             .RequireRateLimiting(RateLimits.Forms);
-        g.MapPost("/applications", async (ApplicationInput req, PublicContent c, CancellationToken ct) => new IdResponse(await c.SubmitApplicationAsync(req, ct)))
-            .RequireRateLimiting(RateLimits.Forms);
 
         g.MapGet("/files/{id:guid}", ServeFileAsync);
     }

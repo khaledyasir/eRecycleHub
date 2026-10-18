@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
-import { ClipboardList } from "lucide-react";
+import { ClipboardList, FileText } from "lucide-react";
 import { getLocale, getTranslations } from "next-intl/server";
 import { ApplicationActions } from "@/components/admin/admin-forms";
 import { Badge, EmptyState, PageHeader, type Tone } from "@/components/ui/display";
 import { Pagination } from "@/components/ui/pagination";
 import { Link } from "@/i18n/navigation";
 import { load, serverApi } from "@/lib/api/server";
-import { cn, date, pick } from "@/lib/format";
+import { cn, date, fileUrl, pick } from "@/lib/format";
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getTranslations("admin.applications"))("title") };
@@ -40,9 +40,23 @@ export default async function Applications({ searchParams }: { searchParams: Pro
                   <p className="mt-1 text-xs text-muted">
                     {pick(locale, a.countryNameEn, a.countryNameAr)}{a.countryNameEn ? " — " : ""}{t("submitted")}: {date(a.createdAtUtc, locale)}{a.decidedAtUtc ? ` — ${t("decided")}: ${date(a.decidedAtUtc, locale)}` : ""}
                   </p>
+                  {a.address && <p className="mt-1 text-xs text-muted">{t("address")}: {a.address}</p>}
                   {a.categories.length > 0 && (
                     <p className="mt-2 flex flex-wrap gap-1"><span className="text-xs text-muted">{t("categories")}:</span>{a.categories.map((c) => <Badge key={c.id}>{pick(locale, c.titleEn, c.titleAr)}</Badge>)}</p>
                   )}
+                  <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+                    <span className="text-xs text-muted">{t("documents")}:</span>
+                    {([[t("cr"), a.crDocument], [t("id"), a.idDocument], [t("vat"), a.vatCertificate]] as const).map(([label, doc]) =>
+                      doc ? (
+                        <a key={label} href={fileUrl(doc.id)} target="_blank" rel="noopener" className="inline-flex items-center gap-1 font-medium text-patina hover:underline">
+                          <FileText className="h-4 w-4" aria-hidden /> {label}
+                        </a>
+                      ) : null,
+                    )}
+                    {!a.crDocument && !a.idDocument && !a.vatCertificate && <span className="text-xs text-muted">{t("noDocuments")}</span>}
+                  </div>
+                  {a.rejectionReason && <p className="mt-2 text-sm text-rust">{t("reasonShown")}: {a.rejectionReason}</p>}
+                  <p className="mt-2 text-xs"><Link href={`/admin/users/${a.userId}`} className="text-patina hover:underline">{t("account")} #{a.userId}</Link></p>
                 </div>
                 <div className="flex flex-col items-end gap-2">
                   <Badge tone={tones[a.status]}>{t(`status.${a.status}`)}</Badge>

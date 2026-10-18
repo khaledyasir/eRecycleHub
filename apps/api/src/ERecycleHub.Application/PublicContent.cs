@@ -26,9 +26,8 @@ public sealed record ContactInfoDto(int Id, int CountryId, string? Mobile, strin
 public sealed record SettingDto(string Key, string? TitleEn, string? TitleAr, string? ValueEn, string? ValueAr);
 public sealed record HowToDto(IReadOnlyList<StepDto> Steps, string? GuidelinesVideoUrl);
 public sealed record ContactInput(string Name, string Email, string? Mobile, string Message);
-public sealed record ApplicationInput(string Name, string Email, string? Mobile, string? Company, string Password, int? CountryId, int[]? CategoryIds);
 
-public sealed class PublicContent(AppDbContext db, AuctionQueries auctions, PasswordService passwords, TimeProvider clock)
+public sealed class PublicContent(AppDbContext db, AuctionQueries auctions, TimeProvider clock)
 {
     private DateTime Now => clock.GetUtcNow().UtcDateTime;
 
@@ -164,31 +163,6 @@ public sealed class PublicContent(AppDbContext db, AuctionQueries auctions, Pass
         if (message is null || message.Length > 4000) throw new AppException("contact.message_required");
         db.ContactMessages.Add(new ContactMessage { Name = name, Email = email, Mobile = Normalize.Text(input.Mobile), Message = message, CreatedAtUtc = Now });
         await db.SaveChangesAsync(ct);
-    }
-
-    /// <summary>Publisher application ("Subscribe"). The chosen password is hashed immediately and only used if an admin approves.</summary>
-    public async Task<int> SubmitApplicationAsync(ApplicationInput input, CancellationToken ct = default)
-    {
-        AuthService.ValidatePassword(input.Password);
-        var name = Normalize.Text(input.Name) ?? throw new AppException("application.name_required");
-        var email = Normalize.Email(input.Email ?? "");
-        if (!email.Contains('@') || email.Length > 256) throw new AppException("application.email_invalid");
-        if (await db.Users.AnyAsync(u => u.Email == email, ct)) throw AppException.Conflict("auth.email_taken");
-        if (await db.PublisherApplications.AnyAsync(a => a.Email == email && a.Status == ApplicationStatus.Pending, ct)) throw AppException.Conflict("application.already_pending");
-        if (input.CountryId is not null && !await db.Countries.AnyAsync(c => c.Id == input.CountryId && c.IsActive, ct)) throw new AppException("country.invalid");
-        var categoryIds = (input.CategoryIds ?? []).Distinct().ToArray();
-        if (categoryIds.Length > 0 && await db.Categories.CountAsync(c => categoryIds.Contains(c.Id) && c.IsActive, ct) != categoryIds.Length)
-            throw new AppException("category.invalid");
-
-        var app = new PublisherApplication
-        {
-            Name = name, Email = email, Mobile = Normalize.Text(input.Mobile), Company = Normalize.Text(input.Company), CountryId = input.CountryId,
-            PasswordHash = passwords.Hash(input.Password), Status = ApplicationStatus.Pending, CreatedAtUtc = Now,
-            Categories = categoryIds.Select(id => new PublisherApplicationCategory { CategoryId = id }).ToList(),
-        };
-        db.PublisherApplications.Add(app);
-        await db.SaveChangesAsync(ct);
-        return app.Id;
     }
 
     public Task<Dictionary<string, string>> TranslationOverridesAsync(string locale, CancellationToken ct = default) =>

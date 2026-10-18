@@ -43,8 +43,8 @@ public sealed class DevSeed(AppDbContext db, PasswordService passwords, FileServ
         var admin = User("Platform Admin", AdminEmail, AdminPassword, UserRole.Admin, jordan.Id, "0790000001");
         var c1 = User("Test Customer", CustomerEmail, CustomerPassword, UserRole.Customer, jordan.Id, "0790000002");
         var c2 = User("Second Customer", Customer2Email, CustomerPassword, UserRole.Customer, jordan.Id, "0790000003");
-        var p1u = User("Green Cycle Co.", PublisherEmail, PublisherPassword, UserRole.Publisher, jordan.Id, "0790000004");
-        var p2u = User("Amman Metals", Publisher2Email, PublisherPassword, UserRole.Publisher, jordan.Id, "0790000005");
+        var p1u = User("Green Cycle Co.", PublisherEmail, PublisherPassword, UserRole.Customer, jordan.Id, "0790000004");
+        var p2u = User("Amman Metals", Publisher2Email, PublisherPassword, UserRole.Customer, jordan.Id, "0790000005");
         c1.CompanyName = "Test Trading LLC";
         c1.IsFeaturedClient = true;
         p1u.CompanyName = "Green Cycle Co.";
@@ -144,8 +144,8 @@ public sealed class DevSeed(AppDbContext db, PasswordService passwords, FileServ
             new Setting { Key = SettingKeys.PrivacyPolicy, TitleEn = "Privacy policy", TitleAr = "سياسة الخصوصية", ValueEn = "<p>Sample privacy policy for development.</p>", ValueAr = "<p>سياسة خصوصية تجريبية لبيئة التطوير.</p>" });
         db.Sliders.Add(new Slider { Title = "Recycle smarter", Link = "/auctions", Type = "Web", SortOrder = 1, ImageFileId = await SvgAsync(Banner("#0b3d2e", "#10b981"), "slide.svg", ct) });
         db.Announcements.Add(new Announcement { CountryId = jordan.Id, SortOrder = 1, ImageFileId = await SvgAsync(Banner("#78350f", "#f59e0b"), "announcement.svg", ct) });
-        db.PublisherApplications.Add(new PublisherApplication { Name = "New Recycler", Email = "applicant@test.local", Mobile = "0790000099", Company = "New Recycler Ltd", CountryId = jordan.Id,
-            PasswordHash = passwords.Hash("ApplicantPass#2026"), Status = ApplicationStatus.Pending, CreatedAtUtc = now.AddDays(-1),
+        db.PublisherApplications.Add(new PublisherApplication { UserId = c2.Id, Name = "New Recycler", Mobile = "0790000099", Company = "New Recycler Ltd", Address = "Amman", CountryId = jordan.Id,
+            Status = ApplicationStatus.Pending, CreatedAtUtc = now.AddDays(-1),
             Categories = [new PublisherApplicationCategory { CategoryId = categories[1].Id }] });
         db.ContactMessages.Add(new ContactMessage { Name = "Visitor", Email = "visitor@test.local", Message = "Do you accept bulk glass?", CreatedAtUtc = now.AddHours(-5) });
 

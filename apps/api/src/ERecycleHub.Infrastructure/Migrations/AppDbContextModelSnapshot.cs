@@ -951,18 +951,22 @@ namespace ERecycleHub.Infrastructure.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("Company")
-                        .HasMaxLength(400)
-                        .HasColumnType("nvarchar(400)");
+                    b.Property<string>("Address")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
 
-                    b.Property<int?>("CountryId")
+                    b.Property<string>("Company")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("CountryId")
                         .HasColumnType("int");
+
+                    b.Property<Guid?>("CrDocumentFileId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("datetime2");
-
-                    b.Property<int?>("CreatedUserId")
-                        .HasColumnType("int");
 
                     b.Property<DateTime?>("DecidedAtUtc")
                         .HasColumnType("datetime2");
@@ -970,30 +974,44 @@ namespace ERecycleHub.Infrastructure.Migrations
                     b.Property<int?>("DecidedByUserId")
                         .HasColumnType("int");
 
-                    b.Property<string>("Email")
-                        .IsRequired()
-                        .HasMaxLength(400)
-                        .HasColumnType("nvarchar(400)");
+                    b.Property<Guid?>("IdDocumentFileId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Mobile")
-                        .HasMaxLength(400)
-                        .HasColumnType("nvarchar(400)");
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasMaxLength(400)
-                        .HasColumnType("nvarchar(400)");
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
 
-                    b.Property<string>("PasswordHash")
+                    b.Property<string>("RejectionReason")
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
 
                     b.Property<int>("Status")
                         .HasColumnType("int");
 
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.Property<Guid?>("VatCertificateFileId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.HasKey("Id");
 
                     b.HasIndex("CountryId");
+
+                    b.HasIndex("CrDocumentFileId");
+
+                    b.HasIndex("IdDocumentFileId");
+
+                    b.HasIndex("UserId")
+                        .IsUnique()
+                        .HasFilter("[Status] = 0");
+
+                    b.HasIndex("VatCertificateFileId");
 
                     b.HasIndex("Status", "CreatedAtUtc");
 
@@ -1692,7 +1710,31 @@ namespace ERecycleHub.Infrastructure.Migrations
                     b.HasOne("ERecycleHub.Domain.Country", null)
                         .WithMany()
                         .HasForeignKey("CountryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ERecycleHub.Domain.StoredFile", null)
+                        .WithMany()
+                        .HasForeignKey("CrDocumentFileId")
                         .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("ERecycleHub.Domain.StoredFile", null)
+                        .WithMany()
+                        .HasForeignKey("IdDocumentFileId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("ERecycleHub.Domain.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ERecycleHub.Domain.StoredFile", null)
+                        .WithMany()
+                        .HasForeignKey("VatCertificateFileId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("ERecycleHub.Domain.PublisherApplicationCategory", b =>

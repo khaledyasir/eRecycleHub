@@ -63,7 +63,9 @@ builder.Services.AddAuthorizationBuilder()
     .SetFallbackPolicy(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build())
     .AddPolicy(Policies.Member, p => p.RequireAuthenticatedUser())
     .AddPolicy(Policies.Admin, p => p.RequireRole(nameof(ERecycleHub.Domain.UserRole.Admin)))
-    .AddPolicy(Policies.Publisher, p => p.RequireRole(nameof(ERecycleHub.Domain.UserRole.Publisher)).RequireClaim(Claims.PublisherId));
+    // A seller is a customer account that owns a publisher profile (created when an admin approves an application). The profile claim is
+    // re-derived from the database on every request (see Security.ValidateSessionAsync), so revoking it takes effect immediately.
+    .AddPolicy(Policies.Publisher, p => p.RequireRole(nameof(ERecycleHub.Domain.UserRole.Customer)).RequireClaim(Claims.PublisherId));
 
 builder.Services.AddAntiforgery(o =>
 {

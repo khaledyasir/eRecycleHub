@@ -27,6 +27,8 @@ export default async function Notifications({ searchParams }: { searchParams: Pr
       case "wallet.topup_approved": return t("kind.topupApproved", args);
       case "wallet.topup_rejected": return t("kind.topupRejected", args);
       case "auction.won": return t("kind.won", args);
+      case "seller.approved": return t("kind.sellerApproved", args);
+      case "seller.rejected": return t("kind.sellerRejected", args);
       default: return n.title || t("kind.generic");
     }
   };

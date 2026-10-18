@@ -23,6 +23,8 @@ Start with [docs/REBUILD-REPORT.md](docs/REBUILD-REPORT.md) (what was built, how
 
 Sample sign-ins (development seed only): `admin@test.local` / `AdminPass#2026`, `customer@test.local` / `CustomerPass#2026`,
 `publisher@test.local` / `PublisherPass#2026`. Admins sign in at `/admin/login`.
+There are only two account types, Customer and Admin: the `publisher@` accounts are customers that were approved as sellers (they own a seller profile).
+A customer applies from their account (`/account/become-seller`) with their documents and an admin approves under `/admin/applications`.
 
 ## Legacy project
 

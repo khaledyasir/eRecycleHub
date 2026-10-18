@@ -112,7 +112,7 @@ public class PublisherOwnershipTests(ApiFactory f)
     [Fact]
     public async Task Deactivated_publishers_auctions_disappear_from_public_but_are_not_modified()
     {
-        var (uid, email) = await f.NewCustomerAsync(wallet: 0, role: UserRole.Publisher);
+        var (uid, email) = await f.NewCustomerAsync(wallet: 0);
         var pid = await f.DbAsync(async db =>
         {
             var p = new Publisher { UserId = uid, CountryId = 1, FirstName = "Temp", CreatedAtUtc = DateTime.UtcNow };
@@ -135,28 +135,6 @@ public class PublisherOwnershipTests(ApiFactory f)
 [Collection(ApiCollection.Name)]
 public class AdminWorkflowTests(ApiFactory f)
 {
-    [Fact]
-    public async Task Application_approval_creates_a_publisher_once_with_the_chosen_password()
-    {
-        var anon = f.Client();
-        var email = $"app{Guid.NewGuid():N}@test.local";
-        var submit = await anon.PostAsync("/api/applications", new { name = "Recycler", email, mobile = "07", company = "R Ltd", password = "ChosenPass#2026", countryId = 1, categoryIds = new[] { 1 } });
-        Assert.Equal(HttpStatusCode.OK, submit.StatusCode);
-        var appId = (await submit.Content.ReadFromJsonAsync<JsonElement>(ApiClient.Json)).GetProperty("id").GetInt32();
-        Assert.False(PasswordService.IsLegacyV1(await f.DbAsync(db => db.PublisherApplications.Where(a => a.Id == appId).Select(a => a.PasswordHash!).SingleAsync())));
-
-        var admins = new[] { await f.SignedInAsync(DevSeed.AdminEmail, DevSeed.AdminPassword), await f.SignedInAsync(DevSeed.AdminEmail, DevSeed.AdminPassword) };
-        foreach (var a in admins) await a.CsrfAsync();
-        var results = await Task.WhenAll(admins.Select(a => a.PostAsync($"/api/admin/applications/{appId}/approve")));
-        Assert.Single(results, r => r.StatusCode == HttpStatusCode.OK);
-
-        var user = await f.DbAsync(db => db.Users.Include(u => u.Publisher).SingleAsync(u => u.Email == email));
-        Assert.Equal(UserRole.Publisher, user.Role);
-        Assert.NotNull(user.Publisher);
-        Assert.Null(await f.DbAsync(db => db.PublisherApplications.Where(a => a.Id == appId).Select(a => a.PasswordHash).SingleAsync()));
-        Assert.Equal(HttpStatusCode.OK, (await f.Client().LoginAsync(email, "ChosenPass#2026")).StatusCode);
-    }
-
     [Fact]
     public async Task Winner_is_emailed_only_once()
     {

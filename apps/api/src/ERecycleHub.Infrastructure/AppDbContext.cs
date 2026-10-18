@@ -106,8 +106,18 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
         m.Entity<PublisherApplication>(e =>
         {
-            e.Property(x => x.PasswordHash).HasMaxLength(1000);
+            e.Property(x => x.Name).HasMaxLength(200);
+            e.Property(x => x.Company).HasMaxLength(200);
+            e.Property(x => x.Mobile).HasMaxLength(50);
+            e.Property(x => x.Address).HasMaxLength(1000);
+            e.Property(x => x.RejectionReason).HasMaxLength(1000);
             e.HasIndex(x => new { x.Status, x.CreatedAtUtc });
+            e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId);
+            // One open application per user, enforced by the database so concurrent submissions cannot create two.
+            e.HasIndex(x => x.UserId).IsUnique().HasFilter("[Status] = 0");
+            FileFk(e, x => x.CrDocumentFileId);
+            FileFk(e, x => x.VatCertificateFileId);
+            FileFk(e, x => x.IdDocumentFileId);
             e.HasMany(x => x.Categories).WithOne().HasForeignKey(x => x.ApplicationId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne<Country>().WithMany().HasForeignKey(x => x.CountryId);
         });

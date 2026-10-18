@@ -23,19 +23,13 @@ public static class EmailTemplates
         : ("Reset your password", Layout(false, "Reset your password",
             $"<p>Use this link to choose a new password. It expires in one hour and works once:</p><p><a href=\"{E(link)}\">{E(link)}</a></p><p>If you did not ask for this, ignore this email.</p>"));
 
-    public static (string subject, string html) ApplicationApproved(bool ar, string email, string? tempPassword, string loginUrl)
-    {
-        var pw = tempPassword is null
-            ? (ar ? "<p>سجّل الدخول بكلمة المرور التي اخترتها عند التقديم.</p>" : "<p>Sign in with the password you chose when you applied.</p>")
-            : (ar ? $"<p>كلمة المرور المؤقتة: <b>{E(tempPassword)}</b><br/>يرجى تغييرها فور تسجيل الدخول.</p>" : $"<p>Temporary password: <b>{E(tempPassword)}</b><br/>Please change it right after signing in.</p>");
-        return ar
-            ? ("تمت الموافقة على حساب الناشر", Layout(true, "تمت الموافقة على طلبك", $"<p>تم إنشاء حساب الناشر الخاص بك.</p><p>البريد الإلكتروني: {E(email)}</p>{pw}<p><a href=\"{E(loginUrl)}\">تسجيل الدخول</a></p>"))
-            : ("Your publisher account was approved", Layout(false, "Your application was approved", $"<p>Your publisher account has been created.</p><p>Email: {E(email)}</p>{pw}<p><a href=\"{E(loginUrl)}\">Sign in</a></p>"));
-    }
+    public static (string subject, string html) ApplicationApproved(bool ar, string accountUrl) => ar
+        ? ("تمت الموافقة على طلبك للنشر", Layout(true, "تمت الموافقة على طلبك", $"<p>يمكنك الآن إنشاء المزادات من حسابك.</p><p><a href=\"{E(accountUrl)}\">فتح بوابة البائع</a></p>"))
+        : ("Your seller application was approved", Layout(false, "Your application was approved", $"<p>You can now create auctions from your account.</p><p><a href=\"{E(accountUrl)}\">Open the seller portal</a></p>"));
 
-    public static (string subject, string html) ApplicationRejected(bool ar) => ar
-        ? ("بخصوص طلب الاشتراك", Layout(true, "بخصوص طلب الاشتراك", "<p>نشكرك على اهتمامك. لم تتم الموافقة على طلبك في الوقت الحالي.</p>"))
-        : ("About your application", Layout(false, "About your application", "<p>Thank you for your interest. Your application was not approved at this time.</p>"));
+    public static (string subject, string html) ApplicationRejected(bool ar, string reason) => ar
+        ? ("بخصوص طلبك للنشر", Layout(true, "بخصوص طلبك للنشر", $"<p>نشكرك على اهتمامك. لم تتم الموافقة على طلبك في الوقت الحالي.</p><p>السبب: {E(reason)}</p><p>يمكنك تصحيح البيانات وإعادة التقديم من حسابك.</p>"))
+        : ("About your seller application", Layout(false, "About your seller application", $"<p>Thank you for your interest. Your application was not approved at this time.</p><p>Reason: {E(reason)}</p><p>You can correct your details and apply again from your account.</p>"));
 
     public static (string subject, string html) AuctionWon(bool ar, string userName, string title, string refNumber, decimal amount, DateTime? endedUtc, string url) => ar
         ? ($"تهانينا! لقد فزت بالمزاد: {title}", Layout(true, "تهانينا، لقد فزت بالمزاد",

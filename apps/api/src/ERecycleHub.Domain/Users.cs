@@ -1,10 +1,12 @@
 namespace ERecycleHub.Domain;
 
-/// <summary>Numeric values match the legacy Role table (1 Admin, 2 Publisher, 3 Customer) so migrated rows keep their meaning.</summary>
+/// <summary>
+/// Two kinds of account. Numeric values match the legacy Role table (1 Admin, 3 Customer); the legacy 2 (Publisher) no longer exists:
+/// a customer becomes a seller when an admin approves their application, which creates a <see cref="Publisher"/> profile for the account.
+/// </summary>
 public enum UserRole
 {
     Admin = 1,
-    Publisher = 2,
     Customer = 3,
 }
 

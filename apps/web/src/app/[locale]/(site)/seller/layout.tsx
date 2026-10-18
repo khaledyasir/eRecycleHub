@@ -4,12 +4,12 @@ import type { ReactNode } from "react";
 import type { PortalNavGroup } from "@/components/portal/portal-nav";
 import { PortalShell } from "@/components/portal/portal-shell";
 import { load, serverApi } from "@/lib/api/server";
-import { requireRole } from "@/lib/guard";
+import { requireSeller } from "@/lib/guard";
 
 export const metadata: Metadata = { robots: { index: false } };
 
 export default async function SellerLayout({ children }: { children: ReactNode }) {
-  const user = await requireRole(["Publisher"]);
+  const user = await requireSeller();
   const [t, client] = await Promise.all([getTranslations("seller.nav"), serverApi()]);
   const profile = await load(client.GET("/api/seller/profile"));
   const groups: PortalNavGroup[] = [

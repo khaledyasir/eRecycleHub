@@ -16,6 +16,12 @@ public sealed record ProfileInput(string FullName, string? Phone, int CountryId,
 public sealed record ProfileFiles(UploadInput? Avatar, UploadInput? CrDocument, UploadInput? VatCertificate, UploadInput? IdDocument);
 public sealed record NotificationDto(int Id, string Kind, int? AuctionId, string? AuctionTitleEn, string? AuctionTitleAr, decimal? Amount, string? Title, string? Body, string? Url, bool IsRead, DateTime CreatedAtUtc);
 public sealed record ReviewInput(int Rating, string? Comment);
+public sealed record SellerApplicationInput(string Name, string? Company, string? Mobile, string? Address, int[]? CategoryIds);
+public sealed record SellerApplicationFiles(UploadInput? CrDocument, UploadInput? VatCertificate, UploadInput? IdDocument);
+public sealed record SellerApplicationDto(int Id, string Name, string? Company, string? Mobile, string? Address, ApplicationStatus Status, string? RejectionReason,
+    DateTime CreatedAtUtc, DateTime? DecidedAtUtc, IReadOnlyList<CategoryRef> Categories, FileRef? CrDocument, FileRef? VatCertificate, FileRef? IdDocument);
+/// <summary><c>CanApply</c> is true only for a customer without a seller profile and without a pending application (a rejected one may be re-submitted).</summary>
+public sealed record SellerStatus(bool IsSeller, bool CanApply, SellerApplicationDto? Application);
 
 /// <summary>Customer self-service: dashboard, bids, profile, favourites, watch list, notifications, reviews.</summary>
 public sealed class AccountService(AppDbContext db, AuctionQueries auctions, FileService files, TimeProvider clock, Audit audit)
@@ -108,6 +114,79 @@ public sealed class AccountService(AppDbContext db, AuctionQueries auctions, Fil
         audit.Record(new Actor(userId, u.Role), "user.profile_update", nameof(User), userId);
         await db.SaveChangesAsync(ct);
         return await ProfileAsync(userId, ct);
+    }
+
+    // ---------- becoming a seller ----------
+
+    public const int MaxApplicationsPerDay = 5;
+
+    public async Task<SellerStatus> SellerStatusAsync(Actor actor, CancellationToken ct = default)
+    {
+        var isSeller = await db.Publishers.AnyAsync(p => p.UserId == actor.UserId, ct);
+        var latest = await db.PublisherApplications.AsNoTracking().Where(a => a.UserId == actor.UserId).OrderByDescending(a => a.Id).FirstOrDefaultAsync(ct);
+        var dto = latest is null ? null : await ApplicationDtoAsync(latest, ct);
+        var canApply = actor.Role == UserRole.Customer && !isSeller && latest?.Status != ApplicationStatus.Pending;
+        return new SellerStatus(isSeller, canApply, dto);
+    }
+
+    private async Task<SellerApplicationDto> ApplicationDtoAsync(PublisherApplication a, CancellationToken ct)
+    {
+        var ids = new[] { a.CrDocumentFileId, a.VatCertificateFileId, a.IdDocumentFileId }.Where(x => x != null).Select(x => x!.Value).ToList();
+        var docs = await db.Files.AsNoTracking().Where(f => ids.Contains(f.Id)).ToDictionaryAsync(f => f.Id, f => new FileRef(f.Id, f.OriginalName, f.ContentType), ct);
+        FileRef? Doc(Guid? id) => id is not null && docs.TryGetValue(id.Value, out var d) ? d : null;
+        var cats = await db.PublisherApplications.AsNoTracking().Where(x => x.Id == a.Id).SelectMany(x => x.Categories).Select(c => new CategoryRef(c.CategoryId, c.Category!.TitleEn, c.Category.TitleAr)).ToListAsync(ct);
+        return new SellerApplicationDto(a.Id, a.Name, a.Company, a.Mobile, a.Address, a.Status, a.RejectionReason, a.CreatedAtUtc, a.DecidedAtUtc, cats,
+            Doc(a.CrDocumentFileId), Doc(a.VatCertificateFileId), Doc(a.IdDocumentFileId));
+    }
+
+    /// <summary>
+    /// A signed-in customer applies to publish auctions. Admins and existing sellers cannot apply; one application may be pending at a time
+    /// (also enforced by a filtered unique index); the commercial-registration and ID documents are required (uploaded now or already on the profile).
+    /// </summary>
+    public async Task<int> SubmitSellerApplicationAsync(Actor actor, SellerApplicationInput input, SellerApplicationFiles uploads, CancellationToken ct = default)
+    {
+        var user = await db.Users.Include(u => u.Publisher).SingleAsync(u => u.Id == actor.UserId && u.IsActive && !u.IsDeleted, ct);
+        if (user.Role != UserRole.Customer) throw AppException.Forbidden();
+        if (user.Publisher is not null) throw AppException.Conflict("application.already_seller");
+        if (await db.PublisherApplications.AnyAsync(a => a.UserId == user.Id && a.Status == ApplicationStatus.Pending, ct)) throw AppException.Conflict("application.already_pending");
+        var since = Now.AddDays(-1);
+        if (await db.PublisherApplications.CountAsync(a => a.UserId == user.Id && a.CreatedAtUtc > since, ct) >= MaxApplicationsPerDay) throw new AppException("application.too_many", 429);
+
+        var name = Normalize.Text(input.Name);
+        if (name is null || name.Length > 200) throw new AppException("application.name_required");
+        var company = Normalize.Text(input.Company);
+        var mobile = Normalize.Text(input.Mobile);
+        var address = Normalize.Text(input.Address);
+        if (company?.Length > 200 || mobile?.Length > 50 || address?.Length > 1000) throw new AppException("application.field_too_long");
+        var categoryIds = (input.CategoryIds ?? []).Distinct().ToArray();
+        if (categoryIds.Length > 0 && await db.Categories.CountAsync(c => categoryIds.Contains(c.Id) && c.IsActive, ct) != categoryIds.Length) throw new AppException("category.invalid");
+        if ((uploads.CrDocument is null && user.CrDocumentFileId is null) || (uploads.IdDocument is null && user.IdDocumentFileId is null))
+            throw new AppException("application.documents_required");
+
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        var app = new PublisherApplication
+        {
+            UserId = user.Id, Name = name, Company = company, Mobile = mobile ?? user.Phone, Address = address, CountryId = user.CountryId,
+            Status = ApplicationStatus.Pending, CreatedAtUtc = Now,
+            Categories = categoryIds.Select(id => new PublisherApplicationCategory { CategoryId = id }).ToList(),
+        };
+        // Documents are private files owned by the applicant (readable by them and by admins only).
+        app.CrDocumentFileId = await files.SaveOptionalAsync(uploads.CrDocument, FileCategory.KycDocument, user.Id, user.CrDocumentFileId, ct);
+        app.VatCertificateFileId = await files.SaveOptionalAsync(uploads.VatCertificate, FileCategory.KycDocument, user.Id, user.VatCertificateFileId, ct);
+        app.IdDocumentFileId = await files.SaveOptionalAsync(uploads.IdDocument, FileCategory.KycDocument, user.Id, user.IdDocumentFileId, ct);
+        db.PublisherApplications.Add(app);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException)
+        {
+            throw AppException.Conflict("application.already_pending"); // lost a race with a concurrent submission
+        }
+        audit.Record(actor, "seller_application.submit", nameof(PublisherApplication), app.Id);
+        await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
+        return app.Id;
     }
 
     private async Task EnsureVisibleAsync(int auctionId, CancellationToken ct)

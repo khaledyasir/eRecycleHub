@@ -13,7 +13,8 @@
     "password": "كلمة المرور",
     "seller": "بوابة البائع",
     "bidding": "المزايدة",
-    "account": "الحساب"
+    "account": "الحساب",
+    "becomeSeller": "كن بائعاً"
   },
   "dashboard": {
     "title": "نظرة عامة",
@@ -33,7 +34,12 @@
     "current": "السعر الحالي",
     "placed": "التاريخ",
     "status": "الحالة",
-    "statusLabel": { "Leading": "في الصدارة", "Outbid": "تم تجاوزك", "Won": "فائز", "Lost": "لم تفز" }
+    "statusLabel": {
+      "Leading": "في الصدارة",
+      "Outbid": "تم تجاوزك",
+      "Won": "فائز",
+      "Lost": "لم تفز"
+    }
   },
   "auctions": {
     "title": "مزاداتي",
@@ -78,8 +84,18 @@
     "change": "التغيير",
     "balanceAfter": "الرصيد بعد العملية",
     "reason": "السبب",
-    "statusLabel": { "Pending": "قيد الانتظار", "Approved": "مقبول", "Rejected": "مرفوض", "Reversed": "معكوس" },
-    "reasonLabel": { "MigrationOpeningBalance": "الرصيد الافتتاحي", "TopUpApproved": "تمت الموافقة على الشحن", "AdminCredit": "رصيد من eRecycleHub", "CreditReversed": "عكس رصيد" }
+    "statusLabel": {
+      "Pending": "قيد الانتظار",
+      "Approved": "مقبول",
+      "Rejected": "مرفوض",
+      "Reversed": "معكوس"
+    },
+    "reasonLabel": {
+      "MigrationOpeningBalance": "الرصيد الافتتاحي",
+      "TopUpApproved": "تمت الموافقة على الشحن",
+      "AdminCredit": "رصيد من eRecycleHub",
+      "CreditReversed": "عكس رصيد"
+    }
   },
   "lists": {
     "favoritesTitle": "المفضلة",
@@ -109,7 +125,9 @@
       "topupApproved": "تمت الموافقة على شحن محفظتك بمبلغ {amount}",
       "topupRejected": "تم رفض طلب شحن المحفظة بمبلغ {amount}",
       "won": "فزت بـ {title} بمبلغ {amount}",
-      "generic": "إشعار"
+      "generic": "إشعار",
+      "sellerApproved": "تمت الموافقة على طلبك للنشر. يمكنك الآن نشر المزادات.",
+      "sellerRejected": "لم تتم الموافقة على طلبك للنشر. افتحه لمعرفة السبب."
     }
   },
   "settings": {
@@ -148,5 +166,36 @@
     "confirm": "تأكيد كلمة المرور الجديدة",
     "submit": "غيّر كلمة المرور",
     "done": "تم تغيير كلمة المرور وتسجيل الخروج من الأجهزة الأخرى."
+  },
+  "seller": {
+    "title": "كن بائعاً",
+    "intro": "يمكن لكل حساب المزايدة. لنشر مزاداتك الخاصة قدّم طلباً للحصول على ملف بائع: أرسل بيانات متجرك ومستنداتك ويراجعها أحد المسؤولين.",
+    "isSellerTitle": "أنت بائع",
+    "isSellerBody": "يمكن لحسابك نشر المزادات. افتح بوابة البائع لإدارة دفعاتك.",
+    "openPortal": "فتح بوابة البائع",
+    "pendingTitle": "طلبك قيد المراجعة",
+    "pendingBody": "يراجع أحد المسؤولين مستنداتك. سيصلك إشعار وبريد إلكتروني فور صدور القرار. تستمر في المزايدة كالمعتاد خلال ذلك.",
+    "rejectedTitle": "لم تتم الموافقة على طلبك الأخير",
+    "reason": "السبب",
+    "reapply": "صحّح بياناتك أدناه وقدّم الطلب مرة أخرى.",
+    "submitted": "تاريخ التقديم",
+    "decided": "تاريخ القرار",
+    "storeName": "اسم المتجر",
+    "company": "الشركة",
+    "mobile": "الجوال",
+    "address": "العنوان",
+    "categories": "ماذا ستبيع؟",
+    "categoriesHint": "اختر كل ما ينطبق.",
+    "noCategories": "لا توجد تصنيفات متاحة بعد.",
+    "documents": "المستندات",
+    "documentsHint": "JPG أو PNG أو WebP أو PDF حتى 10 ميغابايت. المستندات خاصة: لا يفتحها إلا أنت وفريق eRecycleHub.",
+    "crDocument": "مستند السجل التجاري",
+    "vatCertificate": "شهادة ضريبة القيمة المضافة (اختياري)",
+    "idDocument": "مستند الهوية",
+    "onFile": "محفوظ لدينا: {name}",
+    "submit": "إرسال الطلب",
+    "sent": "تم إرسال الطلب. سنبلغك فور مراجعته.",
+    "adminNote": "لا يمكن لحسابات المسؤولين نشر المزادات.",
+    "docsMissing": "أرفق مستندي السجل التجاري والهوية."
   }
 }

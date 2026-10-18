@@ -27,6 +27,16 @@ public static class AccountEndpoints
                 new ProfileFiles(files.Upload("avatar"), files.Upload("crDocument"), files.Upload("vatCertificate"), files.Upload("idDocument")), ct);
         }).Accepts<ProfileInput>("multipart/form-data").Produces<ProfileDto>();
 
+        // ---- become a seller: customers apply with their documents; an admin approves (see /admin/applications) ----
+        g.MapGet("/seller-application", (HttpContext ctx, AccountService a, CancellationToken ct) => a.SellerStatusAsync(ctx.Actor(), ct));
+        g.MapPost("/seller-application", async (HttpContext ctx, AccountService a, CancellationToken ct) =>
+        {
+            var (data, files) = await ctx.Request.ReadMultipartAsync<SellerApplicationInput>(ct);
+            var id = await a.SubmitSellerApplicationAsync(ctx.Actor(), data,
+                new SellerApplicationFiles(files.Upload("crDocument"), files.Upload("vatCertificate"), files.Upload("idDocument")), ct);
+            return Results.Created($"/api/account/seller-application", new IdResponse(id));
+        }).RequireRateLimiting(RateLimits.Forms).Accepts<SellerApplicationInput>("multipart/form-data").Produces<IdResponse>(201);
+
         g.MapGet("/wallet", async (HttpContext ctx, AccountService a, WalletService w, CancellationToken ct) =>
         {
             var id = ctx.Actor().UserId;

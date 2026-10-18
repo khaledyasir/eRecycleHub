@@ -13,7 +13,16 @@ export async function requireRole(roles: UserRole[] | "any", loginPath = "/login
   if (!user) return redirect({ href: loginPath, locale }); // after sign-in the login page sends each role to its home
   if (roles !== "any" && !roles.includes(user.role)) {
     // Signed in with the wrong role: send them to their own home rather than a dead end.
-    return redirect({ href: user.role === "Admin" ? "/admin" : user.role === "Publisher" ? "/seller" : "/account", locale });
+    return redirect({ href: user.role === "Admin" ? "/admin" : "/account", locale });
   }
+  return user;
+}
+
+/** Seller portal guard: a customer account that owns a publisher profile. Everyone else is sent to the page where they can apply. */
+export async function requireSeller(): Promise<SessionUser> {
+  const [user, locale] = await Promise.all([getSession(), getLocale()]);
+  if (!user) return redirect({ href: "/login?next=/seller", locale });
+  if (user.role === "Admin") return redirect({ href: "/admin", locale });
+  if (user.publisherId == null) return redirect({ href: "/account/become-seller", locale });
   return user;
 }

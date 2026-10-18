@@ -38,6 +38,8 @@ export function NotificationBell() {
       case "wallet.topup_approved": return tn("kind.topupApproved", args);
       case "wallet.topup_rejected": return tn("kind.topupRejected", args);
       case "auction.won": return tn("kind.won", args);
+      case "seller.approved": return tn("kind.sellerApproved", args);
+      case "seller.rejected": return tn("kind.sellerRejected", args);
       default: return n.title || tn("kind.generic");
     }
   };

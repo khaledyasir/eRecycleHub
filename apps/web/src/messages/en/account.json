@@ -13,7 +13,8 @@
     "password": "Password",
     "seller": "Seller portal",
     "bidding": "Bidding",
-    "account": "Account"
+    "account": "Account",
+    "becomeSeller": "Become a seller"
   },
   "dashboard": {
     "title": "Overview",
@@ -33,7 +34,12 @@
     "current": "Current price",
     "placed": "Placed",
     "status": "Status",
-    "statusLabel": { "Leading": "Leading", "Outbid": "Outbid", "Won": "Won", "Lost": "Not won" }
+    "statusLabel": {
+      "Leading": "Leading",
+      "Outbid": "Outbid",
+      "Won": "Won",
+      "Lost": "Not won"
+    }
   },
   "auctions": {
     "title": "My auctions",
@@ -78,8 +84,18 @@
     "change": "Change",
     "balanceAfter": "Balance after",
     "reason": "Reason",
-    "statusLabel": { "Pending": "Pending", "Approved": "Approved", "Rejected": "Rejected", "Reversed": "Reversed" },
-    "reasonLabel": { "MigrationOpeningBalance": "Opening balance", "TopUpApproved": "Top-up approved", "AdminCredit": "Credit by eRecycleHub", "CreditReversed": "Credit reversed" }
+    "statusLabel": {
+      "Pending": "Pending",
+      "Approved": "Approved",
+      "Rejected": "Rejected",
+      "Reversed": "Reversed"
+    },
+    "reasonLabel": {
+      "MigrationOpeningBalance": "Opening balance",
+      "TopUpApproved": "Top-up approved",
+      "AdminCredit": "Credit by eRecycleHub",
+      "CreditReversed": "Credit reversed"
+    }
   },
   "lists": {
     "favoritesTitle": "Favourites",
@@ -109,7 +125,9 @@
       "topupApproved": "Your top-up of {amount} was approved",
       "topupRejected": "Your top-up request of {amount} was rejected",
       "won": "You won {title} with {amount}",
-      "generic": "Notification"
+      "generic": "Notification",
+      "sellerApproved": "Your seller application was approved. You can now publish auctions.",
+      "sellerRejected": "Your seller application was not approved. Open it to see why."
     }
   },
   "settings": {
@@ -148,5 +166,36 @@
     "confirm": "Confirm new password",
     "submit": "Change password",
     "done": "Password changed. Other devices were signed out."
+  },
+  "seller": {
+    "title": "Become a seller",
+    "intro": "Every account can bid. To publish your own auctions, apply for a seller profile: send your store details and documents and an administrator reviews them.",
+    "isSellerTitle": "You are a seller",
+    "isSellerBody": "Your account can publish auctions. Open the seller portal to manage your lots.",
+    "openPortal": "Open the seller portal",
+    "pendingTitle": "Your application is under review",
+    "pendingBody": "An administrator is reviewing your documents. You'll get a notification and an email as soon as there is a decision. You keep bidding as usual meanwhile.",
+    "rejectedTitle": "Your last application was not approved",
+    "reason": "Reason",
+    "reapply": "Correct your details below and apply again.",
+    "submitted": "Submitted",
+    "decided": "Decided",
+    "storeName": "Store name",
+    "company": "Company",
+    "mobile": "Mobile",
+    "address": "Address",
+    "categories": "What will you sell?",
+    "categoriesHint": "Choose all that apply.",
+    "noCategories": "No categories are available yet.",
+    "documents": "Documents",
+    "documentsHint": "JPG, PNG, WebP or PDF, up to 10 MB. Documents are private: only you and the eRecycleHub team can open them.",
+    "crDocument": "Commercial registration document",
+    "vatCertificate": "VAT certificate (optional)",
+    "idDocument": "Identity document",
+    "onFile": "On file: {name}",
+    "submit": "Send application",
+    "sent": "Application sent. We'll let you know once it is reviewed.",
+    "adminNote": "Administrator accounts cannot publish auctions.",
+    "docsMissing": "Attach your commercial registration and identity documents."
   }
 }

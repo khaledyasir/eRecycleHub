@@ -1,11 +1,11 @@
 "use client";
 
-import { CheckCircle2, Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/display";
-import { Checkbox, Field, FileInput, Input, Select } from "@/components/ui/form";
+import { Field, FileInput, Input, Select } from "@/components/ui/form";
 import { Link, useRouter } from "@/i18n/navigation";
 import { api, call, sendForm, setCsrfToken } from "@/lib/api/client";
 import type { Schema, UserRole } from "@/lib/api/types";
@@ -14,7 +14,7 @@ import { useForm, useValidators } from "@/lib/use-form";
 type Country = { id: number; nameEn: string; nameAr: string };
 type Me = Schema<"MeResponse">;
 
-export const homeFor = (role: UserRole) => (role === "Admin" ? "/admin" : role === "Publisher" ? "/seller" : "/account");
+export const homeFor = (role: UserRole) => (role === "Admin" ? "/admin" : "/account");
 /** Only same-site relative paths are followed after sign-in (no open redirect). */
 export const safeNext = (next: string | null | undefined) => (next && next.startsWith("/") && !next.startsWith("//") && !next.startsWith("/\\") ? next : null);
 
@@ -256,130 +256,6 @@ export function ResetForm({ token }: { token: string }) {
         {(p) => <PasswordInput {...p} {...f.text("confirm")} autoComplete="new-password" />}
       </Field>
       <Button type="submit" className="w-full" loading={f.busy}>
-        {t("submit")}
-      </Button>
-    </form>
-  );
-}
-
-export function ApplyForm({ countries, defaultCountry }: { countries: Country[]; defaultCountry?: number }) {
-  const t = useTranslations("auth.apply");
-  const locale = useLocale();
-  const v = useValidators();
-  const [done, setDone] = useState(false);
-  const [cats, setCats] = useState<Schema<"CategoryRef">[] | null>(null);
-  const f = useForm({ name: "", email: "", mobile: "", company: "", countryId: String(defaultCountry ?? countries[0]?.id ?? ""), password: "", confirm: "", categoryIds: [] as number[] });
-
-  const loadCats = async (countryId: string) => {
-    setCats(null);
-    if (!countryId) return setCats([]);
-    try {
-      setCats(await call(() => api.GET("/api/categories", { params: { query: { countryId: Number(countryId) } } })));
-    } catch {
-      setCats([]); // the list is optional; the form still submits without categories
-    }
-  };
-  const [initialCountry] = useState(f.values.countryId);
-  useEffect(() => {
-    let stale = false;
-    const first = async () => {
-      try {
-        const list = initialCountry ? await call(() => api.GET("/api/categories", { params: { query: { countryId: Number(initialCountry) } } })) : [];
-        if (!stale) setCats(list);
-      } catch {
-        if (!stale) setCats([]);
-      }
-    };
-    void first();
-    return () => {
-      stale = true;
-    };
-  }, [initialCountry]);
-
-  if (done)
-    return (
-      <div className="space-y-4 text-center">
-        <CheckCircle2 className="mx-auto h-10 w-10 text-ok" aria-hidden />
-        <h2 className="text-lg font-semibold">{t("doneTitle")}</h2>
-        <p className="text-ink-2">{t("done")}</p>
-        <Link href="/" className="text-sm font-medium text-patina hover:underline">
-          {t("home")}
-        </Link>
-      </div>
-    );
-
-  return (
-    <form
-      noValidate
-      className="space-y-4"
-      onSubmit={f.submit(
-        (x) => ({ name: v.required(x.name), email: v.email(x.email), mobile: v.required(x.mobile), company: v.required(x.company), password: v.min(x.password, 8), confirm: v.match(x.password, x.confirm) }),
-        async (x) => {
-          await call(() => api.POST("/api/applications", {
-            body: { name: x.name, email: x.email, mobile: x.mobile, company: x.company, password: x.password, countryId: x.countryId ? Number(x.countryId) : null, categoryIds: x.categoryIds },
-          }));
-          setDone(true);
-        },
-      )}
-    >
-      <FormError error={f.formError} />
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label={t("name")} error={f.errors.name} required>
-          {(p) => <Input {...p} {...f.text("name")} autoComplete="name" />}
-        </Field>
-        <Field label={t("company")} error={f.errors.company} required>
-          {(p) => <Input {...p} {...f.text("company")} autoComplete="organization" />}
-        </Field>
-        <Field label={t("email")} error={f.errors.email} required>
-          {(p) => <Input {...p} {...f.text("email")} type="email" autoComplete="email" />}
-        </Field>
-        <Field label={t("mobile")} error={f.errors.mobile} required>
-          {(p) => <Input {...p} {...f.text("mobile")} type="tel" autoComplete="tel" dir="ltr" />}
-        </Field>
-      </div>
-      <Field label={t("country")}>
-        {(p) => (
-          <Select
-            {...p}
-            value={f.values.countryId}
-            onChange={(e) => {
-              f.set("countryId", e.target.value);
-              f.set("categoryIds", []);
-              void loadCats(e.target.value);
-            }}
-          >
-            {countries.map((c) => (
-              <option key={c.id} value={c.id}>
-                {locale === "ar" ? c.nameAr : c.nameEn}
-              </option>
-            ))}
-          </Select>
-        )}
-      </Field>
-      <fieldset>
-        <legend className="text-sm font-medium">{t("categories")}</legend>
-        <p className="mb-2 text-xs text-muted">{t("categoriesHint")}</p>
-        {cats && cats.length === 0 && <p className="text-sm text-muted">{t("noCategories")}</p>}
-        <div className="grid gap-2 sm:grid-cols-2">
-          {cats?.map((c) => (
-            <Checkbox
-              key={c.id}
-              label={locale === "ar" ? c.titleAr : c.titleEn}
-              checked={f.values.categoryIds.includes(c.id)}
-              onChange={(e) => f.set("categoryIds", e.target.checked ? [...f.values.categoryIds, c.id] : f.values.categoryIds.filter((id) => id !== c.id))}
-            />
-          ))}
-        </div>
-      </fieldset>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label={t("password")} hint={t("passwordHint")} error={f.errors.password} required>
-          {(p) => <PasswordInput {...p} {...f.text("password")} autoComplete="new-password" />}
-        </Field>
-        <Field label={t("confirm")} error={f.errors.confirm} required>
-          {(p) => <PasswordInput {...p} {...f.text("confirm")} autoComplete="new-password" />}
-        </Field>
-      </div>
-      <Button type="submit" size="lg" className="w-full" loading={f.busy}>
         {t("submit")}
       </Button>
     </form>

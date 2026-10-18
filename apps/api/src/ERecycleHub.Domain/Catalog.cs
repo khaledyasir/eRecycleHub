@@ -49,22 +49,29 @@ public enum ApplicationStatus
     Rejected = 2,
 }
 
-/// <summary>"Subscribe" form: a company asking to become a publisher. Legacy table SubscriptionRequest.</summary>
+/// <summary>
+/// A signed-in customer asking an admin to let them publish auctions. The documents are private files owned by the applicant.
+/// At most one application per user can be pending (filtered unique index).
+/// </summary>
 public class PublisherApplication
 {
     public int Id { get; set; }
+    public int UserId { get; set; }
+    public User? User { get; set; }
+    /// <summary>Store / seller display name.</summary>
     public required string Name { get; set; }
-    public required string Email { get; set; }
     public string? Company { get; set; }
     public string? Mobile { get; set; }
-    /// <summary>Hash of the password the applicant chose; cleared once the account is created.</summary>
-    public string? PasswordHash { get; set; }
-    public int? CountryId { get; set; }
+    public string? Address { get; set; }
+    public int CountryId { get; set; }
+    public Guid? CrDocumentFileId { get; set; }
+    public Guid? VatCertificateFileId { get; set; }
+    public Guid? IdDocumentFileId { get; set; }
     public ApplicationStatus Status { get; set; }
+    public string? RejectionReason { get; set; }
     public DateTime CreatedAtUtc { get; set; }
     public DateTime? DecidedAtUtc { get; set; }
     public int? DecidedByUserId { get; set; }
-    public int? CreatedUserId { get; set; }
     public List<PublisherApplicationCategory> Categories { get; set; } = [];
 }
 

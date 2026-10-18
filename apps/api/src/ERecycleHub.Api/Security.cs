@@ -40,11 +40,18 @@ public static class Security
         var session = await auth.GetSessionAsync(userId, ctx.HttpContext.RequestAborted);
         if (session is null
             || session.SecurityStamp != principal.FindFirstValue(Claims.Stamp)
-            || session.Role.ToString() != principal.FindFirstValue(ClaimTypes.Role)
-            || session.PublisherId?.ToString() != principal.FindFirstValue(Claims.PublisherId))
+            || session.Role.ToString() != principal.FindFirstValue(ClaimTypes.Role))
         {
             ctx.RejectPrincipal();
             await ctx.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            return;
+        }
+        // Becoming (or ceasing to be) a seller changes the profile link but not the identity: re-issue the cookie from the database state
+        // instead of signing the user out. The claim always comes from the database, never from the client.
+        if (session.PublisherId?.ToString() != principal.FindFirstValue(Claims.PublisherId))
+        {
+            ctx.ReplacePrincipal(Claims.Principal(session, CookieAuthenticationDefaults.AuthenticationScheme));
+            ctx.ShouldRenew = true;
         }
     }
 

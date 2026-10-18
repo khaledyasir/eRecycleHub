@@ -65,10 +65,10 @@ public class AuctionRulesTests
     public void Admin_cannot_bid() => Assert.Equal(BidErrors.AdminCannotBid, AuctionRules.Validate(Ctx(role: UserRole.Admin), 500m, Now));
 
     [Fact]
-    public void Publisher_may_bid_on_someone_elses_auction() => Assert.Null(AuctionRules.Validate(Ctx(role: UserRole.Publisher), 500m, Now));
+    public void Seller_may_bid_on_someone_elses_auction() => Assert.Null(AuctionRules.Validate(Ctx(role: UserRole.Customer), 500m, Now));
 
     [Fact]
-    public void Owner_cannot_bid_on_own_auction() => Assert.Equal(BidErrors.OwnAuction, AuctionRules.Validate(Ctx(owner: 3, bidder: 3, role: UserRole.Publisher), 500m, Now));
+    public void Owner_cannot_bid_on_own_auction() => Assert.Equal(BidErrors.OwnAuction, AuctionRules.Validate(Ctx(owner: 3, bidder: 3, role: UserRole.Customer), 500m, Now));
 
     [Fact]
     public void Wallet_below_insurance_rejected() => Assert.Equal(BidErrors.InsufficientInsurance, AuctionRules.Validate(Ctx(insurance: 600, wallet: 599.99m), 500m, Now));

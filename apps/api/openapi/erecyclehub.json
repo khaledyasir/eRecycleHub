@@ -984,35 +984,6 @@
         }
       }
     },
-    "/api/applications": {
-      "post": {
-        "tags": [
-          "Public"
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ApplicationInput"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/IdResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/files/{id}": {
       "get": {
         "tags": [
@@ -1305,6 +1276,52 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProfileDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/account/seller-application": {
+      "get": {
+        "tags": [
+          "Account"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SellerStatus"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Account"
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/SellerApplicationInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdResponse"
                 }
               }
             }
@@ -3212,6 +3229,16 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RejectInput"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "description": "OK"
@@ -5968,75 +5995,33 @@
           }
         }
       },
-      "ApplicationInput": {
-        "required": [
-          "name",
-          "email",
-          "mobile",
-          "company",
-          "password",
-          "countryId",
-          "categoryIds"
-        ],
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string"
-          },
-          "email": {
-            "type": "string"
-          },
-          "mobile": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "company": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "password": {
-            "type": "string"
-          },
-          "countryId": {
-            "type": [
-              "null",
-              "integer"
-            ],
-            "format": "int32"
-          },
-          "categoryIds": {
-            "type": [
-              "null",
-              "array"
-            ],
-            "items": {
-              "type": "integer",
-              "format": "int32"
-            }
-          }
-        }
-      },
       "ApplicationRow": {
         "required": [
           "id",
+          "userId",
           "name",
           "email",
           "mobile",
           "company",
+          "address",
           "countryNameEn",
           "countryNameAr",
           "status",
+          "rejectionReason",
           "createdAtUtc",
           "decidedAtUtc",
-          "categories"
+          "categories",
+          "crDocument",
+          "vatCertificate",
+          "idDocument"
         ],
         "type": "object",
         "properties": {
           "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "userId": {
             "type": "integer",
             "format": "int32"
           },
@@ -6053,6 +6038,12 @@
             ]
           },
           "company": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "address": {
             "type": [
               "null",
               "string"
@@ -6073,6 +6064,12 @@
           "status": {
             "$ref": "#/components/schemas/ApplicationStatus"
           },
+          "rejectionReason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "createdAtUtc": {
             "type": "string",
             "format": "date-time"
@@ -6089,6 +6086,36 @@
             "items": {
               "$ref": "#/components/schemas/CategoryRef"
             }
+          },
+          "crDocument": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/FileRef"
+              }
+            ]
+          },
+          "vatCertificate": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/FileRef"
+              }
+            ]
+          },
+          "idDocument": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/FileRef"
+              }
+            ]
           }
         }
       },
@@ -6103,8 +6130,7 @@
         "required": [
           "userId",
           "publisherId",
-          "emailSent",
-          "temporaryPassword"
+          "emailSent"
         ],
         "type": "object",
         "properties": {
@@ -6118,12 +6144,6 @@
           },
           "emailSent": {
             "type": "boolean"
-          },
-          "temporaryPassword": {
-            "type": [
-              "null",
-              "string"
-            ]
           }
         }
       },
@@ -9696,6 +9716,17 @@
           }
         }
       },
+      "RejectInput": {
+        "required": [
+          "reason"
+        ],
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string"
+          }
+        }
+      },
       "ReportResult": {
         "required": [
           "rows",
@@ -9930,6 +9961,150 @@
           }
         }
       },
+      "SellerApplicationDto": {
+        "required": [
+          "id",
+          "name",
+          "company",
+          "mobile",
+          "address",
+          "status",
+          "rejectionReason",
+          "createdAtUtc",
+          "decidedAtUtc",
+          "categories",
+          "crDocument",
+          "vatCertificate",
+          "idDocument"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "name": {
+            "type": "string"
+          },
+          "company": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "mobile": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "address": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "status": {
+            "$ref": "#/components/schemas/ApplicationStatus"
+          },
+          "rejectionReason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "createdAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "decidedAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "categories": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CategoryRef"
+            }
+          },
+          "crDocument": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/FileRef"
+              }
+            ]
+          },
+          "vatCertificate": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/FileRef"
+              }
+            ]
+          },
+          "idDocument": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/FileRef"
+              }
+            ]
+          }
+        }
+      },
+      "SellerApplicationInput": {
+        "required": [
+          "name",
+          "company",
+          "mobile",
+          "address",
+          "categoryIds"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "company": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "mobile": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "address": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "categoryIds": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        }
+      },
       "SellerDashboard": {
         "required": [
           "total",
@@ -9998,6 +10173,32 @@
             "items": {
               "$ref": "#/components/schemas/ReviewDto"
             }
+          }
+        }
+      },
+      "SellerStatus": {
+        "required": [
+          "isSeller",
+          "canApply",
+          "application"
+        ],
+        "type": "object",
+        "properties": {
+          "isSeller": {
+            "type": "boolean"
+          },
+          "canApply": {
+            "type": "boolean"
+          },
+          "application": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SellerApplicationDto"
+              }
+            ]
           }
         }
       },
@@ -10750,7 +10951,6 @@
       "UserRole": {
         "enum": [
           "Admin",
-          "Publisher",
           "Customer"
         ]
       },

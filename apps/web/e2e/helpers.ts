@@ -5,8 +5,8 @@ export const accounts = {
   admin: { email: "admin@test.local", password: "AdminPass#2026", adminOnly: true, home: /\/admin$/ },
   customer: { email: "customer@test.local", password: "CustomerPass#2026", adminOnly: false, home: /\/account$/ },
   customer2: { email: "customer2@test.local", password: "CustomerPass#2026", adminOnly: false, home: /\/account$/ },
-  publisher: { email: "publisher@test.local", password: "PublisherPass#2026", adminOnly: false, home: /\/seller$/ },
-  publisher2: { email: "publisher2@test.local", password: "PublisherPass#2026", adminOnly: false, home: /\/seller$/ },
+  publisher: { email: "publisher@test.local", password: "PublisherPass#2026", adminOnly: false, home: /\/account$/ },
+  publisher2: { email: "publisher2@test.local", password: "PublisherPass#2026", adminOnly: false, home: /\/account$/ },
 } as const;
 export type Who = keyof typeof accounts;
 

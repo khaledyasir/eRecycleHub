@@ -91,7 +91,8 @@ public sealed class LegacyImporter(ImportOptions o)
                 active = false;
                 _notes.Add($"User {id}: duplicate e-mail {original}; imported as {email} and deactivated (lowest id keeps the address).");
             }
-            var role = I(r, "RoleId") switch { 1 => UserRole.Admin, 2 => UserRole.Publisher, _ => UserRole.Customer };
+            // Legacy publishers (RoleId 2) become customers; their Publisher row (imported below) is what makes them sellers.
+            var role = I(r, "RoleId") switch { 1 => UserRole.Admin, _ => UserRole.Customer };
             userRows.Add(new User
             {
                 Id = id, CountryId = I(r, "CountryId"), FullName = S(r, "FullName") ?? email, Email = email, Phone = S(r, "Phone"),
@@ -317,21 +318,10 @@ public sealed class LegacyImporter(ImportOptions o)
             };
         }).ToList(), reviews.Count, ct);
 
-        var apps = await ReadAsync(src, "SELECT * FROM SubscriptionRequest", ct);
-        var appCats = await ReadAsync(src, "SELECT * FROM SubscriptionCategory", ct);
-        await InsertAsync("PublisherApplications", apps.Select(r =>
-        {
-            var pw = S(r, "Password");
-            return new PublisherApplication
-            {
-                Id = I(r, "Id"), Name = S(r, "Name") ?? "", Email = (S(r, "Email") ?? "").Trim().ToLowerInvariant(), Company = S(r, "Company"), Mobile = S(r, "Mobile"),
-                PasswordHash = pw is null ? null : PasswordService.IsLegacyV1(pw) ? pw : _passwords.Hash(pw),
-                Status = (S(r, "Status") ?? "").ToLowerInvariant() switch { "approved" => ApplicationStatus.Approved, "rejected" => ApplicationStatus.Rejected, _ => ApplicationStatus.Pending },
-                CreatedAtUtc = Utc(DT(r, "CreatedDate")) ?? _now,
-                Categories = appCats.Where(c => I(c, "SubscriptionId") == I(r, "Id")).Select(c => I(c, "CategoryId")).Distinct()
-                    .Select(cid => new PublisherApplicationCategory { CategoryId = cid }).ToList(),
-            };
-        }).ToList(), apps.Count, ct);
+        // Legacy subscription requests were anonymous (an e-mail and a chosen password, no account). Applications now belong to a signed-in
+        // user, so they are not imported; the count is reported so the owner can ask those applicants to apply again from their account.
+        var legacyApps = (await ReadAsync(src, "SELECT * FROM SubscriptionRequest", ct)).Count;
+        if (legacyApps > 0) _notes.Add($"{legacyApps} legacy subscription request(s) were not imported: applications now belong to a signed-in customer account.");
 
         var msgs = await ReadAsync(src, "SELECT * FROM ContactForm", ct);
         await InsertAsync("ContactMessages", msgs.Select(r => new ContactMessage

@@ -107,10 +107,10 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
     /// <summary>Creates an active customer with a ledger-consistent wallet balance; returns (id, email). Password: <see cref="Password"/>.</summary>
     public const string Password = "TestPass#2026";
 
-    public Task<(int id, string email)> NewCustomerAsync(decimal wallet = 1000, UserRole role = UserRole.Customer) => DbAsync(async db =>
+    public Task<(int id, string email)> NewCustomerAsync(decimal wallet = 1000) => DbAsync(async db =>
     {
         var email = $"u{Guid.NewGuid():N}@test.local";
-        var u = new User { FullName = "Test " + email[..6], Email = email, Role = role, CountryId = 1, PasswordHash = new PasswordService().Hash(Password), CreatedAtUtc = DateTime.UtcNow, WalletBalance = wallet };
+        var u = new User { FullName = "Test " + email[..6], Email = email, Role = UserRole.Customer, CountryId = 1, PasswordHash = new PasswordService().Hash(Password), CreatedAtUtc = DateTime.UtcNow, WalletBalance = wallet };
         db.Users.Add(u);
         await db.SaveChangesAsync();
         if (wallet != 0)

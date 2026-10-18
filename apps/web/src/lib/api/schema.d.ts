@@ -1138,45 +1138,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/applications": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["ApplicationInput"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["IdResponse"];
-                    };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/files/{id}": {
         parameters: {
             query?: never;
@@ -1556,6 +1517,64 @@ export interface paths {
             };
         };
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/account/seller-application": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SellerStatus"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "multipart/form-data": components["schemas"]["SellerApplicationInput"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["IdResponse"];
+                    };
+                };
+            };
+        };
         delete?: never;
         options?: never;
         head?: never;
@@ -3578,7 +3597,11 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: never;
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["RejectInput"];
+                };
+            };
             responses: {
                 /** @description OK */
                 200: {
@@ -5822,31 +5845,28 @@ export interface components {
             auctions: null | number[];
             stores: null | number[];
         };
-        ApplicationInput: {
-            name: string;
-            email: string;
-            mobile: null | string;
-            company: null | string;
-            password: string;
-            /** Format: int32 */
-            countryId: null | number;
-            categoryIds: null | number[];
-        };
         ApplicationRow: {
             /** Format: int32 */
             id: number;
+            /** Format: int32 */
+            userId: number;
             name: string;
             email: string;
             mobile: null | string;
             company: null | string;
+            address: null | string;
             countryNameEn: null | string;
             countryNameAr: null | string;
             status: components["schemas"]["ApplicationStatus"];
+            rejectionReason: null | string;
             /** Format: date-time */
             createdAtUtc: string;
             /** Format: date-time */
             decidedAtUtc: null | string;
             categories: components["schemas"]["CategoryRef"][];
+            crDocument: null | components["schemas"]["FileRef"];
+            vatCertificate: null | components["schemas"]["FileRef"];
+            idDocument: null | components["schemas"]["FileRef"];
         };
         /** @enum {unknown} */
         ApplicationStatus: "Pending" | "Approved" | "Rejected";
@@ -5856,7 +5876,6 @@ export interface components {
             /** Format: int32 */
             publisherId: number;
             emailSent: boolean;
-            temporaryPassword: null | string;
         };
         AuctionCard: {
             /** Format: int32 */
@@ -6775,6 +6794,9 @@ export interface components {
             accountNumber: null | string;
             cardNumber: null | string;
         };
+        RejectInput: {
+            reason: string;
+        };
         ReportResult: {
             rows: components["schemas"]["PagedResultOfReportRow"];
             /** Format: int32 */
@@ -6841,6 +6863,31 @@ export interface components {
             /** Format: int32 */
             count: number;
         };
+        SellerApplicationDto: {
+            /** Format: int32 */
+            id: number;
+            name: string;
+            company: null | string;
+            mobile: null | string;
+            address: null | string;
+            status: components["schemas"]["ApplicationStatus"];
+            rejectionReason: null | string;
+            /** Format: date-time */
+            createdAtUtc: string;
+            /** Format: date-time */
+            decidedAtUtc: null | string;
+            categories: components["schemas"]["CategoryRef"][];
+            crDocument: null | components["schemas"]["FileRef"];
+            vatCertificate: null | components["schemas"]["FileRef"];
+            idDocument: null | components["schemas"]["FileRef"];
+        };
+        SellerApplicationInput: {
+            name: string;
+            company: null | string;
+            mobile: null | string;
+            address: null | string;
+            categoryIds: null | number[];
+        };
         SellerDashboard: {
             /** Format: int32 */
             total: number;
@@ -6864,6 +6911,11 @@ export interface components {
             ratingAverage: number;
             recentBids: components["schemas"]["ManagedBid"][];
             recentReviews: components["schemas"]["ReviewDto"][];
+        };
+        SellerStatus: {
+            isSeller: boolean;
+            canApply: boolean;
+            application: null | components["schemas"]["SellerApplicationDto"];
         };
         SessionUserDto: {
             /** Format: int32 */
@@ -7026,7 +7078,7 @@ export interface components {
             value: string;
         };
         /** @enum {unknown} */
-        UserRole: "Admin" | "Publisher" | "Customer";
+        UserRole: "Admin" | "Customer";
         UserRow: {
             /** Format: int32 */
             id: number;

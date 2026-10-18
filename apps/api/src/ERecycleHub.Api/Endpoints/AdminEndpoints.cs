@@ -78,9 +78,9 @@ public static class AdminEndpoints
         // ---- applications ----
         g.MapGet("/applications", (ApplicationStatus? status, int? page, AdminPeople p, CancellationToken ct) => p.ApplicationsAsync(status, new PageQuery(page ?? 1, 20), ct));
         g.MapPost("/applications/{id:int}/approve", (int id, HttpContext ctx, AdminPeople p, CancellationToken ct) =>
-            p.ApproveAsync(ctx.Actor(), id, $"{ctx.PublicUrl()}/{(ctx.Request.IsArabic() ? "ar" : "en")}/login", ctx.Request.IsArabic(), ct));
-        g.MapPost("/applications/{id:int}/reject", async (int id, HttpContext ctx, AdminPeople p, CancellationToken ct) =>
-        { await p.RejectAsync(ctx.Actor(), id, ctx.Request.IsArabic(), ct); return Results.NoContent(); });
+            p.ApproveAsync(ctx.Actor(), id, $"{ctx.PublicUrl()}/{(ctx.Request.IsArabic() ? "ar" : "en")}/seller", ctx.Request.IsArabic(), ct));
+        g.MapPost("/applications/{id:int}/reject", async (int id, RejectInput req, HttpContext ctx, AdminPeople p, CancellationToken ct) =>
+        { await p.RejectAsync(ctx.Actor(), id, req.Reason, ctx.Request.IsArabic(), ct); return Results.NoContent(); });
         g.MapDelete("/applications/{id:int}", async (int id, HttpContext ctx, AdminPeople p, CancellationToken ct) =>
         { await p.DeleteApplicationAsync(ctx.Actor(), id, ct); return Results.NoContent(); });
 
