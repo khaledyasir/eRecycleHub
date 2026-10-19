@@ -1,6 +1,7 @@
 "use client";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Direction } from "radix-ui";
 import { createContext, useContext, useState, type ReactNode } from "react";
 import { Toaster } from "sonner";
 import type { SessionUser } from "@/lib/api/types";
@@ -15,7 +16,8 @@ export function Providers({ user, dir, children }: { user: SessionUser | null; d
   return (
     <SessionContext.Provider value={user}>
       <QueryClientProvider client={client}>
-        {children}
+        {/* Radix components assume LTR unless told otherwise (tabs, menus, selects, keyboard arrows). */}
+        <Direction.Provider dir={dir}>{children}</Direction.Provider>
         <Toaster position={dir === "rtl" ? "bottom-left" : "bottom-right"} dir={dir} richColors closeButton toastOptions={{ duration: 5000 }} />
       </QueryClientProvider>
     </SessionContext.Provider>
