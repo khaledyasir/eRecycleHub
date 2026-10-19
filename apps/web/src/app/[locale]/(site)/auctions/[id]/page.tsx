@@ -153,8 +153,8 @@ export default async function AuctionPage({ params }: Params) {
         </div>
       )}
 
-      {/* Column placement is left-to-right in both languages (details left, bid panel right); text inside keeps the language's own direction. */}
-      <div className="grid gap-8 lg:grid-cols-[1fr_24rem]" dir="ltr">
+      {/* Column placement is left-to-right in both languages (bid panel left, details right); text inside keeps the language's own direction. */}
+      <div className="grid gap-8 lg:grid-cols-[24rem_1fr]" dir="ltr">
         <div className="min-w-0 space-y-6" dir={textDir}>
           <header className="space-y-2">
             <div className="flex flex-wrap items-center gap-2">
@@ -203,7 +203,7 @@ export default async function AuctionPage({ params }: Params) {
           <Tabs items={tabs} />
         </div>
 
-        <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start" dir={textDir}>
+        <aside className="space-y-4 lg:order-first lg:sticky lg:top-24 lg:self-start" dir={textDir}>
           <BidPanel
             auctionId={c.id}
             refNumber={c.refNumber}
