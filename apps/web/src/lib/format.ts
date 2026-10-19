@@ -22,13 +22,13 @@ export function number(value: number, locale: string) {
 }
 
 /**
- * Dates are rendered in one display time zone (default Asia/Amman) with its short name, on the server and in the
+ * Dates are rendered in one display time zone (default Asia/Amman) (named once in the footer note, not on every date), on the server and in the
  * browser alike — deterministic output (no hydration mismatch) and unambiguous for visitors in other zones.
  */
 export function dateTime(iso: string | null | undefined, locale: string, withTime = true) {
   if (!iso) return "—";
   const opts: Intl.DateTimeFormatOptions = withTime
-    ? { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", timeZoneName: "short" }
+    ? { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }
     : { year: "numeric", month: "short", day: "numeric" };
   return new Intl.DateTimeFormat(tag(locale), { timeZone: DISPLAY_TZ, ...opts }).format(new Date(iso));
 }
