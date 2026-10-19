@@ -63,7 +63,7 @@ export default async function AdminDashboard() {
           <ul className="divide-y divide-line">
             {d.recentCustomers.map((u) => (
               <li key={u.id} className="flex items-center justify-between gap-2 px-4 py-2.5 text-sm">
-                <Link href={`/admin/users/${u.id}`} className="min-w-0 truncate font-medium hover:underline">{u.fullName}</Link>
+                <Link href={`/admin/users/${u.id}`} className="min-w-0 truncate font-medium hover:underline"><bdi>{u.fullName}</bdi></Link>
                 <span className="shrink-0 text-xs text-muted">{date(u.createdAtUtc, locale)}</span>
               </li>
             ))}
@@ -73,7 +73,7 @@ export default async function AdminDashboard() {
           <ul className="divide-y divide-line">
             {d.recentPublishers.map((p) => (
               <li key={p.id} className="flex items-center justify-between gap-2 px-4 py-2.5 text-sm">
-                <Link href={`/admin/publishers/${p.id}`} className="min-w-0 truncate font-medium hover:underline">{p.name}</Link>
+                <Link href={`/admin/publishers/${p.id}`} className="min-w-0 truncate font-medium hover:underline"><bdi>{p.name}</bdi></Link>
                 <span className="tabular shrink-0 text-xs text-muted">{p.auctionCount}</span>
               </li>
             ))}

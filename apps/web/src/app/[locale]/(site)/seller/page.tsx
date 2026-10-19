@@ -38,7 +38,7 @@ export default async function SellerHome() {
             <ul className="divide-y divide-line">
               {d.recentBids.map((b) => (
                 <li key={b.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-4 py-2.5 text-sm">
-                  <span className="truncate font-medium">{b.userName}</span>
+                  <span className="truncate font-medium"><bdi>{b.userName}</bdi></span>
                   <span className="whitespace-nowrap text-muted">{dateTime(b.createdAtUtc, locale)}</span>
                   <span className="tabular font-semibold">{money(b.amount, locale)}</span>
                 </li>
@@ -60,7 +60,7 @@ export default async function SellerHome() {
                     </span>
                   </div>
                   {r.comment && <p className="mt-1 text-ink-2">{r.comment}</p>}
-                  <p className="mt-1 text-xs text-muted">{r.name} · {date(r.createdAtUtc, locale)}</p>
+                  <p className="mt-1 text-xs text-muted"><bdi>{r.name}</bdi> · {date(r.createdAtUtc, locale)}</p>
                 </li>
               ))}
             </ul>

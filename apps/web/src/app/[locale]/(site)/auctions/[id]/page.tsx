@@ -41,6 +41,7 @@ export default async function AuctionPage({ params }: Params) {
   const { id } = await params;
   const [a, t, tc, locale] = await Promise.all([getAuction(id), getTranslations("auction.detail"), getTranslations("common"), getLocale()]);
   const serverNow = nowMs();
+  const textDir = locale === "ar" ? "rtl" : "ltr";
   const c = a.card;
   const title = pick(locale, c.titleEn, c.titleAr);
   const description = pick(locale, a.descEn, a.descAr);
@@ -128,10 +129,9 @@ export default async function AuctionPage({ params }: Params) {
   ];
 
   return (
-    // Detail page is laid out left-to-right in both languages: gallery/info on the left, bid panel on the right.
-    <div className="container-page py-6" dir="ltr">
+    <div className="container-page py-6">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
-      <nav aria-label="breadcrumb" className="mb-4 text-sm text-muted">
+      <nav aria-label="breadcrumb" className="mb-4 text-sm text-muted" dir={textDir}>
         <ol className="flex flex-wrap items-center gap-1">
           <li>
             <Link href="/auctions" className="hover:text-ink hover:underline">
@@ -139,7 +139,7 @@ export default async function AuctionPage({ params }: Params) {
             </Link>
           </li>
           <li aria-hidden>
-            <ChevronRight className="h-4 w-4" />
+            <ChevronRight className="flip-rtl h-4 w-4" />
           </li>
           <li aria-current="page" className="line-clamp-1 text-ink-2">
             {title}
@@ -148,23 +148,24 @@ export default async function AuctionPage({ params }: Params) {
       </nav>
 
       {!c.isActive && (
-        <div className="mb-4">
+        <div className="mb-4" dir={textDir}>
           <Alert tone="warn">{t("inactiveNotice")}</Alert>
         </div>
       )}
 
-      <div className="grid gap-8 lg:grid-cols-[1fr_24rem]">
-        <div className="min-w-0 space-y-6">
+      {/* Column placement is left-to-right in both languages (details left, bid panel right); text inside keeps the language's own direction. */}
+      <div className="grid gap-8 lg:grid-cols-[1fr_24rem]" dir="ltr">
+        <div className="min-w-0 space-y-6" dir={textDir}>
           <header className="space-y-2">
             <div className="flex flex-wrap items-center gap-2">
               <PhaseBadge phase={c.phase} />
-              <span className="tabular rounded-sm border border-line-strong px-1.5 py-0.5 text-xs font-medium text-ink-2" dir="ltr">
+              <span className="tabular rounded-sm border border-line-strong px-1.5 py-0.5 text-xs font-medium text-ink-2">
                 {t("lot", { ref: c.refNumber })}
               </span>
               {c.category && <span className="text-sm text-muted">{pick(locale, c.category.titleEn, c.category.titleAr)}</span>}
             </div>
-            <h1 className="text-2xl font-semibold sm:text-3xl" dir="auto">{title}</h1>
-            {pick(locale, c.shortDescEn, c.shortDescAr) && <p className="max-w-[70ch] text-ink-2" dir="auto">{pick(locale, c.shortDescEn, c.shortDescAr)}</p>}
+            <h1 className="text-2xl font-semibold sm:text-3xl">{title}</h1>
+            {pick(locale, c.shortDescEn, c.shortDescAr) && <p className="max-w-[70ch] text-ink-2">{pick(locale, c.shortDescEn, c.shortDescAr)}</p>}
           </header>
 
           <Gallery fileIds={photos} title={title} />
@@ -202,7 +203,7 @@ export default async function AuctionPage({ params }: Params) {
           <Tabs items={tabs} />
         </div>
 
-        <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
+        <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start" dir={textDir}>
           <BidPanel
             auctionId={c.id}
             refNumber={c.refNumber}
@@ -230,7 +231,7 @@ export default async function AuctionPage({ params }: Params) {
               <div className="min-w-0">
                 <p className="text-xs text-muted">{t("by")}</p>
                 <Link href={`/stores/${a.publisher.id}`} className="font-semibold after:absolute after:inset-0 hover:underline">
-                  {a.publisher.name}
+                  <bdi>{a.publisher.name}</bdi>
                 </Link>
                 <p className="tabular text-xs text-muted">{t("storeLots", { count: a.publisher.auctionCount })}</p>
               </div>

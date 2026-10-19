@@ -35,7 +35,7 @@ export default async function Applications({ searchParams }: { searchParams: Pro
             <li key={a.id} className="rounded-lg border border-line bg-surface p-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="font-semibold">{a.name} {a.company && <span className="font-normal text-muted">— {a.company}</span>}</p>
+                  <p className="font-semibold"><bdi>{a.name}</bdi> {a.company && <span className="font-normal text-muted">— {a.company}</span>}</p>
                   <p className="text-sm text-ink-2"><a href={`mailto:${a.email}`} className="hover:underline">{a.email}</a>{a.mobile && <span className="ms-3" dir="ltr">{a.mobile}</span>}</p>
                   <p className="mt-1 text-xs text-muted">
                     {pick(locale, a.countryNameEn, a.countryNameAr)}{a.countryNameEn ? " — " : ""}{t("submitted")}: {date(a.createdAtUtc, locale)}{a.decidedAtUtc ? ` — ${t("decided")}: ${date(a.decidedAtUtc, locale)}` : ""}

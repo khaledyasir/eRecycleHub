@@ -64,7 +64,7 @@ export default async function Reports({ searchParams }: { searchParams: Promise<
                 <td><PhaseBadge phase={x.phase} /></td>
                 <td className="tabular">{money(x.currentPrice, locale)}</td>
                 <td className="tabular">{x.bidCount}</td>
-                <td>{x.winnerName ? <>{x.winnerName}<span className="block text-xs text-muted" dir="ltr">{x.winnerPhone}</span></> : "—"}</td>
+                <td>{x.winnerName ? <><bdi>{x.winnerName}</bdi><span className="block text-xs text-muted" dir="ltr">{x.winnerPhone}</span></> : "—"}</td>
               </tr>
             ))}
           </tbody>

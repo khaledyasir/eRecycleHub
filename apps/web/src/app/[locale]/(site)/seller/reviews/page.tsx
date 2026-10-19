@@ -31,7 +31,7 @@ export default async function SellerReviews({ searchParams }: { searchParams: Pr
                 <td><Link href={`/auctions/${x.auctionId}`} className="font-medium hover:underline">{pick(locale, x.auctionTitleEn, x.auctionTitleAr)}</Link></td>
                 <td className="tabular whitespace-nowrap" aria-label={`${x.rating}/5`}>{"★".repeat(x.rating)}<span className="text-line-strong">{"★".repeat(5 - x.rating)}</span></td>
                 <td className="max-w-md text-ink-2">{x.comment ?? "—"}</td>
-                <td>{x.name}</td>
+                <td><bdi>{x.name}</bdi></td>
                 <td className="whitespace-nowrap text-muted">{date(x.createdAtUtc, locale)}</td>
                 <td><DeleteReviewButton id={x.id} /></td>
               </tr>

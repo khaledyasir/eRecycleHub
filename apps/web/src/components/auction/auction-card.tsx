@@ -38,7 +38,7 @@ export function AuctionCard({ a, serverNow, className }: { a: Card; serverNow: n
         <div className="absolute start-2 top-2">
           <PhaseBadge phase={a.phase} />
         </div>
-        <span className="tabular absolute bottom-2 start-2 rounded-sm border border-white/40 bg-ink/75 px-2 py-0.5 text-[11px] font-medium text-white" dir="ltr">
+        <span className="tabular absolute bottom-2 start-2 rounded-sm border border-white/40 bg-ink/75 px-2 py-0.5 text-[11px] font-medium text-white">
           {t("lot", { ref: a.refNumber })}
         </span>
       </div>
@@ -53,7 +53,7 @@ export function AuctionCard({ a, serverNow, className }: { a: Card; serverNow: n
             </Link>
           </h3>
           <p className="mt-1 truncate text-sm text-muted">
-            {a.publisher?.name ?? t("platform")}
+            {a.publisher ? <bdi>{a.publisher.name}</bdi> : t("platform")}
             {a.category && ` · ${pick(locale, a.category.titleEn, a.category.titleAr)}`}
           </p>
         </div>

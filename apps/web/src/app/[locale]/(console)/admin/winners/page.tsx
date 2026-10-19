@@ -60,7 +60,7 @@ export default async function Winners({ searchParams }: { searchParams: Promise<
             <tbody>
               {groups.map((g) => (
                 <tr key={g.userId}>
-                  <td><Link href={`/admin/users/${g.userId}`} className="font-medium hover:underline">{g.userName}</Link></td>
+                  <td><Link href={`/admin/users/${g.userId}`} className="font-medium hover:underline"><bdi>{g.userName}</bdi></Link></td>
                   <td className="text-sm"><a href={`mailto:${g.email}`} className="block hover:underline">{g.email}</a><span className="block text-muted" dir="ltr">{g.phone}</span></td>
                   <td className="tabular">{number(g.auctionsWon, locale)}</td>
                   <td className="tabular font-semibold">{money(g.totalAmount, locale)}</td>
@@ -90,7 +90,7 @@ export default async function Winners({ searchParams }: { searchParams: Promise<
                 <td><Link href={`/admin/auctions/${w.auctionId}`} className="font-medium hover:underline">{pick(locale, w.titleEn, w.titleAr)}</Link></td>
                 <td className="whitespace-nowrap text-muted">{date(w.endsAtUtc, locale)}</td>
                 <td className="tabular font-semibold">{money(w.amount, locale)}</td>
-                <td><Link href={`/admin/users/${w.userId}`} className="hover:underline">{w.userName}</Link><span className="block text-xs text-muted">{w.email}</span><span className="block text-xs text-muted" dir="ltr">{w.phone}</span></td>
+                <td><Link href={`/admin/users/${w.userId}`} className="hover:underline"><bdi>{w.userName}</bdi></Link><span className="block text-xs text-muted">{w.email}</span><span className="block text-xs text-muted" dir="ltr">{w.phone}</span></td>
                 <td className="whitespace-nowrap text-muted">{w.notifiedAtUtc ? dateTime(w.notifiedAtUtc, locale) : "—"}</td>
                 <td>{!w.notifiedAtUtc && <NotifyWinnerButton auctionId={w.auctionId} />}</td>
               </tr>

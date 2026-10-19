@@ -29,7 +29,7 @@ export async function HowToPage({ kind }: { kind: "buy" | "sell" }) {
             <p className="mt-4 max-w-xl text-base leading-8 text-ink-2 sm:text-lg">{buy ? t("buyDescription") : t("sellDescription")}</p>
           </div>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/images/recycling-hero.svg" alt="" className="mx-auto hidden max-h-64 w-full rounded-[1.5rem] object-cover md:block" />
+          <img src="/images/recycling-hero.svg" alt="" className="mx-auto hidden max-h-72 w-auto rounded-[1.5rem] md:block" />
         </div>
       </section>
 

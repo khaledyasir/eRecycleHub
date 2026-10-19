@@ -47,7 +47,7 @@ export default async function Transactions({ searchParams }: { searchParams: Pro
               <tr key={x.id}>
                 <td className="tabular text-muted">{x.id}</td>
                 <td className="whitespace-nowrap text-muted">{date(x.createdAtUtc, locale)}</td>
-                <td><Link href={`/admin/users/${x.userId}`} className="font-medium hover:underline">{x.userName}</Link><span className="block text-xs text-muted">{x.userEmail}</span></td>
+                <td><Link href={`/admin/users/${x.userId}`} className="font-medium hover:underline"><bdi>{x.userName}</bdi></Link><span className="block text-xs text-muted">{x.userEmail}</span></td>
                 <td className="tabular font-semibold">{money(x.amount, locale)}</td>
                 <td><Badge tone={tones[x.status]}>{t(`statusLabel.${x.status}`)}</Badge></td>
                 <td>{x.proofFileId ? <a href={fileUrl(x.proofFileId)} target="_blank" rel="noopener" className="text-patina hover:underline">{t("view")}</a> : <span className="text-muted">{t("none")}</span>}</td>

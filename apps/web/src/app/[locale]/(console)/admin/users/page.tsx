@@ -40,7 +40,7 @@ export default async function Customers({ searchParams }: { searchParams: Promis
           <tbody>
             {r.items.map((u) => (
               <tr key={u.id}>
-                <td><Link href={`/admin/users/${u.id}`} className="font-medium hover:underline">{u.fullName}</Link></td>
+                <td><Link href={`/admin/users/${u.id}`} className="font-medium hover:underline"><bdi>{u.fullName}</bdi></Link></td>
                 <td>{u.email}</td>
                 <td dir="ltr" className="text-start">{u.phone ?? "—"}</td>
                 <td>{pick(locale, u.countryNameEn, u.countryNameAr)}</td>

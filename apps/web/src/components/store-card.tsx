@@ -26,7 +26,7 @@ export function StoreCard({ s }: { s: Schema<"StoreCard"> }) {
         <div>
           <h3 className="font-semibold">
             <Link href={`/stores/${s.id}`} className="after:absolute after:inset-0">
-              {s.name}
+              <bdi>{s.name}</bdi>
             </Link>
           </h3>
           <p className="mt-1 text-sm text-muted">

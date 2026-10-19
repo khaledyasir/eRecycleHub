@@ -159,7 +159,7 @@ export async function BidsTable({ admin, auctionId, page }: { admin: boolean; au
         {r.items.map((b) => (
           <tr key={b.id}>
             <td className="font-medium">
-              {b.userName} {b.isLeading && <Badge tone="live" className="ms-1">{t("leading")}</Badge>}
+              <bdi>{b.userName}</bdi> {b.isLeading && <Badge tone="live" className="ms-1">{t("leading")}</Badge>}
             </td>
             <td className="text-sm text-ink-2">
               <a href={`mailto:${b.email}`} className="block hover:underline">{b.email}</a>

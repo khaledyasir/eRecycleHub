@@ -34,7 +34,7 @@ export default async function Messages({ searchParams }: { searchParams: Promise
             <li key={m.id} className={cn("rounded-lg border bg-surface p-4", m.isRead ? "border-line" : "border-patina/50")}>
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="font-semibold">{m.name}</p>
+                  <p className="font-semibold"><bdi>{m.name}</bdi></p>
                   <p className="text-sm text-ink-2">
                     <a href={`mailto:${m.email}`} className="hover:underline">{m.email}</a>
                     {m.mobile && <span className="ms-3" dir="ltr">{m.mobile}</span>}

@@ -32,7 +32,7 @@ export default async function SellerBidders({ searchParams }: { searchParams: Pr
           <tbody>
             {r.items.map((b) => (
               <tr key={b.userId}>
-                <td><Link href={`/seller/bidders/${b.userId}`} className="font-medium hover:underline">{b.fullName}</Link></td>
+                <td><Link href={`/seller/bidders/${b.userId}`} className="font-medium hover:underline"><bdi>{b.fullName}</bdi></Link></td>
                 <td><a href={`mailto:${b.email}`} className="hover:underline">{b.email}</a></td>
                 <td dir="ltr" className="text-start">{b.phone ?? "—"}</td>
                 <td className="tabular">{b.bidCount}</td>

@@ -40,7 +40,7 @@ export default async function Publishers({ searchParams }: { searchParams: Promi
           <tbody>
             {r.items.map((p) => (
               <tr key={p.id}>
-                <td><Link href={`/admin/publishers/${p.id}`} className="font-medium hover:underline">{p.name}</Link></td>
+                <td><Link href={`/admin/publishers/${p.id}`} className="font-medium hover:underline"><bdi>{p.name}</bdi></Link></td>
                 <td>{p.email}</td>
                 <td dir="ltr" className="text-start">{p.phone ?? "—"}</td>
                 <td>{pick(locale, p.countryNameEn, p.countryNameAr)}</td>

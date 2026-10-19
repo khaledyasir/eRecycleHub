@@ -30,7 +30,7 @@ export function UserMenu() {
       trigger={
         <Button variant="secondary" className="h-11 gap-1.5 px-3" aria-label={t("account")}>
           <UserRound className="h-5 w-5" aria-hidden />
-          <span className="hidden max-w-36 truncate sm:inline">{user.fullName}</span>
+          <span className="hidden max-w-36 truncate sm:inline"><bdi>{user.fullName}</bdi></span>
           <ChevronDown className="h-4 w-4" aria-hidden />
         </Button>
       }
