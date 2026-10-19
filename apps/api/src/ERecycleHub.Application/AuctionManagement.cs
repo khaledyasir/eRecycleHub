@@ -271,7 +271,7 @@ public sealed class AuctionManagement(AppDbContext db, FileService files, TimePr
             throw new AppException("auction.invalid_video_url");
         if (i.Specs is { Count: > MaxSpecs }) throw new AppException("auction.too_many_specs", 400, new { max = MaxSpecs });
         if (i.Specs?.Any(s => Normalize.Text(s.TitleEn) is null && Normalize.Text(s.TitleAr) is null) == true) throw new AppException("auction.spec_title_required");
-        if (!await db.Countries.AnyAsync(c => c.Id == i.CountryId, ct)) throw new AppException("country.invalid");
+        if (!await db.Countries.Allowed().AnyAsync(c => c.Id == i.CountryId, ct)) throw new AppException("country.invalid");
         if (i.CategoryId is not null && !await db.Categories.AnyAsync(c => c.Id == i.CategoryId && c.CountryId == i.CountryId, ct))
             throw new AppException("category.invalid");
     }

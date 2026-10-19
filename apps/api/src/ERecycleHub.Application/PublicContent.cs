@@ -32,7 +32,7 @@ public sealed class PublicContent(AppDbContext db, AuctionQueries auctions, Time
     private DateTime Now => clock.GetUtcNow().UtcDateTime;
 
     public Task<List<CountryDto>> CountriesAsync(CancellationToken ct = default) =>
-        db.Countries.AsNoTracking().Where(c => c.IsActive).OrderBy(c => c.NameEn)
+        db.Countries.AsNoTracking().Allowed().Where(c => c.IsActive).OrderBy(c => c.NameEn)
             .Select(c => new CountryDto(c.Id, c.NameEn, c.NameAr, c.Code, c.FlagFileId)).ToListAsync(ct);
 
     public Task<List<CategoryRef>> CategoriesAsync(int? countryId, CancellationToken ct = default) =>

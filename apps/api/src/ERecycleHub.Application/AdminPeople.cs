@@ -332,7 +332,7 @@ public sealed class AdminPeople(AppDbContext db, PasswordService passwords, File
         var email = Normalize.Email(input.Email ?? "");
         if (!email.Contains('@') || email.Length > 256) throw new AppException("auth.email_invalid");
         if (email != u.Email && await db.Users.AnyAsync(x => x.Email == email && x.Id != u.Id, ct)) throw AppException.Conflict("auth.email_taken");
-        if (!await db.Countries.AnyAsync(c => c.Id == input.CountryId, ct)) throw new AppException("country.invalid");
+        if (!await db.Countries.Allowed().AnyAsync(c => c.Id == input.CountryId, ct)) throw new AppException("country.invalid");
         if (!string.IsNullOrEmpty(input.Password))
         {
             AuthService.ValidatePassword(input.Password);

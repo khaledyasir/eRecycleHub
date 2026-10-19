@@ -13,7 +13,6 @@ export async function SiteHeader() {
   const links = [
     { href: "/", label: t("nav.home"), exact: true },
     { href: "/auctions", label: t("nav.auctions") },
-    { href: "/stores", label: t("nav.stores") },
     { href: "/how-to-buy", label: t("nav.howToBuy") },
     { href: "/about", label: t("nav.about") },
     { href: "/apply", label: t("nav.apply") },

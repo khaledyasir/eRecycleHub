@@ -10,6 +10,13 @@ public class Country
     public bool IsActive { get; set; } = true;
 }
 
+/// <summary>The platform operates in Jordan only: every country list and country check goes through <see cref="Allowed"/>.</summary>
+public static class CountryRules
+{
+    public const string AllowedCode = "JO";
+    public static IQueryable<Country> Allowed(this IQueryable<Country> q) => q.Where(c => c.Code == AllowedCode);
+}
+
 public class Category
 {
     public int Id { get; set; }

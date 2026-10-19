@@ -1,11 +1,12 @@
-import { ArrowLeft, CirclePlay, Gavel, Leaf, Search, ShieldCheck, Timer, TrendingUp, Users } from "lucide-react";
+import { ArrowLeft, CirclePlay, Gavel, Layers, Leaf, Recycle, Search, ShieldCheck, Timer, TrendingUp, Users } from "lucide-react";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { getLocale, getTranslations } from "next-intl/server";
 import { AuctionGrid } from "@/components/auction/auction-card";
 import { RichHtml } from "@/components/rich-html";
 import { Link } from "@/i18n/navigation";
-import { getCountryId, load, serverApi } from "@/lib/api/server";
+import { getCountryId, load, loadOptional, serverApi } from "@/lib/api/server";
+import type { Schema } from "@/lib/api/types";
 import { fileUrl, nowMs, pick } from "@/lib/format";
 import { parseHeroTitle, type HeroTone } from "@/lib/hero-title";
 import { alternates } from "@/lib/seo";
@@ -14,6 +15,10 @@ export async function generateMetadata(): Promise<Metadata> {
   const [t, locale] = await Promise.all([getTranslations("public.home"), getLocale()]);
   return { title: t("metaTitle"), description: t("heroBody"), alternates: alternates(locale, "/") };
 }
+
+/** Admin-editable heading/body per homepage section: settings "home-<section>" (title = heading, value = text); built-in text when absent. */
+const SECTIONS = ["categories", "live", "upcoming", "steps", "seller"] as const;
+const DEFAULT_HERO_IMAGE = "/images/recycling-hero.svg";
 
 const accents = [
   { tile: "bg-purple/10 text-purple", link: "text-purple" },
@@ -52,17 +57,21 @@ function HeroLink({ href, className, children }: { href: string; className: stri
 
 export default async function HomePage() {
   const [t, tc, locale, client, countryId] = await Promise.all([getTranslations("public.home"), getTranslations("common"), getLocale(), serverApi(), getCountryId()]);
-  const home = await load(client.GET("/api/home", { params: { query: { countryId } } }));
+  const [home, ...rows] = await Promise.all([
+    load(client.GET("/api/home", { params: { query: { countryId } } })),
+    ...SECTIONS.map((key) => loadOptional<Schema<"SettingDto">>(client.GET("/api/content/settings/{key}", { params: { path: { key: `home-${key}` } } }))),
+  ]);
+  const sec = Object.fromEntries(SECTIONS.map((key, i) => [key, { title: pick(locale, rows[i]?.titleEn, rows[i]?.titleAr) || undefined, body: pick(locale, rows[i]?.valueEn, rows[i]?.valueAr) || undefined }])) as Record<(typeof SECTIONS)[number], { title?: string; body?: string }>;
   const serverNow = nowMs();
   // Homepage hero edited in the admin panel; each empty field keeps the built-in text in the page's language (never the other
   // language's custom text), no record keeps the built-in hero.
   const hero = home.hero;
   const custom = (en?: string | null, ar?: string | null) => (locale === "ar" ? ar : en) || undefined;
   const heroTitle = custom(hero?.titleEn, hero?.titleAr);
-  const heroImage = hero?.imageFileId ?? home.live.find((a) => a.mainImageFileId)?.mainImageFileId;
+  const heroSrc = hero?.imageFileId ? fileUrl(hero.imageFileId) : DEFAULT_HERO_IMAGE;
   const stats = [
     { icon: Gavel, tile: "bg-patina-50 text-patina", value: home.stats.liveAuctions, label: t("statLive") },
-    { icon: Timer, tile: "bg-orange/10 text-orange", value: home.stats.stores, label: t("statStores") },
+    { icon: Layers, tile: "bg-orange/10 text-orange", value: home.categories.length, label: t("statCategories") },
     { icon: Users, tile: "bg-purple/10 text-purple", value: home.stats.totalBids, label: t("statBids") },
   ];
 
@@ -120,14 +129,8 @@ export default async function HomePage() {
           <div className="relative">
             <div className="absolute -inset-5 rounded-full bg-gradient-to-tr from-cyan/20 via-pink/10 to-orange/20 blur-3xl" aria-hidden />
             <div className="relative rounded-[2rem] border border-white bg-surface p-3 shadow-2xl shadow-slate-300/40 ltr:-rotate-1 rtl:rotate-1">
-              {heroImage ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={fileUrl(heroImage)} alt={(hero?.imageFileId && custom(hero.imageAltEn, hero.imageAltAr)) || ""} className="h-[340px] w-full rounded-[1.5rem] object-cover sm:h-[440px]" />
-              ) : (
-                <div className="grid h-[340px] w-full place-items-center rounded-[1.5rem] bg-patina-50 text-patina sm:h-[440px]" aria-hidden>
-                  <Gavel className="h-24 w-24" />
-                </div>
-              )}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={heroSrc} alt={(hero?.imageFileId && custom(hero.imageAltEn, hero.imageAltAr)) || t("heroImageAlt")} fetchPriority="high" className="h-[340px] w-full rounded-[1.5rem] object-cover sm:h-[440px]" />
               <div className="absolute inset-x-7 bottom-8 flex items-center justify-between gap-2 rounded-xl bg-surface/95 p-4 shadow-lg backdrop-blur">
                 <div>
                   <div className="text-xs text-muted">{t("liveNow", { count: home.stats.liveAuctions })}</div>
@@ -184,7 +187,7 @@ export default async function HomePage() {
 
       {home.categories.length > 0 && (
         <section className="container-page py-20">
-          <SectionHead kicker={t("exploreKicker")} title={t("categories")} href="/auctions" more={t("seeAll")} />
+          <SectionHead kicker={t("exploreKicker")} title={sec.categories.title ?? t("categories")} href="/auctions" more={t("seeAll")} />
           <ul className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             {home.categories.slice(0, 8).map((c, i) => {
               const accent = accents[i % accents.length];
@@ -212,7 +215,7 @@ export default async function HomePage() {
       {home.live.length > 0 && (
         <section className="bg-surface py-20">
           <div className="container-page">
-            <SectionHead kicker={t("liveKicker")} title={t("live")} href="/auctions?status=live&sort=ending" more={t("seeAll")} />
+            <SectionHead kicker={t("liveKicker")} title={sec.live.title ?? t("live")} href="/auctions?status=live&sort=ending" more={t("seeAll")} />
             <AuctionGrid items={home.live} serverNow={serverNow} />
           </div>
         </section>
@@ -220,7 +223,7 @@ export default async function HomePage() {
 
       {home.upcoming.length > 0 && (
         <section className="container-page py-20">
-          <SectionHead title={t("upcoming")} href="/auctions?status=upcoming" more={t("seeAll")} />
+          <SectionHead title={sec.upcoming.title ?? t("upcoming")} href="/auctions?status=upcoming" more={t("seeAll")} />
           <AuctionGrid items={home.upcoming} serverNow={serverNow} />
         </section>
       )}
@@ -228,8 +231,8 @@ export default async function HomePage() {
       <section className="container-page py-20">
         <div className="mb-12 text-center">
           <span className="text-sm font-bold text-patina">{t("stepsKicker")}</span>
-          <h2 className="mt-2 text-2xl font-black sm:text-3xl">{t("steps")}</h2>
-          <p className="mt-3 text-muted">{t("stepsBody")}</p>
+          <h2 className="mt-2 text-2xl font-black sm:text-3xl">{sec.steps.title ?? t("steps")}</h2>
+          <p className="mt-3 text-muted">{sec.steps.body ?? t("stepsBody")}</p>
         </div>
         {home.steps.length > 0 ? (
           <ol className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
@@ -282,9 +285,10 @@ export default async function HomePage() {
       <section className="container-page pb-20">
         <div className="relative flex flex-col items-start justify-between gap-8 overflow-hidden rounded-[2rem] bg-patina px-7 py-14 text-white sm:px-14 md:flex-row md:items-center">
           <div className="absolute -top-16 start-1/3 h-56 w-56 rounded-full bg-cyan/20" aria-hidden />
+          <Recycle className="absolute -bottom-10 -end-8 h-56 w-56 text-white/10" aria-hidden />
           <div className="relative">
-            <h2 className="text-2xl font-black sm:text-3xl">{t("sellerTitle")}</h2>
-            <p className="mt-3 max-w-[60ch] text-white">{t("sellerBody")}</p>
+            <h2 className="text-2xl font-black sm:text-3xl">{sec.seller.title ?? t("sellerTitle")}</h2>
+            <p className="mt-3 max-w-[60ch] text-white">{sec.seller.body ?? t("sellerBody")}</p>
           </div>
           <Link href="/apply" className="relative inline-flex shrink-0 items-center rounded-xl bg-surface px-8 py-4 font-black text-patina transition hover:bg-patina-50">
             {t("sellerCta")}

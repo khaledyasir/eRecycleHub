@@ -128,7 +128,8 @@ export default async function AuctionPage({ params }: Params) {
   ];
 
   return (
-    <div className="container-page py-6">
+    // Detail page is laid out left-to-right in both languages: gallery/info on the left, bid panel on the right.
+    <div className="container-page py-6" dir="ltr">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
       <nav aria-label="breadcrumb" className="mb-4 text-sm text-muted">
         <ol className="flex flex-wrap items-center gap-1">
@@ -138,7 +139,7 @@ export default async function AuctionPage({ params }: Params) {
             </Link>
           </li>
           <li aria-hidden>
-            <ChevronRight className="flip-rtl h-4 w-4" />
+            <ChevronRight className="h-4 w-4" />
           </li>
           <li aria-current="page" className="line-clamp-1 text-ink-2">
             {title}
@@ -162,8 +163,8 @@ export default async function AuctionPage({ params }: Params) {
               </span>
               {c.category && <span className="text-sm text-muted">{pick(locale, c.category.titleEn, c.category.titleAr)}</span>}
             </div>
-            <h1 className="text-2xl font-semibold sm:text-3xl">{title}</h1>
-            {pick(locale, c.shortDescEn, c.shortDescAr) && <p className="max-w-[70ch] text-ink-2">{pick(locale, c.shortDescEn, c.shortDescAr)}</p>}
+            <h1 className="text-2xl font-semibold sm:text-3xl" dir="auto">{title}</h1>
+            {pick(locale, c.shortDescEn, c.shortDescAr) && <p className="max-w-[70ch] text-ink-2" dir="auto">{pick(locale, c.shortDescEn, c.shortDescAr)}</p>}
           </header>
 
           <Gallery fileIds={photos} title={title} />

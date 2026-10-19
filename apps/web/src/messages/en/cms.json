@@ -52,7 +52,7 @@
     "twitter": "X (Twitter) link",
     "linkedin": "LinkedIn link",
     "key": "Page address",
-    "keyHint": "Lowercase letters, numbers and dashes, for example terms.",
+    "keyHint": "Lowercase letters, numbers and dashes, for example terms. Homepage headings: home-categories, home-live, home-upcoming, home-steps, home-seller (title = heading, text = body).",
     "valueEn": "Content (English)",
     "valueAr": "Content (Arabic)",
     "auctions": "Auctions",

@@ -70,7 +70,7 @@ public sealed class CmsService(AppDbContext db, FileService files, TimeProvider 
     public async Task<int> SaveCategoryAsync(Actor admin, int? id, CategoryInput i, UploadInput? icon, UploadInput? image, CancellationToken ct = default)
     {
         var (en, ar) = Pair(i.TitleEn, i.TitleAr, "category.title_required");
-        if (!await db.Countries.AnyAsync(c => c.Id == i.CountryId, ct)) throw new AppException("country.invalid");
+        if (!await db.Countries.Allowed().AnyAsync(c => c.Id == i.CountryId, ct)) throw new AppException("country.invalid");
         var c = id is null ? db.Categories.Add(new Category { TitleEn = en, TitleAr = ar }).Entity : await FindAsync(db.Categories, id.Value, ct);
         if (id is not null && c.CountryId != i.CountryId && await db.Auctions.AnyAsync(a => a.CategoryId == c.Id, ct)) throw AppException.Conflict("category.in_use");
         c.TitleEn = en; c.TitleAr = ar; c.CountryId = i.CountryId; c.SortOrder = i.SortOrder; c.IsActive = i.IsActive;
@@ -91,7 +91,7 @@ public sealed class CmsService(AppDbContext db, FileService files, TimeProvider 
 
     // ---------- countries ----------
     public Task<List<AdminCountry>> CountriesAsync(bool? active, CancellationToken ct = default) =>
-        db.Countries.AsNoTracking().Where(c => active == null || c.IsActive == active).OrderBy(c => c.NameEn)
+        db.Countries.AsNoTracking().Allowed().Where(c => active == null || c.IsActive == active).OrderBy(c => c.NameEn)
             .Select(c => new AdminCountry(c.Id, c.NameEn, c.NameAr, c.Code, c.IsActive, c.FlagFileId)).ToListAsync(ct);
 
     /// <summary>Creating a country also creates its (empty) contact-info row, as the legacy admin did.</summary>
@@ -126,7 +126,7 @@ public sealed class CmsService(AppDbContext db, FileService files, TimeProvider 
 
     public async Task<int> SaveAnnouncementAsync(Actor admin, int? id, AnnouncementInput i, UploadInput? image, CancellationToken ct = default)
     {
-        if (!await db.Countries.AnyAsync(c => c.Id == i.CountryId, ct)) throw new AppException("country.invalid");
+        if (!await db.Countries.Allowed().AnyAsync(c => c.Id == i.CountryId, ct)) throw new AppException("country.invalid");
         var a = id is null ? db.Announcements.Add(new Announcement()).Entity : await FindAsync(db.Announcements, id.Value, ct);
         if (id is null && image is null) throw new AppException("cms.image_required");
         a.CountryId = i.CountryId; a.SortOrder = i.SortOrder; a.IsActive = i.IsActive;
@@ -310,7 +310,7 @@ public sealed class CmsService(AppDbContext db, FileService files, TimeProvider 
 
     public async Task<int> SaveContactInfoAsync(Actor admin, int? id, ContactInfoInput i, CancellationToken ct = default)
     {
-        if (!await db.Countries.AnyAsync(c => c.Id == i.CountryId, ct)) throw new AppException("country.invalid");
+        if (!await db.Countries.Allowed().AnyAsync(c => c.Id == i.CountryId, ct)) throw new AppException("country.invalid");
         var c = id is null ? db.ContactInfos.Add(new ContactInfo()).Entity : await FindAsync(db.ContactInfos, id.Value, ct);
         c.CountryId = i.CountryId; c.Mobile = Normalize.Text(i.Mobile); c.Address = Normalize.Text(i.Address); c.Email = Normalize.Text(i.Email);
         c.MapUrl = Url(i.MapUrl, "cms.invalid_link"); c.Facebook = Url(i.Facebook, "cms.invalid_link"); c.Instagram = Url(i.Instagram, "cms.invalid_link");

@@ -12,7 +12,7 @@ export async function SiteFooter() {
   const countryId = await getCountryId();
   const info = await loadOptional<Schema<"ContactInfoDto">>(client.GET("/api/content/contact-info", { params: { query: { countryId } } }));
   const columns = [
-    { title: t("footer.marketplace"), links: [["/auctions", t("nav.auctions")], ["/stores", t("nav.stores")], ["/apply", t("nav.apply")], ["/benefits", t("nav.benefits")], ["/clients", t("nav.clients")]] },
+    { title: t("footer.marketplace"), links: [["/auctions", t("nav.auctions")], ["/apply", t("nav.apply")], ["/benefits", t("nav.benefits")], ["/clients", t("nav.clients")]] },
     { title: t("footer.company"), links: [["/about", t("nav.about")], ["/advertise", t("nav.advertise")], ["/terms", t("nav.terms")], ["/privacy", t("nav.privacy")]] },
     { title: t("footer.help"), links: [["/how-to-buy", t("nav.howToBuy")], ["/how-to-sell", t("nav.howToSell")], ["/faq", t("nav.faq")], ["/support", t("nav.support")], ["/contact", t("nav.contact")]] },
   ];

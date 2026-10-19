@@ -96,7 +96,7 @@ public sealed class AccountService(AppDbContext db, AuctionQueries auctions, Fil
     {
         var name = Normalize.Text(input.FullName);
         if (name is null || name.Length > 200) throw new AppException("profile.name_required");
-        if (!await db.Countries.AnyAsync(c => c.Id == input.CountryId, ct)) throw new AppException("country.invalid");
+        if (!await db.Countries.Allowed().AnyAsync(c => c.Id == input.CountryId, ct)) throw new AppException("country.invalid");
         var u = await db.Users.SingleAsync(x => x.Id == userId, ct);
         u.FullName = name;
         u.Phone = Normalize.Text(input.Phone);

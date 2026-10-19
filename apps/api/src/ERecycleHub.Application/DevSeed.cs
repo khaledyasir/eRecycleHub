@@ -23,8 +23,7 @@ public sealed class DevSeed(AppDbContext db, PasswordService passwords, FileServ
         await using var tx = await db.Database.BeginTransactionAsync(ct);
 
         var jordan = new Country { NameEn = "Jordan", NameAr = "الأردن", Code = "JO" };
-        var uae = new Country { NameEn = "United Arab Emirates", NameAr = "الإمارات العربية المتحدة", Code = "AE" };
-        db.Countries.AddRange(jordan, uae);
+        db.Countries.Add(jordan);
         await db.SaveChangesAsync(ct);
 
         var cats = new (string en, string ar, string color)[]
@@ -117,9 +116,8 @@ public sealed class DevSeed(AppDbContext db, PasswordService passwords, FileServ
         db.AuctionWatches.Add(new AuctionWatch { UserId = c1.Id, AuctionId = auctions[5].Id, CreatedAtUtc = now });
         db.Wishlist.Add(new WishlistItem { UserId = c1.Id, AuctionId = auctions[4].Id, CreatedAtUtc = now });
 
-        db.ContactInfos.AddRange(
-            new ContactInfo { CountryId = jordan.Id, Mobile = "+962 6 000 0000", Email = "info@erecyclehub.local", Address = "Amman, Jordan", MapUrl = "https://www.google.com/maps?q=Amman&output=embed" },
-            new ContactInfo { CountryId = uae.Id, Mobile = "+971 4 000 0000", Email = "uae@erecyclehub.local", Address = "Dubai, UAE" });
+        db.ContactInfos.Add(
+            new ContactInfo { CountryId = jordan.Id, Mobile = "+962 6 000 0000", Email = "info@erecyclehub.local", Address = "Amman, Jordan", MapUrl = "https://www.google.com/maps?q=Amman&output=embed" });
         db.AboutSections.Add(new AboutSection
         {
             TitleEn = "A marketplace for recyclable materials", TitleAr = "سوق للمواد القابلة لإعادة التدوير",

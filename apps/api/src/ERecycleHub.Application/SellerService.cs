@@ -114,7 +114,7 @@ public sealed class SellerService(AppDbContext db, AuctionQueries auctions, File
         var pid = Pid(actor);
         var first = Normalize.Text(input.FirstName);
         if (first is null || first.Length > 200) throw new AppException("profile.name_required");
-        if (!await db.Countries.AnyAsync(c => c.Id == input.CountryId, ct)) throw new AppException("country.invalid");
+        if (!await db.Countries.Allowed().AnyAsync(c => c.Id == input.CountryId, ct)) throw new AppException("country.invalid");
         var p = await db.Publishers.Include(x => x.User).SingleAsync(x => x.Id == pid, ct);
         var u = p.User!;
         p.FirstName = first;
