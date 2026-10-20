@@ -138,6 +138,12 @@ public sealed class DevSeed(AppDbContext db, PasswordService passwords, FileServ
         faqCat.Faqs.Add(new Faq { QuestionEn = "How is the winner decided?", QuestionAr = "كيف يتم تحديد الفائز؟", AnswerEn = "<p>The highest bid when the auction ends.</p>", AnswerAr = "<p>أعلى مزايدة عند انتهاء المزاد.</p>", SortOrder = 2 });
         db.FaqCategories.Add(faqCat);
         db.Settings.AddRange(
+            new Setting { Key = "payment-bank-name", ValueEn = "Example Bank (dev)" },
+            new Setting { Key = "payment-account-holder", ValueEn = "eRecycleHub Trading Co." },
+            new Setting { Key = "payment-iban", ValueEn = "JO94CBJO0010000000000131000302" },
+            new Setting { Key = "payment-swift", ValueEn = "CBJOJOAX" },
+            new Setting { Key = "payment-cliq", ValueEn = "ERECYCLEHUB" },
+            new Setting { Key = "payment-processing-time", ValueEn = "2 business hours", ValueAr = "ساعتي عمل" },
             new Setting { Key = SettingKeys.Terms, TitleEn = "Terms and conditions", TitleAr = "الشروط والأحكام", ValueEn = "<p>Sample terms for development.</p>", ValueAr = "<p>شروط تجريبية لبيئة التطوير.</p>" },
             new Setting { Key = SettingKeys.PrivacyPolicy, TitleEn = "Privacy policy", TitleAr = "سياسة الخصوصية", ValueEn = "<p>Sample privacy policy for development.</p>", ValueAr = "<p>سياسة خصوصية تجريبية لبيئة التطوير.</p>" });
         db.Sliders.Add(new Slider { Title = "Recycle smarter", Link = "/auctions", Type = "Web", SortOrder = 1, ImageFileId = await SvgAsync(Banner("#0b3d2e", "#10b981"), "slide.svg", ct) });

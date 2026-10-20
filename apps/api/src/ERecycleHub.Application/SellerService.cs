@@ -123,7 +123,7 @@ public sealed class SellerService(AppDbContext db, AuctionQueries auctions, File
         p.SecondMobile = Normalize.Text(input.SecondMobile);
         p.CountryId = input.CountryId;
         u.FullName = p.DisplayName;
-        u.Phone = Normalize.Text(input.Phone);
+        u.Phone = JordanPhone.Optional(input.Phone);
         u.CompanyName = Normalize.Text(input.CompanyName);
         u.CrNumber = Normalize.Text(input.CrNumber);
         u.VatNumber = Normalize.Text(input.VatNumber);

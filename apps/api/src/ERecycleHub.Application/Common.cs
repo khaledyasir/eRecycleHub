@@ -37,6 +37,18 @@ public sealed record Actor(int UserId, UserRole Role, int? PublisherId = null, s
     public bool IsAdmin => Role == UserRole.Admin;
 }
 
+/// <summary>Jordanian mobile numbers: exactly 10 digits, starting with 07, digits only (no spaces or symbols).</summary>
+public static class JordanPhone
+{
+    public static bool IsValid(string? s) => s is { Length: 10 } && s.StartsWith("07", StringComparison.Ordinal) && s.All(char.IsAsciiDigit);
+
+    /// <summary>Required number (sign-up): trims, then must be valid.</summary>
+    public static string Require(string? s) => Normalize.Text(s) is { } v && IsValid(v) ? v : throw new AppException("phone.invalid");
+
+    /// <summary>Optional number: null when blank, otherwise must be valid.</summary>
+    public static string? Optional(string? s) => Normalize.Text(s) is { } v ? (IsValid(v) ? v : throw new AppException("phone.invalid")) : null;
+}
+
 public static class Normalize
 {
     public static string Email(string email) => email.Trim().ToLowerInvariant();

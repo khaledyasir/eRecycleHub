@@ -1,12 +1,12 @@
 "use client";
 
 import { Eye, EyeOff } from "lucide-react";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { useState, type ReactNode } from "react";
 import { WELCOME_KEY } from "@/components/account/welcome-prompt";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/display";
-import { Field, Input, Select } from "@/components/ui/form";
+import { Field, Input, PhoneInput } from "@/components/ui/form";
 import { Link, useRouter } from "@/i18n/navigation";
 import { api, call, sendForm, setCsrfToken } from "@/lib/api/client";
 import type { Schema, UserRole } from "@/lib/api/types";
@@ -53,7 +53,7 @@ export function LoginForm({ next, adminOnly = false }: { next?: string; adminOnl
   const t = useTranslations("auth.login");
   const v = useValidators();
   const router = useRouter();
-  const f = useForm({ email: "", password: "" });
+  const f = useForm({ email: "", password: "" }, (x) => ({ email: v.email(x.email) }));
   return (
     <form
       noValidate
@@ -90,18 +90,21 @@ export function LoginForm({ next, adminOnly = false }: { next?: string; adminOnl
 export function RegisterForm({ countries, defaultCountry }: { countries: Country[]; defaultCountry?: number }) {
   const t = useTranslations("auth.register");
   const v = useValidators();
-  const locale = useLocale();
   const router = useRouter();
   // Company, bank and document details are collected later, when the customer applies to become a seller.
-  const f = useForm({ fullName: "", email: "", phone: "", countryId: String(defaultCountry ?? countries[0]?.id ?? ""), password: "", confirm: "" });
+  // Jordan is the only country, so there is nothing to choose: it is sent with the form without a field.
+  const f = useForm(
+    { fullName: "", email: "", phone: "", countryId: String(defaultCountry ?? countries[0]?.id ?? ""), password: "", confirm: "" },
+    (x) => ({ email: v.email(x.email), phone: v.phone(x.phone), password: v.password(x.password, 8), confirm: x.confirm ? v.match(x.password, x.confirm) : undefined }),
+  );
   return (
     <form
       noValidate
       className="space-y-8"
       onSubmit={f.submit(
         (x) => ({
-          fullName: v.required(x.fullName), email: v.email(x.email), phone: v.required(x.phone), countryId: v.required(x.countryId),
-          password: v.min(x.password, 8), confirm: v.match(x.password, x.confirm),
+          fullName: v.required(x.fullName), email: v.email(x.email), phone: v.phone(x.phone), countryId: v.required(x.countryId),
+          password: v.password(x.password, 8), confirm: v.match(x.password, x.confirm),
         }),
         async (x) => {
           const { confirm: _c, countryId, ...rest } = x;
@@ -120,26 +123,14 @@ export function RegisterForm({ countries, defaultCountry }: { countries: Country
         <Field label={t("fullName")} error={f.errors.fullName} required>
           {(p) => <Input {...p} {...f.text("fullName")} autoComplete="name" />}
         </Field>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-4">
           <Field label={t("email")} error={f.errors.email} required>
             {(p) => <Input {...p} {...f.text("email")} type="email" autoComplete="email" />}
           </Field>
           <Field label={t("phone")} error={f.errors.phone} required>
-            {(p) => <Input {...p} {...f.text("phone")} type="tel" autoComplete="tel" dir="ltr" />}
+            {(p) => <PhoneInput {...p} {...f.text("phone")} />}
           </Field>
         </div>
-        <Field label={t("country")} error={f.errors.countryId} required>
-          {(p) => (
-            <Select {...p} {...f.text("countryId")}>
-              <option value="">{t("chooseCountry")}</option>
-              {countries.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {locale === "ar" ? c.nameAr : c.nameEn}
-                </option>
-              ))}
-            </Select>
-          )}
-        </Field>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label={t("password")} hint={t("passwordHint")} error={f.errors.password} required>
             {(p) => <PasswordInput {...p} {...f.text("password")} autoComplete="new-password" />}

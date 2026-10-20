@@ -6708,6 +6708,7 @@ export interface components {
             idDocument: null | components["schemas"]["FileRef"];
             /** Format: double */
             walletBalance: number;
+            accountHolderName?: null | string;
         };
         ProfileInput: {
             fullName: string;
@@ -6720,6 +6721,7 @@ export interface components {
             bankName: null | string;
             accountNumber: null | string;
             cardNumber: null | string;
+            accountHolderName?: null | string;
         };
         PublicBid: {
             /** Format: int64 */
@@ -6892,6 +6894,8 @@ export interface components {
             bankName?: null | string;
             accountNumber?: null | string;
             cardNumber?: null | string;
+            accountHolderName?: null | string;
+            accountType?: null | string;
         };
         SellerDashboard: {
             /** Format: int32 */

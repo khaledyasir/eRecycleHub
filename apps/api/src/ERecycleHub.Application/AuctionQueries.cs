@@ -124,7 +124,7 @@ public sealed class AuctionQueries(AppDbContext db, TimeProvider clock)
             Last7 = g.Count(a => a.StartsAtUtc >= today.AddDays(-7)),
             Last30 = g.Count(a => a.StartsAtUtc >= today.AddDays(-30)),
             Max = g.Max(a => a.CurrentPrice),
-        }).FirstOrDefaultAsync(ct);
+        }).OrderBy(x => x.Max).FirstOrDefaultAsync(ct);
 
         var categories = (await db.Categories.AsNoTracking()
             .Where(c => c.IsActive && (countryId == null || countryId <= 0 || c.CountryId == countryId))
@@ -160,7 +160,7 @@ public sealed class AuctionQueries(AppDbContext db, TimeProvider clock)
         FileRef? Doc(Guid? fid) => fid is not null && docs.TryGetValue(fid.Value, out var d) ? d : null;
 
         var reviews = await db.Reviews.Where(r => r.AuctionId == id).GroupBy(_ => 1)
-            .Select(g => new { Avg = g.Average(r => (double)r.Rating), Count = g.Count() }).FirstOrDefaultAsync(ct);
+            .Select(g => new { Avg = g.Average(r => (double)r.Rating), Count = g.Count() }).OrderBy(x => x.Count).FirstOrDefaultAsync(ct);
         var publisherAuctionCount = a.PublisherId is null ? 0 : await Visible().CountAsync(x => x.PublisherId == a.PublisherId, ct);
 
         bool fav = false, watch = false, reviewed = false, leading = false;

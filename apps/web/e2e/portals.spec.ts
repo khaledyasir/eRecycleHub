@@ -235,9 +235,8 @@ test.describe("becoming a seller", () => {
     await user.getByLabel("Bank name").fill("Test Bank");
     await user.getByLabel(/^Account number/).fill("JO94CBJO0010000000000131000302");
     await user.getByRole("button", { name: "Send application" }).click();
-    await expect(user.getByText("Attach your commercial registration and identity documents.").first()).toBeVisible();
+    await expect(user.getByText("Attach your commercial registration document.").first()).toBeVisible();
     await user.getByLabel("Commercial registration document").setInputFiles({ name: "cr.pdf", mimeType: "application/pdf", buffer: pdf });
-    await user.getByLabel("Identity document").setInputFiles({ name: "id.pdf", mimeType: "application/pdf", buffer: pdf });
     await user.getByRole("button", { name: "Send application" }).click();
     await expect(user.getByText("Your application is under review")).toBeVisible();
 

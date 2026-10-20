@@ -12,6 +12,47 @@ export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputE
   return <input ref={ref} className={cn(control, "h-10", className)} {...p} />;
 });
 
+/** Jordan flag, drawn inline so it renders the same everywhere (flag emoji don't on Windows). */
+function JordanFlag() {
+  return (
+    <svg viewBox="0 0 30 20" className="h-4 w-6 shrink-0 rounded-[2px] shadow-[0_0_0_1px_#0001]" aria-hidden>
+      <rect width="30" height="6.67" fill="#111" />
+      <rect y="6.67" width="30" height="6.67" fill="#fff" />
+      <rect y="13.33" width="30" height="6.67" fill="#007a3d" />
+      <path d="M0 0 14 10 0 20Z" fill="#ce1126" />
+    </svg>
+  );
+}
+
+/**
+ * Jordanian mobile number as one field: flag and +962 are fixed on the start side (right in Arabic), the user types the
+ * number as 07XXXXXXXX. Only digits are kept, at most 10.
+ */
+export const PhoneInput = forwardRef<HTMLInputElement, Omit<InputHTMLAttributes<HTMLInputElement>, "type" | "dir">>(function PhoneInput({ onChange, className, ...p }, ref) {
+  return (
+    <div className="flex items-stretch">
+      <span className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-s-md border border-e-0 border-line-strong bg-sunken px-3 text-sm font-medium text-ink-2" dir="ltr">
+        <JordanFlag /> +962
+      </span>
+      <input
+        ref={ref}
+        type="tel"
+        dir="ltr"
+        inputMode="numeric"
+        autoComplete="tel-national"
+        maxLength={10}
+        placeholder="07XXXXXXXX"
+        className={cn(control, "h-10 rounded-s-none text-start", className)}
+        onChange={(e) => {
+          e.target.value = e.target.value.replace(/\D/g, "").slice(0, 10);
+          onChange?.(e);
+        }}
+        {...p}
+      />
+    </div>
+  );
+});
+
 export const Textarea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<HTMLTextAreaElement>>(function Textarea({ className, ...p }, ref) {
   return <textarea ref={ref} className={cn(control, "min-h-24 py-2", className)} {...p} />;
 });

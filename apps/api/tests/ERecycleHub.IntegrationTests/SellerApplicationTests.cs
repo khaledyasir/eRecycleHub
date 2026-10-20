@@ -11,7 +11,7 @@ namespace ERecycleHub.IntegrationTests;
 public class SellerApplicationTests(ApiFactory f)
 {
     private const string Url = "/api/account/seller-application";
-    private static readonly object Form = new { name = "Acme Recycling", company = "Acme Ltd", mobile = "0790000123", address = "Amman", categoryIds = new[] { 1 }, crNumber = "CR-1001", bankName = "Test Bank", accountNumber = "JO94CBJO0010000000000131000302" };
+    private static readonly object Form = new { name = "Acme Recycling", company = "Acme Ltd", mobile = "0790000123", address = "Amman", categoryIds = new[] { 1 }, crNumber = "CR-1001", bankName = "Test Bank", accountHolderName = "Acme Ltd", accountNumber = "JO94CBJO0010000000000131000302" };
 
     private static Task<HttpResponseMessage> ApplyAsync(ApiClient c, bool withDocs = true, object? data = null) =>
         withDocs
@@ -49,6 +49,22 @@ public class SellerApplicationTests(ApiFactory f)
         // A pending application changes nothing about what they may do.
         Assert.Equal(HttpStatusCode.Created, (await ApplyAsync(c)).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await c.GetAsync("/api/seller/dashboard")).StatusCode);
+    }
+
+    [Fact]
+    public async Task Individuals_apply_with_an_identity_document_and_no_company_details()
+    {
+        var (_, c) = await NewApplicantAsync();
+        var data = new { name = "Solo Seller", accountType = "Individual", bankName = "Test Bank", accountNumber = "JO94CBJO0010000000000131000302" };
+        Assert.Equal("application.documents_required", await ApiClient.CodeAsync(await c.MultipartAsync(HttpMethod.Post, Url, data, ("crDocument", "cr.pdf", TestFiles.Pdf))));
+        Assert.Equal(HttpStatusCode.Created, (await c.MultipartAsync(HttpMethod.Post, Url, data, ("idDocument", "id.pdf", TestFiles.Pdf))).StatusCode);
+    }
+
+    [Fact]
+    public async Task A_mobile_that_is_not_a_valid_jordanian_number_is_rejected()
+    {
+        var (_, c) = await NewApplicantAsync();
+        Assert.Equal("phone.invalid", await ApiClient.CodeAsync(await ApplyAsync(c, data: new { name = "Acme", mobile = "12345", company = "Acme Ltd", crNumber = "CR-1", bankName = "B", accountNumber = "1" })));
     }
 
     [Fact]

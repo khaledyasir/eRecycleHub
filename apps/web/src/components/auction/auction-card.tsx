@@ -19,7 +19,7 @@ export function PhaseBadge({ phase }: { phase: AuctionPhase }) {
   );
 }
 
-/** A lot "ticket": photo with its lot number and a small time-left card, the current price, and a strip with the bid count. */
+/** A lot "ticket": photo (nothing drawn over it), the current price with a small time-left card, and a strip with the bid count. */
 export function AuctionCard({ a, serverNow, className }: { a: Card; serverNow: number; className?: string }) {
   const t = useTranslations("auction.card");
   const locale = useLocale();
@@ -38,14 +38,6 @@ export function AuctionCard({ a, serverNow, className }: { a: Card; serverNow: n
         <div className="absolute start-2 top-2">
           <PhaseBadge phase={a.phase} />
         </div>
-        {a.phase !== "Ended" && (
-          <div className="absolute bottom-2 end-2">
-            <Countdown target={a.phase === "Upcoming" ? a.startsAtUtc : a.endsAtUtc} serverNow={serverNow} mode={a.phase === "Upcoming" ? "start" : "end"} size="card" />
-          </div>
-        )}
-        <span className="tabular absolute bottom-2 start-2 rounded-sm border border-white/40 bg-ink/75 px-2 py-0.5 text-[11px] font-medium text-white">
-          {t("lot", { ref: a.refNumber })}
-        </span>
       </div>
       <div className="absolute end-2 top-2 z-10">
         <FavoriteButton auctionId={a.id} initial={a.isFavorite} />
@@ -62,9 +54,15 @@ export function AuctionCard({ a, serverNow, className }: { a: Card; serverNow: n
             {a.category && ` · ${pick(locale, a.category.titleEn, a.category.titleAr)}`}
           </p>
         </div>
-        <div className="mt-auto">
-          <p className="text-xs text-muted">{a.bidCount > 0 ? t("currentBid") : t("startingBid")}</p>
-          <p className="tabular text-xl font-semibold">{money(a.currentPrice, locale)}</p>
+        <div className="mt-auto flex items-end justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs text-muted">{a.bidCount > 0 ? t("currentBid") : t("startingBid")}</p>
+            <p className="tabular text-xl font-semibold">{money(a.currentPrice, locale)}</p>
+          </div>
+          {/* Time left sits in the text area, never over the photo (photos can carry their own text). */}
+          {a.phase !== "Ended" && (
+            <Countdown target={a.phase === "Upcoming" ? a.startsAtUtc : a.endsAtUtc} serverNow={serverNow} mode={a.phase === "Upcoming" ? "start" : "end"} size="card" className="shrink-0" />
+          )}
         </div>
       </div>
       <div className="flex items-center justify-between gap-2 border-t border-line bg-ground px-4 py-2 text-sm">
@@ -72,7 +70,10 @@ export function AuctionCard({ a, serverNow, className }: { a: Card; serverNow: n
           <Gavel className="h-4 w-4" aria-hidden />
           <span className="tabular">{t("bids", { count: a.bidCount })}</span>
         </span>
-        {a.phase === "Ended" && <span className="text-muted">{t("closed")}</span>}
+        <span className="tabular text-xs text-muted">
+          {a.phase === "Ended" && <>{t("closed")} · </>}
+          {t("lot", { ref: a.refNumber })}
+        </span>
       </div>
     </article>
   );

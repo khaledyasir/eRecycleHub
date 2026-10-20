@@ -44,6 +44,7 @@ public class User
     public string? BankName { get; set; }
     public string? CardNumber { get; set; }
     public string? AccountNumber { get; set; }
+    public string? AccountHolderName { get; set; }
     public Guid? CrDocumentFileId { get; set; }
     public Guid? VatCertificateFileId { get; set; }
     public Guid? IdDocumentFileId { get; set; }

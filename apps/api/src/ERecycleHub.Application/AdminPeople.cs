@@ -342,7 +342,7 @@ public sealed class AdminPeople(AppDbContext db, PasswordService passwords, File
         if (u.IsActive && !input.IsActive) u.SecurityStamp = Guid.NewGuid().ToString("N");
         u.FullName = name;
         u.Email = email;
-        u.Phone = Normalize.Text(input.Phone);
+        u.Phone = JordanPhone.Optional(input.Phone);
         u.CountryId = input.CountryId;
         u.IsActive = input.IsActive;
         u.CompanyName = Normalize.Text(input.CompanyName);

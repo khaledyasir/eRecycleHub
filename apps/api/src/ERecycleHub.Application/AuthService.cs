@@ -29,6 +29,7 @@ public sealed class AuthService(AppDbContext db, PasswordService passwords, File
     {
         if (string.IsNullOrEmpty(password) || password.Length < MinPasswordLength || password.Length > MaxPasswordLength)
             throw new AppException("auth.password_policy", 400, new { min = MinPasswordLength });
+        if (password.Any(char.IsWhiteSpace)) throw new AppException("auth.password_spaces");
     }
 
     public async Task<SessionUser> RegisterCustomerAsync(RegisterInput input, RegisterFiles uploads, CancellationToken ct = default)
@@ -43,7 +44,7 @@ public sealed class AuthService(AppDbContext db, PasswordService passwords, File
         {
             FullName = input.FullName.Trim(),
             Email = emailNorm,
-            Phone = Normalize.Text(input.Phone),
+            Phone = JordanPhone.Require(input.Phone),
             CountryId = input.CountryId,
             PasswordHash = passwords.Hash(input.Password),
             Role = UserRole.Customer,

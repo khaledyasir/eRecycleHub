@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { PasswordInput } from "@/components/public/auth-forms";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/display";
-import { Field, FileInput, Input, Select } from "@/components/ui/form";
+import { Field, FileInput, Input, PhoneInput } from "@/components/ui/form";
 import { Link, useRouter } from "@/i18n/navigation";
 import { api, call, sendForm, setCsrfToken } from "@/lib/api/client";
 import type { Schema } from "@/lib/api/types";
@@ -106,15 +106,18 @@ export function CurrentFile({ file, label }: { file: Schema<"FileRef"> | null | 
   );
 }
 
-export function ProfileForm({ profile, countries }: { profile: Schema<"ProfileDto">; countries: { id: number; nameEn: string; nameAr: string }[] }) {
+export function ProfileForm({ profile }: { profile: Schema<"ProfileDto"> }) {
   const t = useTranslations("account.settings");
-  const locale = useLocale();
   const v = useValidators();
   const router = useRouter();
-  const f = useForm({
-    fullName: profile.fullName, phone: profile.phone ?? "", countryId: String(profile.countryId), companyName: profile.companyName ?? "",
-    crNumber: profile.crNumber ?? "", vatNumber: profile.vatNumber ?? "", bankName: profile.bankName ?? "", accountNumber: profile.accountNumber ?? "", cardNumber: profile.cardNumber ?? "",
-  });
+  // Jordan is the only country, so the profile keeps the stored one without showing a picker.
+  const f = useForm(
+    {
+      fullName: profile.fullName, phone: profile.phone ?? "", countryId: String(profile.countryId), companyName: profile.companyName ?? "",
+      crNumber: profile.crNumber ?? "", vatNumber: profile.vatNumber ?? "", bankName: profile.bankName ?? "", accountHolderName: profile.accountHolderName ?? "", accountNumber: profile.accountNumber ?? "",
+    },
+    (x) => ({ phone: v.phoneOptional(x.phone) }),
+  );
   const [files, setFiles] = useState<Record<string, File | null>>({});
   const pickFile = (name: string) => (l: File[]) => setFiles((x) => ({ ...x, [name]: l[0] ?? null }));
   const docs = "image/jpeg,image/png,image/webp,application/pdf";
@@ -123,7 +126,7 @@ export function ProfileForm({ profile, countries }: { profile: Schema<"ProfileDt
       noValidate
       className="space-y-8"
       onSubmit={f.submit(
-        (x) => ({ fullName: v.required(x.fullName), countryId: v.required(x.countryId) }),
+        (x) => ({ fullName: v.required(x.fullName), phone: v.phoneOptional(x.phone) }),
         async (x) => {
           await sendForm("PUT", "/api/account/profile", { ...x, countryId: Number(x.countryId) }, files);
           setFiles({});
@@ -142,18 +145,7 @@ export function ProfileForm({ profile, countries }: { profile: Schema<"ProfileDt
           <Field label={t("email")} hint={t("emailHint")}>
             {(p) => <Input {...p} value={profile.email} readOnly disabled />}
           </Field>
-          <Field label={t("phone")}>{(p) => <Input {...p} {...f.text("phone")} type="tel" dir="ltr" autoComplete="tel" />}</Field>
-          <Field label={t("country")} error={f.errors.countryId} required>
-            {(p) => (
-              <Select {...p} {...f.text("countryId")}>
-                {countries.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {locale === "ar" ? c.nameAr : c.nameEn}
-                  </option>
-                ))}
-              </Select>
-            )}
-          </Field>
+          <Field label={t("phone")} error={f.errors.phone}>{(p) => <PhoneInput {...p} {...f.text("phone")} />}</Field>
         </div>
         <Field label={t("avatar")}>
           {(p) => (
@@ -177,11 +169,11 @@ export function ProfileForm({ profile, countries }: { profile: Schema<"ProfileDt
       </fieldset>
       <fieldset className="space-y-4">
         <legend className="mb-2 text-lg font-semibold">{t("bank")}</legend>
-        <Field label={t("bankName")}>{(p) => <Input {...p} {...f.text("bankName")} />}</Field>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label={t("accountNumber")}>{(p) => <Input {...p} {...f.text("accountNumber")} dir="ltr" />}</Field>
-          <Field label={t("cardNumber")}>{(p) => <Input {...p} {...f.text("cardNumber")} dir="ltr" inputMode="numeric" autoComplete="off" />}</Field>
+          <Field label={t("bankName")}>{(p) => <Input {...p} {...f.text("bankName")} />}</Field>
+          <Field label={t("accountHolder")}>{(p) => <Input {...p} {...f.text("accountHolderName")} />}</Field>
         </div>
+        <Field label={t("accountNumber")}>{(p) => <Input {...p} {...f.text("accountNumber")} dir="ltr" />}</Field>
       </fieldset>
       <fieldset className="space-y-4">
         <legend className="text-lg font-semibold">{t("documents")}</legend>

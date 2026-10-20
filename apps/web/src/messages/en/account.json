@@ -14,7 +14,8 @@
     "seller": "Seller portal",
     "bidding": "Bidding",
     "account": "Account",
-    "becomeSeller": "Become a seller"
+    "becomeSeller": "Become a seller",
+    "becomeSellerHint": "Sell your materials on eRecycleHub"
   },
   "dashboard": {
     "title": "Overview",
@@ -95,7 +96,23 @@
       "TopUpApproved": "Top-up approved",
       "AdminCredit": "Credit by eRecycleHub",
       "CreditReversed": "Credit reversed"
-    }
+    },
+    "pendingTitle": "Pending top-ups",
+    "pendingCount": "{count, plural, =0 {none} one {# request} other {# requests}}",
+    "bankTitle": "Pay by bank transfer or CliQ",
+    "bankName": "Bank",
+    "accountHolder": "Account holder",
+    "iban": "IBAN",
+    "swift": "SWIFT code",
+    "cliq": "CliQ alias",
+    "copy": "Copy",
+    "copied": "Copied",
+    "processing": "Top-ups are reviewed by our team, usually within {time}. Your balance updates as soon as the request is approved and you get a notification.",
+    "processingDefault": "Top-ups are reviewed by our team. Your balance updates as soon as the request is approved and you get a notification, so top up before an auction you want is about to end.",
+    "tabHistory": "Transaction history",
+    "tabRequests": "Top-up requests",
+    "reference": "Reference",
+    "type": "Type"
   },
   "lists": {
     "favoritesTitle": "Favourites",
@@ -155,7 +172,9 @@
     "idDocument": "Identity document",
     "current": "Current file: {name}",
     "save": "Save changes",
-    "saved": "Profile saved."
+    "saved": "Profile saved.",
+    "accountHolder": "Account holder name",
+    "changePassword": "Change password"
   },
   "password": {
     "title": "Change password",
@@ -196,7 +215,6 @@
     "submit": "Send application",
     "sent": "Application sent. We'll let you know once it is reviewed.",
     "adminNote": "Administrator accounts cannot publish auctions.",
-    "docsMissing": "Attach your commercial registration and identity documents.",
     "companyDetails": "Company details",
     "companyName": "Company name",
     "crNumber": "Commercial registration number",
@@ -205,7 +223,16 @@
     "bankDetailsHint": "Used to pay you out. Only you and the eRecycleHub team can see them.",
     "bankName": "Bank name",
     "accountNumber": "Account number / IBAN",
-    "cardNumber": "Card number (optional)"
+    "cardNumber": "Card number (optional)",
+    "accountType": "Account type",
+    "individual": "Individual",
+    "individualHint": "Sell as a person. You'll upload your national ID.",
+    "business": "Business",
+    "businessHint": "Sell as a company. You'll add company details and your commercial registration.",
+    "accountHolder": "Account holder name",
+    "nationalId": "National ID (photo or PDF)",
+    "docsMissingBusiness": "Attach your commercial registration document.",
+    "docsMissingIndividual": "Attach your national ID."
   },
   "welcome": {
     "title": "Welcome to eRecycleHub!",

@@ -14,7 +14,8 @@
     "seller": "بوابة البائع",
     "bidding": "المزايدة",
     "account": "الحساب",
-    "becomeSeller": "كن بائعاً"
+    "becomeSeller": "كن بائعاً",
+    "becomeSellerHint": "بِع موادك على eRecycleHub"
   },
   "dashboard": {
     "title": "نظرة عامة",
@@ -95,7 +96,23 @@
       "TopUpApproved": "تمت الموافقة على الشحن",
       "AdminCredit": "رصيد من eRecycleHub",
       "CreditReversed": "عكس رصيد"
-    }
+    },
+    "pendingTitle": "شحنات قيد المراجعة",
+    "pendingCount": "{count, plural, =0 {لا توجد} one {طلب واحد} two {طلبان} few {# طلبات} other {# طلباً}}",
+    "bankTitle": "الدفع بالتحويل البنكي أو كليك",
+    "bankName": "البنك",
+    "accountHolder": "صاحب الحساب",
+    "iban": "رقم الآيبان",
+    "swift": "رمز سويفت",
+    "cliq": "اسم كليك",
+    "copy": "نسخ",
+    "copied": "تم النسخ",
+    "processing": "تتم مراجعة طلبات الشحن من فريقنا، عادةً خلال {time}. يتحدّث رصيدك فور الموافقة على الطلب وستصلك إشعار.",
+    "processingDefault": "تتم مراجعة طلبات الشحن من فريقنا. يتحدّث رصيدك فور الموافقة على الطلب وستصلك إشعار، لذا اشحن رصيدك قبل أن ينتهي المزاد الذي تريده.",
+    "tabHistory": "سجل المعاملات",
+    "tabRequests": "طلبات الشحن",
+    "reference": "المرجع",
+    "type": "النوع"
   },
   "lists": {
     "favoritesTitle": "المفضلة",
@@ -155,7 +172,9 @@
     "idDocument": "وثيقة الهوية",
     "current": "الملف الحالي: {name}",
     "save": "احفظ التغييرات",
-    "saved": "تم حفظ الملف."
+    "saved": "تم حفظ الملف.",
+    "accountHolder": "اسم صاحب الحساب",
+    "changePassword": "تغيير كلمة المرور"
   },
   "password": {
     "title": "تغيير كلمة المرور",
@@ -196,7 +215,6 @@
     "submit": "إرسال الطلب",
     "sent": "تم إرسال الطلب. سنبلغك فور مراجعته.",
     "adminNote": "لا يمكن لحسابات المسؤولين نشر المزادات.",
-    "docsMissing": "أرفق مستندي السجل التجاري والهوية.",
     "companyDetails": "بيانات الشركة",
     "companyName": "اسم الشركة",
     "crNumber": "رقم السجل التجاري",
@@ -205,7 +223,16 @@
     "bankDetailsHint": "تُستخدم لتحويل مستحقاتك. لا يراها إلا أنت وفريق eRecycleHub.",
     "bankName": "اسم البنك",
     "accountNumber": "رقم الحساب / IBAN",
-    "cardNumber": "رقم البطاقة (اختياري)"
+    "cardNumber": "رقم البطاقة (اختياري)",
+    "accountType": "نوع الحساب",
+    "individual": "فرد",
+    "individualHint": "البيع بصفتك الشخصية. سترفع هويتك الوطنية.",
+    "business": "شركة",
+    "businessHint": "البيع بصفة شركة. ستضيف بيانات الشركة والسجل التجاري.",
+    "accountHolder": "اسم صاحب الحساب",
+    "nationalId": "الهوية الوطنية (صورة أو PDF)",
+    "docsMissingBusiness": "أرفق مستند السجل التجاري.",
+    "docsMissingIndividual": "أرفق هويتك الوطنية."
   },
   "welcome": {
     "title": "أهلاً بك في eRecycleHub!",

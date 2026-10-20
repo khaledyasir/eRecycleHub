@@ -32,7 +32,8 @@
     "current_password_wrong": "The current password is incorrect.",
     "reset_token_invalid": "This reset link is invalid or has expired. Request a new one.",
     "required": "Sign in to continue.",
-    "forbidden": "You don't have permission to do that."
+    "forbidden": "You don't have permission to do that.",
+    "password_spaces": "Passwords can't contain spaces."
   },
   "csrf": {
     "invalid": "Your session changed. Reload the page and try again."
@@ -88,7 +89,7 @@
     "already_seller": "This account is already a seller.",
     "company_required": "Enter your company name and commercial registration number.",
     "bank_required": "Enter your bank name and account number.",
-    "documents_required": "Attach your commercial registration and identity documents.",
+    "documents_required": "Attach the required document: the commercial registration for a business, or your identity document for an individual.",
     "too_many": "Too many applications today. Try again tomorrow.",
     "field_too_long": "One of the fields is too long.",
     "reason_required": "Enter a reason for rejecting.",
@@ -172,6 +173,11 @@
     "match": "The passwords don't match.",
     "url": "Enter a full link starting with https://.",
     "date": "Choose a date and time.",
-    "endAfterStart": "The end must be after the start."
+    "endAfterStart": "The end must be after the start.",
+    "phone": "Please enter a valid Jordanian phone number starting with 07 and containing exactly 10 digits.",
+    "noSpaces": "Passwords can't contain spaces."
+  },
+  "phone": {
+    "invalid": "Please enter a valid Jordanian phone number starting with 07 and containing exactly 10 digits."
   }
 }

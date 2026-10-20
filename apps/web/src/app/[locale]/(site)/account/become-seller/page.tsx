@@ -63,7 +63,7 @@ export default async function BecomeSeller() {
           <div className="rounded-xl border border-line bg-surface p-5 shadow-raise sm:p-7">
             <SellerApplicationForm
               categories={categories}
-              defaults={{ name: app?.name ?? profile.companyName ?? profile.fullName, company: app?.company ?? profile.companyName ?? "", mobile: app?.mobile ?? profile.phone ?? "", address: app?.address ?? "", crNumber: profile.crNumber ?? "", vatNumber: profile.vatNumber ?? "", bankName: profile.bankName ?? "", accountNumber: profile.accountNumber ?? "", cardNumber: profile.cardNumber ?? "" }}
+              defaults={{ name: app?.name ?? profile.companyName ?? profile.fullName, company: app?.company ?? profile.companyName ?? "", mobile: app?.mobile ?? profile.phone ?? "", address: app?.address ?? "", crNumber: profile.crNumber ?? "", vatNumber: profile.vatNumber ?? "", bankName: profile.bankName ?? "", accountHolderName: profile.accountHolderName ?? profile.fullName, accountNumber: profile.accountNumber ?? "" }}
               onFile={{ cr: profile.crDocument?.name, vat: profile.vatCertificate?.name, id: profile.idDocument?.name }}
             />
           </div>

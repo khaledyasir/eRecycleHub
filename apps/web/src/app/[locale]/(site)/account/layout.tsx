@@ -20,7 +20,6 @@ export default async function AccountLayout({ children }: { children: ReactNode 
         { href: "/account/calendar", label: t("calendar"), icon: "CalendarDays" },
         { href: "/account/favorites", label: t("favorites"), icon: "Heart" },
         { href: "/account/watching", label: t("watching"), icon: "Eye" },
-        { href: "/account/notifications", label: t("notifications"), icon: "Bell" },
       ],
     },
     {
@@ -28,13 +27,12 @@ export default async function AccountLayout({ children }: { children: ReactNode 
       items: [
         { href: "/account/wallet", label: t("wallet"), icon: "Wallet" },
         { href: "/account/settings", label: t("settings"), icon: "UserRound" },
-        { href: "/account/password", label: t("password"), icon: "KeyRound" },
-        ...(user.publisherId != null ? [{ href: "/seller", label: t("seller"), icon: "Store" as const }] : [{ href: "/account/become-seller", label: t("becomeSeller"), icon: "Store" as const }]),
+        ...(user.publisherId != null ? [{ href: "/seller", label: t("seller"), icon: "Store" as const }] : []),
       ],
     },
   ];
   return (
-    <PortalShell title={t("title")} subtitle={user.fullName} groups={groups} navLabel={t("label")}>
+    <PortalShell title={t("title")} subtitle={user.fullName} groups={groups} navLabel={t("label")} cta={user.publisherId == null ? { href: "/account/become-seller", label: t("becomeSeller"), hint: t("becomeSellerHint") } : undefined}>
       {children}
     </PortalShell>
   );

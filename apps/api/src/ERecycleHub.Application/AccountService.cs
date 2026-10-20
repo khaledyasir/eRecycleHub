@@ -10,14 +10,15 @@ public sealed record MyBid(long Id, int AuctionId, string RefNumber, string Titl
 public sealed record AccountDashboard(int AuctionsAttended, int Won, int Leading, decimal WalletBalance, int UnreadNotifications, int Favorites, int Watching);
 public sealed record ProfileDto(int Id, string FullName, string Email, string? Phone, int CountryId, UserRole Role, Guid? AvatarFileId,
     string? CompanyName, string? CrNumber, string? VatNumber, string? BankName, string? AccountNumber, string? CardNumber,
-    FileRef? CrDocument, FileRef? VatCertificate, FileRef? IdDocument, decimal WalletBalance);
+    FileRef? CrDocument, FileRef? VatCertificate, FileRef? IdDocument, decimal WalletBalance, string? AccountHolderName = null);
 public sealed record ProfileInput(string FullName, string? Phone, int CountryId, string? CompanyName, string? CrNumber, string? VatNumber,
-    string? BankName, string? AccountNumber, string? CardNumber);
+    string? BankName, string? AccountNumber, string? CardNumber, string? AccountHolderName = null);
 public sealed record ProfileFiles(UploadInput? Avatar, UploadInput? CrDocument, UploadInput? VatCertificate, UploadInput? IdDocument);
 public sealed record NotificationDto(int Id, string Kind, int? AuctionId, string? AuctionTitleEn, string? AuctionTitleAr, decimal? Amount, string? Title, string? Body, string? Url, bool IsRead, DateTime CreatedAtUtc);
 public sealed record ReviewInput(int Rating, string? Comment);
 public sealed record SellerApplicationInput(string Name, string? Company, string? Mobile, string? Address, int[]? CategoryIds,
-    string? CrNumber = null, string? VatNumber = null, string? BankName = null, string? AccountNumber = null, string? CardNumber = null);
+    string? CrNumber = null, string? VatNumber = null, string? BankName = null, string? AccountNumber = null, string? CardNumber = null,
+    string? AccountHolderName = null, string? AccountType = null);
 public sealed record SellerApplicationFiles(UploadInput? CrDocument, UploadInput? VatCertificate, UploadInput? IdDocument);
 public sealed record SellerApplicationDto(int Id, string Name, string? Company, string? Mobile, string? Address, ApplicationStatus Status, string? RejectionReason,
     DateTime CreatedAtUtc, DateTime? DecidedAtUtc, IReadOnlyList<CategoryRef> Categories, FileRef? CrDocument, FileRef? VatCertificate, FileRef? IdDocument);
@@ -89,7 +90,7 @@ public sealed class AccountService(AppDbContext db, AuctionQueries auctions, Fil
         var docs = await db.Files.AsNoTracking().Where(f => ids.Contains(f.Id)).ToDictionaryAsync(f => f.Id, f => new FileRef(f.Id, f.OriginalName, f.ContentType), ct);
         FileRef? Doc(Guid? id) => id is not null && docs.TryGetValue(id.Value, out var d) ? d : null;
         return new ProfileDto(u.Id, u.FullName, u.Email, u.Phone, u.CountryId, u.Role, u.AvatarFileId, u.CompanyName, u.CrNumber, u.VatNumber, u.BankName,
-            u.AccountNumber, u.CardNumber, Doc(u.CrDocumentFileId), Doc(u.VatCertificateFileId), Doc(u.IdDocumentFileId), u.WalletBalance);
+            u.AccountNumber, u.CardNumber, Doc(u.CrDocumentFileId), Doc(u.VatCertificateFileId), Doc(u.IdDocumentFileId), u.WalletBalance, u.AccountHolderName);
     }
 
     /// <summary>Only these fields are editable by the account owner; e-mail, role, wallet and status are not part of the input at all.</summary>
@@ -100,7 +101,7 @@ public sealed class AccountService(AppDbContext db, AuctionQueries auctions, Fil
         if (!await db.Countries.Allowed().AnyAsync(c => c.Id == input.CountryId, ct)) throw new AppException("country.invalid");
         var u = await db.Users.SingleAsync(x => x.Id == userId, ct);
         u.FullName = name;
-        u.Phone = Normalize.Text(input.Phone);
+        u.Phone = JordanPhone.Optional(input.Phone);
         u.CountryId = input.CountryId;
         u.CompanyName = Normalize.Text(input.CompanyName);
         u.CrNumber = Normalize.Text(input.CrNumber);
@@ -108,6 +109,7 @@ public sealed class AccountService(AppDbContext db, AuctionQueries auctions, Fil
         u.BankName = Normalize.Text(input.BankName);
         u.AccountNumber = Normalize.Text(input.AccountNumber);
         u.CardNumber = Normalize.Text(input.CardNumber);
+        u.AccountHolderName = Normalize.Text(input.AccountHolderName);
         u.AvatarFileId = await files.SaveOptionalAsync(uploads.Avatar, FileCategory.UserAvatar, userId, u.AvatarFileId, ct);
         u.CrDocumentFileId = await files.SaveOptionalAsync(uploads.CrDocument, FileCategory.KycDocument, userId, u.CrDocumentFileId, ct);
         u.VatCertificateFileId = await files.SaveOptionalAsync(uploads.VatCertificate, FileCategory.KycDocument, userId, u.VatCertificateFileId, ct);
@@ -156,26 +158,28 @@ public sealed class AccountService(AppDbContext db, AuctionQueries auctions, Fil
         var name = Normalize.Text(input.Name);
         if (name is null || name.Length > 200) throw new AppException("application.name_required");
         var company = Normalize.Text(input.Company);
-        var mobile = Normalize.Text(input.Mobile);
+        var mobile = JordanPhone.Optional(input.Mobile);
         var address = Normalize.Text(input.Address);
         if (company?.Length > 200 || mobile?.Length > 50 || address?.Length > 1000) throw new AppException("application.field_too_long");
-        // Publishers are businesses that get paid out: company and bank details are required here (not at sign-up).
+        // Individuals apply with their national ID; businesses with company details and a commercial registration. Both need payout bank details.
+        var business = !string.Equals(input.AccountType, "Individual", StringComparison.OrdinalIgnoreCase);
         var crNumber = Normalize.Text(input.CrNumber);
         var vatNumber = Normalize.Text(input.VatNumber);
         var bankName = Normalize.Text(input.BankName);
         var accountNumber = Normalize.Text(input.AccountNumber);
-        var cardNumber = Normalize.Text(input.CardNumber);
-        if (company is null || crNumber is null) throw new AppException("application.company_required");
+        var holder = Normalize.Text(input.AccountHolderName) ?? company ?? user.FullName;
+        if (business && (company is null || crNumber is null)) throw new AppException("application.company_required");
         if (bankName is null || accountNumber is null) throw new AppException("application.bank_required");
-        if (crNumber.Length > 100 || vatNumber?.Length > 100 || bankName.Length > 200 || accountNumber.Length > 100 || cardNumber?.Length > 100) throw new AppException("application.field_too_long");
+        if (crNumber?.Length > 100 || vatNumber?.Length > 100 || bankName.Length > 200 || accountNumber.Length > 100 || holder.Length > 200) throw new AppException("application.field_too_long");
         var categoryIds = (input.CategoryIds ?? []).Distinct().ToArray();
         if (categoryIds.Length > 0 && await db.Categories.CountAsync(c => categoryIds.Contains(c.Id) && c.IsActive, ct) != categoryIds.Length) throw new AppException("category.invalid");
-        if ((uploads.CrDocument is null && user.CrDocumentFileId is null) || (uploads.IdDocument is null && user.IdDocumentFileId is null))
-            throw new AppException("application.documents_required");
+        var hasCr = uploads.CrDocument is not null || user.CrDocumentFileId is not null;
+        var hasId = uploads.IdDocument is not null || user.IdDocumentFileId is not null;
+        if (business ? !hasCr : !hasId) throw new AppException("application.documents_required");
 
         await using var tx = await db.Database.BeginTransactionAsync(ct);
-        user.CompanyName = company; user.CrNumber = crNumber; user.VatNumber = vatNumber;
-        user.BankName = bankName; user.AccountNumber = accountNumber; user.CardNumber = cardNumber;
+        user.CompanyName = business ? company : null; user.CrNumber = business ? crNumber : null; user.VatNumber = business ? vatNumber : null;
+        user.BankName = bankName; user.AccountNumber = accountNumber; user.AccountHolderName = holder;
         var app = new PublisherApplication
         {
             UserId = user.Id, Name = name, Company = company, Mobile = mobile ?? user.Phone, Address = address, CountryId = user.CountryId,

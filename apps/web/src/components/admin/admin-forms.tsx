@@ -9,7 +9,7 @@ import { useAction } from "@/components/manage/manage-actions";
 import { PasswordInput } from "@/components/public/auth-forms";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/display";
-import { Checkbox, Field, FileInput, Input, Select, Textarea } from "@/components/ui/form";
+import { Checkbox, Field, FileInput, Input, PhoneInput, Select, Textarea } from "@/components/ui/form";
 import { ConfirmDialog } from "@/components/ui/overlay";
 import { Switch } from "@/components/ui/controls";
 import { useRouter } from "@/i18n/navigation";
@@ -127,7 +127,7 @@ export function AccountForm({ kind, id, initial, countries }: { kind: "user" | "
             </>
           )}
           <Field label={tc("email")} error={f.errors.email} required>{(p) => <Input {...p} {...f.text("email")} type="email" autoComplete="off" />}</Field>
-          <Field label={tc("phone")}>{(p) => <Input {...p} {...f.text("phone")} type="tel" dir="ltr" />}</Field>
+          <Field label={tc("phone")}>{(p) => <PhoneInput {...p} {...f.text("phone")} />}</Field>
           {kind === "publisher" && <Field label={tp("secondMobile")}>{(p) => <Input {...p} {...f.text("secondMobile")} type="tel" dir="ltr" />}</Field>}
           <Field label={tc("country")} error={f.errors.countryId} required>
             {(p) => (
@@ -156,7 +156,6 @@ export function AccountForm({ kind, id, initial, countries }: { kind: "user" | "
           <Field label={ts("vatNumber")}>{(p) => <Input {...p} {...f.text("vatNumber")} dir="ltr" />}</Field>
           <Field label={ts("bankName")}>{(p) => <Input {...p} {...f.text("bankName")} />}</Field>
           <Field label={ts("accountNumber")}>{(p) => <Input {...p} {...f.text("accountNumber")} dir="ltr" />}</Field>
-          <Field label={ts("cardNumber")}>{(p) => <Input {...p} {...f.text("cardNumber")} dir="ltr" autoComplete="off" />}</Field>
         </div>
       </fieldset>
 

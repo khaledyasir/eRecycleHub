@@ -69,9 +69,9 @@ export function Countdown({
   const { n, unit } = lead(p);
 
   if (size === "card") {
-    // Small card laid over the auction photo: "Ends in / 2 days".
+    // Small card beside the price: "Ends in / 2 days".
     return (
-      <div role="timer" aria-label={label} className={cn("flex items-center gap-2 rounded-lg bg-white/95 px-2.5 py-1.5 shadow-md backdrop-blur", className)}>
+      <div role="timer" aria-label={label} className={cn("flex items-center gap-2 rounded-lg border border-line bg-ground px-2.5 py-1.5", className)}>
         <Clock className={cn("h-4 w-4 shrink-0", soon ? "text-rust" : "text-patina")} aria-hidden />
         <span className="flex flex-col leading-tight" aria-hidden>
           <span className="text-[10px] text-muted">{mode === "end" ? t("endsIn") : t("startsIn")}</span>

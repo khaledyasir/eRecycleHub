@@ -93,6 +93,10 @@ public sealed class ProblemExceptionHandler(IProblemDetailsService problems, ILo
         object? args = null;
         switch (ex)
         {
+            // The browser went away (navigation, closed tab): there is nobody to answer. The database driver reports this as a
+            // SqlException rather than an OperationCanceledException, so test the request token itself.
+            case not null when ctx.RequestAborted.IsCancellationRequested:
+                return true;
             case AppException app:
                 (status, code, args) = (app.Status, app.Code, app.Args);
                 break;

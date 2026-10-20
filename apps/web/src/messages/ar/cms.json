@@ -52,7 +52,7 @@
     "twitter": "رابط إكس (تويتر)",
     "linkedin": "رابط لينكدإن",
     "key": "عنوان الصفحة",
-    "keyHint": "أحرف إنجليزية صغيرة وأرقام وشرطات، مثل terms. عناوين الصفحة الرئيسية: home-categories وhome-live وhome-upcoming وhome-steps وhome-seller (العنوان = العنوان الرئيسي، النص = الوصف).",
+    "keyHint": "أحرف إنجليزية صغيرة وأرقام وشرطات، مثل terms. عناوين الصفحة الرئيسية: home-categories وhome-live وhome-upcoming وhome-steps وhome-seller (العنوان = العنوان الرئيسي، النص = الوصف). يقرأ الموقع أيضاً: top-bar (شريط الإعلان) وpayment-bank-name وpayment-account-holder وpayment-iban وpayment-swift وpayment-cliq وpayment-processing-time (بيانات شحن المحفظة).",
     "valueEn": "المحتوى (الإنجليزية)",
     "valueAr": "المحتوى (العربية)",
     "auctions": "المزادات",

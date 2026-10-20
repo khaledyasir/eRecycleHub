@@ -11,7 +11,7 @@ export type FieldErrors<T> = Partial<Record<keyof T, string>>;
  * Small form state helper: values, per-field errors, one form-level (API) error and a busy flag.
  * Values are kept when the API rejects the submission, so users never retype.
  */
-export function useForm<T extends Values>(initial: T) {
+export function useForm<T extends Values>(initial: T, live?: (v: T) => FieldErrors<T>) {
   const message = useErrorMessage();
   const [values, setValues] = useState<T>(initial);
   const [errors, setErrors] = useState<FieldErrors<T>>({});
@@ -28,6 +28,10 @@ export function useForm<T extends Values>(initial: T) {
     name: String(key),
     value: (values[key] as string) ?? "",
     onChange: (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => set(key, e.target.value as T[keyof T]),
+    // With a `live` validator the field is checked as soon as the user leaves it (not only on submit), so a wrong value shows the error state at once.
+    onBlur: () => {
+      if (live) setErrors((e) => ({ ...e, [key]: live(values)[key] }));
+    },
   });
 
   const submit = (validate: (v: T) => FieldErrors<T>, action: (v: T) => Promise<unknown>) => async (e: FormEvent) => {
@@ -68,6 +72,12 @@ export function useValidators() {
       if (positive && Number(v) <= 0) return t("positive");
       return undefined;
     },
+    /** Jordanian mobile: 07 followed by 8 digits, nothing else. */
+    phone: (v: string) => (/^07\d{8}$/.test(v ?? "") ? undefined : t("phone")),
+    /** Same as `phone` but a blank value is fine. */
+    phoneOptional: (v: string) => (!v?.trim() ? undefined : /^07\d{8}$/.test(v) ? undefined : t("phone")),
+    /** At least `min` characters and no spaces anywhere. */
+    password: (v: string, min: number) => (!v || v.length < min ? t("min", { min }) : /\s/.test(v) ? t("noSpaces") : undefined),
     url: (v: string) => (!v?.trim() ? undefined : /^(https?:\/\/|\/[^/])/i.test(v.trim()) ? undefined : t("url")),
   };
 }

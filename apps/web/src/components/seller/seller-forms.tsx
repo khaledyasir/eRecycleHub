@@ -8,7 +8,7 @@ import { CurrentFile } from "@/components/account/account-forms";
 import { useAction } from "@/components/manage/manage-actions";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/display";
-import { Field, FileInput, Input, Select } from "@/components/ui/form";
+import { Field, FileInput, Input, PhoneInput, Select } from "@/components/ui/form";
 import { ConfirmDialog } from "@/components/ui/overlay";
 import { useRouter } from "@/i18n/navigation";
 import { sendForm, sendJson } from "@/lib/api/client";
@@ -100,7 +100,7 @@ export function StoreProfileForm({ profile, countries }: { profile: Schema<"Stor
         <legend className="mb-2 text-lg font-semibold">{t("contact")}</legend>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label={t("email")} hint={t("emailHint")}>{(p) => <Input {...p} value={profile.email} readOnly disabled />}</Field>
-          <Field label={t("phone")}>{(p) => <Input {...p} {...f.text("phone")} type="tel" dir="ltr" />}</Field>
+          <Field label={t("phone")}>{(p) => <PhoneInput {...p} {...f.text("phone")} />}</Field>
           <Field label={t("secondMobile")}>{(p) => <Input {...p} {...f.text("secondMobile")} type="tel" dir="ltr" />}</Field>
         </div>
       </fieldset>
@@ -112,7 +112,6 @@ export function StoreProfileForm({ profile, countries }: { profile: Schema<"Stor
           <Field label={ts("vatNumber")}>{(p) => <Input {...p} {...f.text("vatNumber")} dir="ltr" />}</Field>
           <Field label={ts("bankName")}>{(p) => <Input {...p} {...f.text("bankName")} />}</Field>
           <Field label={ts("accountNumber")}>{(p) => <Input {...p} {...f.text("accountNumber")} dir="ltr" />}</Field>
-          <Field label={ts("cardNumber")}>{(p) => <Input {...p} {...f.text("cardNumber")} dir="ltr" inputMode="numeric" autoComplete="off" />}</Field>
         </div>
       </fieldset>
       <fieldset className="space-y-4">

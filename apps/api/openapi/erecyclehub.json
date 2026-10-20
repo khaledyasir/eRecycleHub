@@ -9344,6 +9344,12 @@
           "walletBalance": {
             "type": "number",
             "format": "double"
+          },
+          "accountHolderName": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -9405,6 +9411,12 @@
             ]
           },
           "cardNumber": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "accountHolderName": {
             "type": [
               "null",
               "string"
@@ -10128,6 +10140,18 @@
             ]
           },
           "cardNumber": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "accountHolderName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "accountType": {
             "type": [
               "null",
               "string"
