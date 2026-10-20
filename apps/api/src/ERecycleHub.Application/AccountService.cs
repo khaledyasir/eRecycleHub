@@ -16,7 +16,8 @@ public sealed record ProfileInput(string FullName, string? Phone, int CountryId,
 public sealed record ProfileFiles(UploadInput? Avatar, UploadInput? CrDocument, UploadInput? VatCertificate, UploadInput? IdDocument);
 public sealed record NotificationDto(int Id, string Kind, int? AuctionId, string? AuctionTitleEn, string? AuctionTitleAr, decimal? Amount, string? Title, string? Body, string? Url, bool IsRead, DateTime CreatedAtUtc);
 public sealed record ReviewInput(int Rating, string? Comment);
-public sealed record SellerApplicationInput(string Name, string? Company, string? Mobile, string? Address, int[]? CategoryIds);
+public sealed record SellerApplicationInput(string Name, string? Company, string? Mobile, string? Address, int[]? CategoryIds,
+    string? CrNumber = null, string? VatNumber = null, string? BankName = null, string? AccountNumber = null, string? CardNumber = null);
 public sealed record SellerApplicationFiles(UploadInput? CrDocument, UploadInput? VatCertificate, UploadInput? IdDocument);
 public sealed record SellerApplicationDto(int Id, string Name, string? Company, string? Mobile, string? Address, ApplicationStatus Status, string? RejectionReason,
     DateTime CreatedAtUtc, DateTime? DecidedAtUtc, IReadOnlyList<CategoryRef> Categories, FileRef? CrDocument, FileRef? VatCertificate, FileRef? IdDocument);
@@ -158,12 +159,23 @@ public sealed class AccountService(AppDbContext db, AuctionQueries auctions, Fil
         var mobile = Normalize.Text(input.Mobile);
         var address = Normalize.Text(input.Address);
         if (company?.Length > 200 || mobile?.Length > 50 || address?.Length > 1000) throw new AppException("application.field_too_long");
+        // Publishers are businesses that get paid out: company and bank details are required here (not at sign-up).
+        var crNumber = Normalize.Text(input.CrNumber);
+        var vatNumber = Normalize.Text(input.VatNumber);
+        var bankName = Normalize.Text(input.BankName);
+        var accountNumber = Normalize.Text(input.AccountNumber);
+        var cardNumber = Normalize.Text(input.CardNumber);
+        if (company is null || crNumber is null) throw new AppException("application.company_required");
+        if (bankName is null || accountNumber is null) throw new AppException("application.bank_required");
+        if (crNumber.Length > 100 || vatNumber?.Length > 100 || bankName.Length > 200 || accountNumber.Length > 100 || cardNumber?.Length > 100) throw new AppException("application.field_too_long");
         var categoryIds = (input.CategoryIds ?? []).Distinct().ToArray();
         if (categoryIds.Length > 0 && await db.Categories.CountAsync(c => categoryIds.Contains(c.Id) && c.IsActive, ct) != categoryIds.Length) throw new AppException("category.invalid");
         if ((uploads.CrDocument is null && user.CrDocumentFileId is null) || (uploads.IdDocument is null && user.IdDocumentFileId is null))
             throw new AppException("application.documents_required");
 
         await using var tx = await db.Database.BeginTransactionAsync(ct);
+        user.CompanyName = company; user.CrNumber = crNumber; user.VatNumber = vatNumber;
+        user.BankName = bankName; user.AccountNumber = accountNumber; user.CardNumber = cardNumber;
         var app = new PublisherApplication
         {
             UserId = user.Id, Name = name, Company = company, Mobile = mobile ?? user.Phone, Address = address, CountryId = user.CountryId,

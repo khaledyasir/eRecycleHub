@@ -26,7 +26,13 @@ export function parts(ms: number) {
   return { days: Math.floor(s / 86400), hours: Math.floor((s % 86400) / 3600), minutes: Math.floor((s % 3600) / 60), seconds: s % 60 };
 }
 
-const pad = (n: number) => String(n).padStart(2, "0");
+/** Only the largest unit that is still non-zero: days while there are any, then hours, then minutes, then seconds. */
+export function lead(p: ReturnType<typeof parts>) {
+  if (p.days > 0) return { n: p.days, unit: "d" as const };
+  if (p.hours > 0) return { n: p.hours, unit: "h" as const };
+  if (p.minutes > 0) return { n: p.minutes, unit: "m" as const };
+  return { n: p.seconds, unit: "s" as const };
+}
 
 export function Countdown({
   target,
@@ -58,20 +64,15 @@ export function Countdown({
   const soon = mode === "end" && remaining < 60 * 60 * 1000;
   const label = `${mode === "end" ? t("endsIn") : t("startsIn")}: ${t("label", p)}`;
 
+  const { n, unit } = lead(p);
+
   if (size === "lg") {
-    const cells = [
-      [p.days, t("d")],
-      [p.hours, t("h")],
-      [p.minutes, t("m")],
-    ] as const;
     return (
-      <div role="timer" aria-label={label} className={cn("flex gap-2", className)} dir="ltr">
-        {cells.map(([v, unit], i) => (
-          <div key={i} className={cn("flex min-w-14 flex-col items-center rounded-md px-2 py-1.5", soon ? "bg-rust text-white" : "bg-patina text-white")}>
-            <span className="tabular text-2xl font-semibold leading-none">{pad(v)}</span>
-            <span className="mt-1 text-[11px] text-white/70">{unit}</span>
-          </div>
-        ))}
+      <div role="timer" aria-label={label} className={cn("flex", className)} dir="ltr">
+        <div className={cn("flex min-w-24 flex-col items-center rounded-md px-4 py-2", soon ? "bg-rust text-white" : "bg-patina text-white")}>
+          <span className="tabular text-3xl font-semibold leading-none">{n}</span>
+          <span className="mt-1 text-xs text-white/80">{t(`unit.${unit}`, { n })}</span>
+        </div>
       </div>
     );
   }
@@ -79,10 +80,9 @@ export function Countdown({
   return (
     <span role="timer" aria-label={label} className={cn("tabular inline-flex items-baseline gap-1 font-extrabold text-orange-ink", soon && "text-rust", className)}>
       <span className="sr-only">{mode === "end" ? t("endsIn") : t("startsIn")}</span>
-      <span dir="ltr" aria-hidden>
-        {p.days > 0 && `${p.days}${t("d")} `}
-        {pad(p.hours)}:{pad(p.minutes)}
-      </span>
+      <bdi aria-hidden>
+        {n} {t(unit)}
+      </bdi>
     </span>
   );
 }

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Gavel, TrendingUp, Trophy, Wallet } from "lucide-react";
 import { getLocale, getTranslations } from "next-intl/server";
+import { WelcomePrompt } from "@/components/account/welcome-prompt";
 import { Badge, EmptyState, Stat, type Tone } from "@/components/ui/display";
 import { Table } from "@/components/ui/controls";
 import { Pagination } from "@/components/ui/pagination";
@@ -21,6 +22,7 @@ export default async function AccountHome({ searchParams }: { searchParams: Prom
   const [d, bids] = await Promise.all([load(client.GET("/api/account/dashboard")), load(client.GET("/api/account/bids", { params: { query: { page } } }))]);
   return (
     <>
+      <WelcomePrompt />
       <section className="soft-hero mb-7 flex flex-col items-center justify-between gap-6 rounded-[1.75rem] border border-patina-100 p-6 sm:p-9 md:flex-row">
         <div>
           <h1 className="text-2xl font-black sm:text-3xl">{t("hello", { name: user?.fullName ?? "" })}</h1>

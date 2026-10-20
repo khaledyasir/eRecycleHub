@@ -11,7 +11,7 @@ namespace ERecycleHub.IntegrationTests;
 public class SellerApplicationTests(ApiFactory f)
 {
     private const string Url = "/api/account/seller-application";
-    private static readonly object Form = new { name = "Acme Recycling", company = "Acme Ltd", mobile = "0790000123", address = "Amman", categoryIds = new[] { 1 } };
+    private static readonly object Form = new { name = "Acme Recycling", company = "Acme Ltd", mobile = "0790000123", address = "Amman", categoryIds = new[] { 1 }, crNumber = "CR-1001", bankName = "Test Bank", accountNumber = "JO94CBJO0010000000000131000302" };
 
     private static Task<HttpResponseMessage> ApplyAsync(ApiClient c, bool withDocs = true, object? data = null) =>
         withDocs
@@ -57,6 +57,8 @@ public class SellerApplicationTests(ApiFactory f)
         var (_, c) = await NewApplicantAsync();
         Assert.Equal("application.documents_required", await ApiClient.CodeAsync(await ApplyAsync(c, withDocs: false)));
         Assert.Equal("application.name_required", await ApiClient.CodeAsync(await ApplyAsync(c, data: new { name = " ", categoryIds = new int[0] })));
+        Assert.Equal("application.company_required", await ApiClient.CodeAsync(await ApplyAsync(c, data: new { name = "Acme", bankName = "B", accountNumber = "1" })));
+        Assert.Equal("application.bank_required", await ApiClient.CodeAsync(await ApplyAsync(c, data: new { name = "Acme", company = "Acme Ltd", crNumber = "CR-1" })));
         Assert.Equal(HttpStatusCode.Created, (await ApplyAsync(c)).StatusCode);
         Assert.Equal("application.already_pending", await ApiClient.CodeAsync(await ApplyAsync(c)));
         var status = await c.GetJsonAsync<JsonElement>(Url);

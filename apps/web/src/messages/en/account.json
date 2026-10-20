@@ -196,6 +196,22 @@
     "submit": "Send application",
     "sent": "Application sent. We'll let you know once it is reviewed.",
     "adminNote": "Administrator accounts cannot publish auctions.",
-    "docsMissing": "Attach your commercial registration and identity documents."
+    "docsMissing": "Attach your commercial registration and identity documents.",
+    "companyDetails": "Company details",
+    "companyName": "Company name",
+    "crNumber": "Commercial registration number",
+    "vatNumber": "VAT number (optional)",
+    "bankDetails": "Bank details",
+    "bankDetailsHint": "Used to pay you out. Only you and the eRecycleHub team can see them.",
+    "bankName": "Bank name",
+    "accountNumber": "Account number / IBAN",
+    "cardNumber": "Card number (optional)"
+  },
+  "welcome": {
+    "title": "Welcome to eRecycleHub!",
+    "body": "Your account is ready. You can browse and bid right away.",
+    "hint": "Do you also want to sell materials? You can apply to become a publisher now or later from your account menu.",
+    "later": "Maybe later",
+    "yes": "Apply to sell"
   }
 }

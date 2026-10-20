@@ -97,7 +97,13 @@
     "h": "س",
     "m": "د",
     "s": "ث",
-    "label": "{days} يوم {hours} ساعة {minutes} دقيقة"
+    "label": "{days} يوم {hours} ساعة {minutes} دقيقة",
+    "unit": {
+      "d": "{n, plural, one {يوم} two {يومان} few {أيام} other {يوماً}}",
+      "h": "{n, plural, one {ساعة} two {ساعتان} few {ساعات} other {ساعة}}",
+      "m": "{n, plural, one {دقيقة} two {دقيقتان} few {دقائق} other {دقيقة}}",
+      "s": "{n, plural, one {ثانية} two {ثانيتان} few {ثوانٍ} other {ثانية}}"
+    }
   },
   "file": {
     "choose": "اختر ملفاً",

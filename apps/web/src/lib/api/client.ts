@@ -45,13 +45,23 @@ type Result<T> = { data?: T; error?: unknown; response: Response };
 export async function call<T>(request: () => Promise<Result<T>>): Promise<T> {
   let r = await request();
   if (!r.response.ok) {
-    const err = await toApiError(r.response.clone());
+    const err = await errorOf(r);
     if (err.code !== "csrf.invalid") throw err;
     csrfToken = null;
     r = await request();
-    if (!r.response.ok) throw await toApiError(r.response);
+    if (!r.response.ok) throw await errorOf(r);
   }
   return r.data as T;
+}
+
+/**
+ * openapi-fetch has already read (and parsed) an error response's body, so it can't be read again: use its parsed `error`
+ * and only fall back to reading the response when there is none.
+ */
+async function errorOf(r: Result<unknown>): Promise<ApiError> {
+  const body = r.error as { code?: string; title?: string; args?: Record<string, unknown> } | undefined;
+  if (body && typeof body === "object") return new ApiError(r.response.status, body.code ?? body.title ?? `http.${r.response.status}`, body.args ?? undefined);
+  return toApiError(r.response);
 }
 
 /**

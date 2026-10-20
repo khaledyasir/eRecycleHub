@@ -19,7 +19,7 @@ const DOCS = "image/jpeg,image/png,image/webp,application/pdf";
  */
 export function SellerApplicationForm({ categories, defaults, onFile }: {
   categories: Schema<"CategoryRef">[];
-  defaults: { name: string; company: string; mobile: string; address: string };
+  defaults: { name: string; company: string; mobile: string; address: string; crNumber: string; vatNumber: string; bankName: string; accountNumber: string; cardNumber: string };
   onFile: { cr?: string | null; vat?: string | null; id?: string | null };
 }) {
   const t = useTranslations("account.seller");
@@ -36,7 +36,9 @@ export function SellerApplicationForm({ categories, defaults, onFile }: {
       noValidate
       className="space-y-6"
       onSubmit={f.submit(
-        (x) => ({ name: v.required(x.name) }),
+        (x) => ({
+          name: v.required(x.name), company: v.required(x.company), crNumber: v.required(x.crNumber), bankName: v.required(x.bankName), accountNumber: v.required(x.accountNumber),
+        }),
         async (x) => {
           // Client-side guidance only: the API enforces the same rule.
           if (!(files.crDocument || onFile.cr) || !(files.idDocument || onFile.id)) {
@@ -44,7 +46,7 @@ export function SellerApplicationForm({ categories, defaults, onFile }: {
             throw new Error("documents");
           }
           setDocError(null);
-          await sendForm("POST", "/api/account/seller-application", { name: x.name, company: x.company, mobile: x.mobile, address: x.address, categoryIds: x.categoryIds }, files);
+          await sendForm("POST", "/api/account/seller-application", { name: x.name, company: x.company, mobile: x.mobile, address: x.address, categoryIds: x.categoryIds, crNumber: x.crNumber, vatNumber: x.vatNumber, bankName: x.bankName, accountNumber: x.accountNumber, cardNumber: x.cardNumber }, files);
           toast.success(t("sent"));
           router.refresh();
         },
@@ -55,10 +57,28 @@ export function SellerApplicationForm({ categories, defaults, onFile }: {
         <Field label={t("storeName")} error={f.errors.name} required>
           {(p) => <Input {...p} {...f.text("name")} maxLength={200} />}
         </Field>
-        <Field label={t("company")}>{(p) => <Input {...p} {...f.text("company")} maxLength={200} autoComplete="organization" />}</Field>
         <Field label={t("mobile")}>{(p) => <Input {...p} {...f.text("mobile")} maxLength={50} type="tel" dir="ltr" autoComplete="tel" />}</Field>
-        <Field label={t("address")}>{(p) => <Textarea {...p} {...f.text("address")} maxLength={1000} rows={2} />}</Field>
+        <Field label={t("address")} className="sm:col-span-2">{(p) => <Textarea {...p} {...f.text("address")} maxLength={1000} rows={2} />}</Field>
       </div>
+
+      <fieldset className="space-y-4">
+        <legend className="text-sm font-medium">{t("companyDetails")}</legend>
+        <Field label={t("companyName")} error={f.errors.company} required>{(p) => <Input {...p} {...f.text("company")} maxLength={200} autoComplete="organization" />}</Field>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label={t("crNumber")} error={f.errors.crNumber} required>{(p) => <Input {...p} {...f.text("crNumber")} maxLength={100} dir="ltr" />}</Field>
+          <Field label={t("vatNumber")}>{(p) => <Input {...p} {...f.text("vatNumber")} maxLength={100} dir="ltr" />}</Field>
+        </div>
+      </fieldset>
+
+      <fieldset className="space-y-4">
+        <legend className="text-sm font-medium">{t("bankDetails")}</legend>
+        <p className="text-xs text-muted">{t("bankDetailsHint")}</p>
+        <Field label={t("bankName")} error={f.errors.bankName} required>{(p) => <Input {...p} {...f.text("bankName")} maxLength={200} />}</Field>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label={t("accountNumber")} error={f.errors.accountNumber} required>{(p) => <Input {...p} {...f.text("accountNumber")} maxLength={100} dir="ltr" />}</Field>
+          <Field label={t("cardNumber")}>{(p) => <Input {...p} {...f.text("cardNumber")} maxLength={100} dir="ltr" inputMode="numeric" autoComplete="off" />}</Field>
+        </div>
+      </fieldset>
 
       <fieldset>
         <legend className="text-sm font-medium">{t("categories")}</legend>

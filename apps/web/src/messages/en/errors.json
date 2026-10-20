@@ -86,6 +86,8 @@
     "already_pending": "You already have an application waiting for review.",
     "not_pending": "This application was already decided.",
     "already_seller": "This account is already a seller.",
+    "company_required": "Enter your company name and commercial registration number.",
+    "bank_required": "Enter your bank name and account number.",
     "documents_required": "Attach your commercial registration and identity documents.",
     "too_many": "Too many applications today. Try again tomorrow.",
     "field_too_long": "One of the fields is too long.",

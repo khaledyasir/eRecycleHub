@@ -10102,6 +10102,36 @@
               "type": "integer",
               "format": "int32"
             }
+          },
+          "crNumber": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "vatNumber": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "bankName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "accountNumber": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "cardNumber": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },

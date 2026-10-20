@@ -3,9 +3,10 @@
 import { Eye, EyeOff } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useState, type ReactNode } from "react";
+import { WELCOME_KEY } from "@/components/account/welcome-prompt";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/display";
-import { Field, FileInput, Input, Select } from "@/components/ui/form";
+import { Field, Input, Select } from "@/components/ui/form";
 import { Link, useRouter } from "@/i18n/navigation";
 import { api, call, sendForm, setCsrfToken } from "@/lib/api/client";
 import type { Schema, UserRole } from "@/lib/api/types";
@@ -91,13 +92,8 @@ export function RegisterForm({ countries, defaultCountry }: { countries: Country
   const v = useValidators();
   const locale = useLocale();
   const router = useRouter();
-  const f = useForm({
-    fullName: "", email: "", phone: "", countryId: String(defaultCountry ?? countries[0]?.id ?? ""), password: "", confirm: "",
-    companyName: "", crNumber: "", vatNumber: "", bankName: "", accountNumber: "", cardNumber: "",
-  });
-  const [files, setFiles] = useState<Record<string, File | null>>({});
-  const file = (name: string) => (list: File[]) => setFiles((x) => ({ ...x, [name]: list[0] ?? null }));
-  const docs = "image/jpeg,image/png,image/webp,application/pdf";
+  // Company, bank and document details are collected later, when the customer applies to become a seller.
+  const f = useForm({ fullName: "", email: "", phone: "", countryId: String(defaultCountry ?? countries[0]?.id ?? ""), password: "", confirm: "" });
   return (
     <form
       noValidate
@@ -110,10 +106,9 @@ export function RegisterForm({ countries, defaultCountry }: { countries: Country
         async (x) => {
           const { confirm: _c, countryId, ...rest } = x;
           void _c;
-          const me = await sendForm<Me>("POST", "/api/auth/register", { ...rest, countryId: Number(countryId) }, {
-            avatar: files.avatar, crDocument: files.crDocument, vatCertificate: files.vatCertificate, idDocument: files.idDocument,
-          });
+          const me = await sendForm<Me>("POST", "/api/auth/register", { ...rest, countryId: Number(countryId) }, {});
           setCsrfToken(me.csrfToken);
+          try { localStorage.setItem(WELCOME_KEY, "1"); } catch { /* storage blocked */ }
           router.push("/account");
           router.refresh();
         },
@@ -153,29 +148,6 @@ export function RegisterForm({ countries, defaultCountry }: { countries: Country
             {(p) => <PasswordInput {...p} {...f.text("confirm")} autoComplete="new-password" />}
           </Field>
         </div>
-        <Field label={t("avatar")}>{(p) => <FileInput {...p} accept="image/jpeg,image/png,image/webp" onFiles={file("avatar")} />}</Field>
-      </fieldset>
-
-      <fieldset className="space-y-4">
-        <legend className="text-lg font-semibold">{t("company")}</legend>
-        <p className="text-sm text-muted">{t("companyHint")}</p>
-        <Field label={t("companyName")}>{(p) => <Input {...p} {...f.text("companyName")} autoComplete="organization" />}</Field>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label={t("crNumber")}>{(p) => <Input {...p} {...f.text("crNumber")} dir="ltr" />}</Field>
-          <Field label={t("vatNumber")}>{(p) => <Input {...p} {...f.text("vatNumber")} dir="ltr" />}</Field>
-        </div>
-        <Field label={t("crDocument")} hint={t("documentsHint")}>{(p) => <FileInput {...p} accept={docs} onFiles={file("crDocument")} />}</Field>
-        <Field label={t("vatCertificate")}>{(p) => <FileInput {...p} accept={docs} onFiles={file("vatCertificate")} />}</Field>
-      </fieldset>
-
-      <fieldset className="space-y-4">
-        <legend className="text-lg font-semibold">{t("bank")}</legend>
-        <Field label={t("bankName")}>{(p) => <Input {...p} {...f.text("bankName")} />}</Field>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label={t("accountNumber")}>{(p) => <Input {...p} {...f.text("accountNumber")} dir="ltr" />}</Field>
-          <Field label={t("cardNumber")}>{(p) => <Input {...p} {...f.text("cardNumber")} dir="ltr" inputMode="numeric" autoComplete="off" />}</Field>
-        </div>
-        <Field label={t("idDocument")}>{(p) => <FileInput {...p} accept={docs} onFiles={file("idDocument")} />}</Field>
       </fieldset>
 
       <Button type="submit" size="lg" className="w-full" loading={f.busy}>

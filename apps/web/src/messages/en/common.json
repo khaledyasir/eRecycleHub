@@ -97,7 +97,13 @@
     "h": "h",
     "m": "m",
     "s": "s",
-    "label": "{days} days {hours} hours {minutes} minutes"
+    "label": "{days} days {hours} hours {minutes} minutes",
+    "unit": {
+      "d": "{n, plural, one {day} other {days}}",
+      "h": "{n, plural, one {hour} other {hours}}",
+      "m": "{n, plural, one {minute} other {minutes}}",
+      "s": "{n, plural, one {second} other {seconds}}"
+    }
   },
   "file": {
     "choose": "Choose file",

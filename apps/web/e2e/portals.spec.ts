@@ -230,6 +230,10 @@ test.describe("becoming a seller", () => {
 
     // Documents are required; with them the application is accepted and shown as pending.
     await user.getByLabel("Store name").fill("New Seller Store");
+    await user.getByLabel("Company name").fill("New Seller Ltd");
+    await user.getByLabel("Commercial registration number").fill("CR-7788");
+    await user.getByLabel("Bank name").fill("Test Bank");
+    await user.getByLabel(/^Account number/).fill("JO94CBJO0010000000000131000302");
     await user.getByRole("button", { name: "Send application" }).click();
     await expect(user.getByText("Attach your commercial registration and identity documents.").first()).toBeVisible();
     await user.getByLabel("Commercial registration document").setInputFiles({ name: "cr.pdf", mimeType: "application/pdf", buffer: pdf });

@@ -6887,6 +6887,11 @@ export interface components {
             mobile: null | string;
             address: null | string;
             categoryIds: null | number[];
+            crNumber?: null | string;
+            vatNumber?: null | string;
+            bankName?: null | string;
+            accountNumber?: null | string;
+            cardNumber?: null | string;
         };
         SellerDashboard: {
             /** Format: int32 */
