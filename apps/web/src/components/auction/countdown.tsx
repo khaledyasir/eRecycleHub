@@ -1,5 +1,6 @@
 "use client";
 
+import { Clock } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/format";
@@ -45,7 +46,7 @@ export function Countdown({
   target: string | null | undefined;
   serverNow: number;
   mode?: "end" | "start";
-  size?: "sm" | "lg";
+  size?: "sm" | "lg" | "card";
   className?: string;
   onDone?: () => void;
 }) {
@@ -58,6 +59,7 @@ export function Countdown({
     if (done && onDone) onDone();
   }, [done, onDone]);
 
+  if (done && size === "card") return null;
   if (done) return <span className={cn("text-sm font-medium text-muted", className)}>{mode === "end" ? t("ended") : ""}</span>;
 
   const p = parts(remaining);
@@ -65,6 +67,21 @@ export function Countdown({
   const label = `${mode === "end" ? t("endsIn") : t("startsIn")}: ${t("label", p)}`;
 
   const { n, unit } = lead(p);
+
+  if (size === "card") {
+    // Small card laid over the auction photo: "Ends in / 2 days".
+    return (
+      <div role="timer" aria-label={label} className={cn("flex items-center gap-2 rounded-lg bg-white/95 px-2.5 py-1.5 shadow-md backdrop-blur", className)}>
+        <Clock className={cn("h-4 w-4 shrink-0", soon ? "text-rust" : "text-patina")} aria-hidden />
+        <span className="flex flex-col leading-tight" aria-hidden>
+          <span className="text-[10px] text-muted">{mode === "end" ? t("endsIn") : t("startsIn")}</span>
+          <span className={cn("tabular text-sm font-extrabold", soon ? "text-rust" : "text-ink")}>
+            {n} {t(`unit.${unit}`, { n })}
+          </span>
+        </span>
+      </div>
+    );
+  }
 
   if (size === "lg") {
     return (

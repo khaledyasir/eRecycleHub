@@ -19,7 +19,7 @@ export function PhaseBadge({ phase }: { phase: AuctionPhase }) {
   );
 }
 
-/** A lot "ticket": photo with its stamped lot number, the current price, and a strip with the clock and bid count. */
+/** A lot "ticket": photo with its lot number and a small time-left card, the current price, and a strip with the bid count. */
 export function AuctionCard({ a, serverNow, className }: { a: Card; serverNow: number; className?: string }) {
   const t = useTranslations("auction.card");
   const locale = useLocale();
@@ -38,6 +38,11 @@ export function AuctionCard({ a, serverNow, className }: { a: Card; serverNow: n
         <div className="absolute start-2 top-2">
           <PhaseBadge phase={a.phase} />
         </div>
+        {a.phase !== "Ended" && (
+          <div className="absolute bottom-2 end-2">
+            <Countdown target={a.phase === "Upcoming" ? a.startsAtUtc : a.endsAtUtc} serverNow={serverNow} mode={a.phase === "Upcoming" ? "start" : "end"} size="card" />
+          </div>
+        )}
         <span className="tabular absolute bottom-2 start-2 rounded-sm border border-white/40 bg-ink/75 px-2 py-0.5 text-[11px] font-medium text-white">
           {t("lot", { ref: a.refNumber })}
         </span>
@@ -62,23 +67,12 @@ export function AuctionCard({ a, serverNow, className }: { a: Card; serverNow: n
           <p className="tabular text-xl font-semibold">{money(a.currentPrice, locale)}</p>
         </div>
       </div>
-      <div className={cn("flex items-center justify-between gap-2 border-t px-4 py-2 text-sm", a.phase === "Live" ? "border-orange/20 bg-orange/5" : "border-line bg-ground")}>
-        <span className="inline-flex items-center gap-1.5 text-ink-2">
-          {a.phase === "Upcoming" ? (
-            <>
-              <span className="text-xs text-muted">{t("startsIn")}</span>
-              <Countdown target={a.startsAtUtc} serverNow={serverNow} mode="start" />
-            </>
-          ) : a.phase === "Live" ? (
-            <Countdown target={a.endsAtUtc} serverNow={serverNow} />
-          ) : (
-            <span className="text-muted">{t("closed")}</span>
-          )}
-        </span>
+      <div className="flex items-center justify-between gap-2 border-t border-line bg-ground px-4 py-2 text-sm">
         <span className="inline-flex items-center gap-1 text-ink-2">
           <Gavel className="h-4 w-4" aria-hidden />
           <span className="tabular">{t("bids", { count: a.bidCount })}</span>
         </span>
+        {a.phase === "Ended" && <span className="text-muted">{t("closed")}</span>}
       </div>
     </article>
   );
