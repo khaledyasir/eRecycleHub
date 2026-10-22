@@ -22,7 +22,7 @@ async function ensureCsrf(): Promise<string> {
   return pending;
 }
 
-const locale = () => (typeof document === "undefined" ? "en" : document.documentElement.lang || "en");
+const locale = () => (typeof document === "undefined" ? "ar" : document.documentElement.lang || "ar");
 const isUnsafe = (method: string) => !["GET", "HEAD", "OPTIONS"].includes(method.toUpperCase());
 
 const headersMiddleware: Middleware = {
