@@ -96,20 +96,6 @@ public class PublisherOwnershipTests(ApiFactory f)
     }
 
     [Fact]
-    public async Task Publisher_cannot_delete_reviews_on_other_publishers_auctions()
-    {
-        var other = await f.SignedInAsync(DevSeed.Publisher2Email, DevSeed.PublisherPassword);
-        var p1 = await f.PublisherIdAsync(DevSeed.PublisherEmail);
-        var auction = await f.NewAuctionAsync(publisherId: p1);
-        var reviewer = await f.SignedInAsync((await f.NewCustomerAsync()).email, ApiFactory.Password);
-        var r = await reviewer.PostAsync($"/api/auctions/{auction}/reviews", new { rating = 4, comment = "fine" });
-        var reviewId = (await r.Content.ReadFromJsonAsync<JsonElement>(ApiClient.Json)).GetProperty("id").GetInt32();
-        Assert.Equal(HttpStatusCode.NotFound, (await other.DeleteAsync($"/api/seller/reviews/{reviewId}")).StatusCode);
-        Assert.Equal("review.already_reviewed", await ApiClient.CodeAsync(await reviewer.PostAsync($"/api/auctions/{auction}/reviews", new { rating = 5 })));
-        Assert.Equal("review.invalid_rating", await ApiClient.CodeAsync(await reviewer.PostAsync($"/api/auctions/{await f.NewAuctionAsync()}/reviews", new { rating = 9 })));
-    }
-
-    [Fact]
     public async Task Deactivated_publishers_auctions_disappear_from_public_but_are_not_modified()
     {
         var (uid, email) = await f.NewCustomerAsync(wallet: 0);

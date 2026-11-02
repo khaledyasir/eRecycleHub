@@ -1,4 +1,4 @@
-import { Mail, MapPin, Phone, SearchX, Star, Store } from "lucide-react";
+import { Mail, MapPin, Phone, SearchX, Store } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
@@ -58,10 +58,6 @@ export default async function StorePage({ params, searchParams }: Params) {
             <h1 className="text-2xl font-semibold">{s.store.name}</h1>
             <p className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-ink-2">
               <span className="tabular">{t("lots", { count: s.store.auctionCount })}</span>
-              <span className="inline-flex items-center gap-1">
-                <Star className="h-4 w-4 fill-hivis text-hivis" aria-hidden />
-                {s.ratingCount > 0 ? t("rating", { rating: s.ratingAverage, count: s.ratingCount }) : t("noRating")}
-              </span>
               {country && <span>{country}</span>}
             </p>
           </div>

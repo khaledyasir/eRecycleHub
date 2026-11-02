@@ -24,18 +24,16 @@ public sealed record AuctionFacets(IReadOnlyList<CategoryFacet> Categories, int 
 public sealed record SpecDto(int Id, string TitleEn, string TitleAr, string? ValueEn, string? ValueAr, int SortOrder);
 public sealed record ImageDto(int Id, Guid FileId, string? Title, int SortOrder);
 public sealed record PublisherSummary(int Id, string Name, Guid? LogoFileId, Guid? BackgroundFileId, string? Phone, string? SecondMobile, string? Email, string? Address, int AuctionCount);
-public sealed record ViewerState(bool IsSignedIn, bool IsOwner, bool IsFavorite, bool IsWatched, bool HasReviewed, decimal? WalletBalance, bool CanBid, bool IsLeading);
-public sealed record ReviewSummary(double Average, int Count);
+public sealed record ViewerState(bool IsSignedIn, bool IsOwner, bool IsFavorite, bool IsWatched, decimal? WalletBalance, bool CanBid, bool IsLeading);
 
 public sealed record AuctionDetails(
     AuctionCard Card, string? DescEn, string? DescAr, string? VideoUrl, string CountryNameEn, string CountryNameAr,
     FileRef? Terms, FileRef? PaymentConditions, FileRef? Contract, IReadOnlyList<ImageDto> Images, IReadOnlyList<SpecDto> Specs,
-    PublisherSummary? Publisher, decimal MinimumNextBid, DateTime CreatedAtUtc, ViewerState Viewer, ReviewSummary Reviews,
+    PublisherSummary? Publisher, decimal MinimumNextBid, DateTime CreatedAtUtc, ViewerState Viewer,
     IReadOnlyList<AuctionCard> Related);
 
 public sealed record PublicBid(long Id, decimal Amount, DateTime CreatedAtUtc, int BidderNumber, bool IsMine);
 public sealed record CalendarItem(int Id, string TitleEn, string TitleAr, DateTime StartsAtUtc, DateTime? EndsAtUtc, AuctionPhase Phase);
-public sealed record ReviewDto(int Id, int AuctionId, string? AuctionTitleEn, string? AuctionTitleAr, string? Name, int Rating, string? Comment, DateTime CreatedAtUtc, Guid? AvatarFileId);
 
 public sealed class AuctionQueries(AppDbContext db, TimeProvider clock)
 {
@@ -159,18 +157,15 @@ public sealed class AuctionQueries(AppDbContext db, TimeProvider clock)
         var docs = await db.Files.AsNoTracking().Where(f => fileIds.Contains(f.Id)).ToDictionaryAsync(f => f.Id, f => new FileRef(f.Id, f.OriginalName, f.ContentType), ct);
         FileRef? Doc(Guid? fid) => fid is not null && docs.TryGetValue(fid.Value, out var d) ? d : null;
 
-        var reviews = await db.Reviews.Where(r => r.AuctionId == id).GroupBy(_ => 1)
-            .Select(g => new { Avg = g.Average(r => (double)r.Rating), Count = g.Count() }).OrderBy(x => x.Count).FirstOrDefaultAsync(ct);
         var publisherAuctionCount = a.PublisherId is null ? 0 : await Visible().CountAsync(x => x.PublisherId == a.PublisherId, ct);
 
-        bool fav = false, watch = false, reviewed = false, leading = false;
+        bool fav = false, watch = false, leading = false;
         decimal? wallet = null;
         var role = viewer?.Role;
         if (vid is not null)
         {
             fav = await db.Wishlist.AnyAsync(w => w.UserId == vid && w.AuctionId == id, ct);
             watch = await db.AuctionWatches.AnyAsync(w => w.UserId == vid && w.AuctionId == id, ct);
-            reviewed = await db.Reviews.AnyAsync(r => r.UserId == vid && r.AuctionId == id, ct);
             wallet = await db.Users.Where(u => u.Id == vid).Select(u => (decimal?)u.WalletBalance).FirstOrDefaultAsync(ct);
             leading = await db.Bids.Where(b => b.AuctionId == id).OrderByDescending(b => b.Amount).ThenBy(b => b.Id).Select(b => (int?)b.UserId).FirstOrDefaultAsync(ct) == vid;
         }
@@ -200,8 +195,8 @@ public sealed class AuctionQueries(AppDbContext db, TimeProvider clock)
             a.Publisher is null ? null : new PublisherSummary(a.Publisher.Id, a.Publisher.DisplayName, a.Publisher.LogoFileId, a.Publisher.BackgroundFileId,
                 a.Publisher.User!.Phone, a.Publisher.SecondMobile, a.Publisher.User.Email, a.Publisher.Address, publisherAuctionCount),
             AuctionRules.MinimumNextBid(a.CurrentPrice, a.BidIncrement), a.CreatedAtUtc,
-            new ViewerState(vid is not null, isOwner, fav, watch, reviewed, wallet, canBid, leading),
-            new ReviewSummary(Math.Round(reviews?.Avg ?? 0, 1), reviews?.Count ?? 0), related);
+            new ViewerState(vid is not null, isOwner, fav, watch, wallet, canBid, leading),
+            related);
     }
 
     /// <summary>Public bid history: amounts and times only. Bidders appear as "Bidder #n" (order of their first bid on this auction).</summary>
@@ -226,16 +221,4 @@ public sealed class AuctionQueries(AppDbContext db, TimeProvider clock)
         var now = Now;
         return rows.Select(a => new CalendarItem(a.Id, a.TitleEn, a.TitleAr, a.StartsAtUtc, a.EndsAtUtc, AuctionRules.Phase(a.StartsAtUtc, a.EndsAtUtc, now))).ToList();
     }
-
-    public async Task<PagedResult<ReviewDto>> ReviewsAsync(IQueryable<Review> q, PageQuery page, CancellationToken ct = default)
-    {
-        var total = await q.CountAsync(ct);
-        var items = await q.OrderByDescending(r => r.Id).Skip(page.Skip).Take(page.SafeSize)
-            .Select(r => new ReviewDto(r.Id, r.AuctionId, r.Auction!.TitleEn, r.Auction.TitleAr, r.Name ?? r.User!.FullName, r.Rating, r.Comment, r.CreatedAtUtc, r.User!.AvatarFileId))
-            .ToListAsync(ct);
-        return new(items, page.SafePage, page.SafeSize, total);
-    }
-
-    public Task<PagedResult<ReviewDto>> AuctionReviewsAsync(int auctionId, int page, CancellationToken ct = default) =>
-        ReviewsAsync(db.Reviews.AsNoTracking().Where(r => r.AuctionId == auctionId), new PageQuery(page, 10), ct);
 }

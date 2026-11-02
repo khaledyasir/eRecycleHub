@@ -9,7 +9,7 @@ public sealed record SliderDto(int Id, string? Title, string? Link, Guid? ImageF
 public sealed record AnnouncementDto(int Id, Guid? ImageFileId);
 public sealed record StepDto(int Id, string TitleEn, string TitleAr, string? DescEn, string? DescAr);
 public sealed record StoreCard(int Id, string Name, Guid? LogoFileId, Guid? BackgroundFileId, string? Address, string? Phone, string? SecondMobile, int AuctionCount, int LiveCount);
-public sealed record StoreDetails(StoreCard Store, string? Email, string? CountryNameEn, string? CountryNameAr, double RatingAverage, int RatingCount);
+public sealed record StoreDetails(StoreCard Store, string? Email, string? CountryNameEn, string? CountryNameAr);
 public sealed record HomeStats(int LiveAuctions, int Stores, int TotalBids);
 public sealed record HeroDto(int Id, string? BadgeEn, string? BadgeAr, string? TitleEn, string? TitleAr, string? LeadEn, string? LeadAr,
     string? PrimaryCtaEn, string? PrimaryCtaAr, string? PrimaryCtaUrl, string? SecondaryCtaEn, string? SecondaryCtaAr, string? SecondaryCtaUrl,
@@ -111,9 +111,7 @@ public sealed class PublicContent(AppDbContext db, AuctionQueries auctions, Time
         if (card is null) return null;
         var extra = await db.Publishers.AsNoTracking().Where(p => p.Id == id)
             .Select(p => new { p.User!.Email, p.Country!.NameEn, p.Country.NameAr }).SingleAsync(ct);
-        var rating = await db.Reviews.Where(r => r.Auction!.PublisherId == id).GroupBy(_ => 1)
-            .Select(g => new { Avg = g.Average(r => (double)r.Rating), Count = g.Count() }).FirstOrDefaultAsync(ct);
-        return new StoreDetails(card, extra.Email, extra.NameEn, extra.NameAr, Math.Round(rating?.Avg ?? 0, 1), rating?.Count ?? 0);
+        return new StoreDetails(card, extra.Email, extra.NameEn, extra.NameAr);
     }
 
     public async Task<PagedResult<ClientDto>> ClientsAsync(PageQuery page, CancellationToken ct = default)

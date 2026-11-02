@@ -34,7 +34,6 @@ public static class PublicEndpoints
             .Produces<AuctionDetails>();
         g.MapGet("/auctions/{id:int}/bids", (int id, int? page, HttpContext ctx, AuctionQueries q, CancellationToken ct) =>
             q.PublicBidsAsync(id, ctx.ActorOrNull()?.UserId, new PageQuery(page ?? 1, 20), ct));
-        g.MapGet("/auctions/{id:int}/reviews", (int id, int? page, AuctionQueries q, CancellationToken ct) => q.AuctionReviewsAsync(id, page ?? 1, ct));
 
         // --- member actions on an auction ---
         var m = api.MapGroup("/auctions/{id:int}").WithTags("Public").RequireAuthorization(Policies.Member);
@@ -44,8 +43,6 @@ public static class PublicEndpoints
         m.MapDelete("/favorite", async (int id, HttpContext ctx, AccountService a, CancellationToken ct) => { await a.SetFavoriteAsync(ctx.Actor().UserId, id, false, ct); return Results.NoContent(); });
         m.MapPut("/watch", async (int id, HttpContext ctx, AccountService a, CancellationToken ct) => { await a.SetWatchAsync(ctx.Actor().UserId, id, true, ct); return Results.NoContent(); });
         m.MapDelete("/watch", async (int id, HttpContext ctx, AccountService a, CancellationToken ct) => { await a.SetWatchAsync(ctx.Actor().UserId, id, false, ct); return Results.NoContent(); });
-        m.MapPost("/reviews", async (int id, ReviewInput req, HttpContext ctx, AccountService a, CancellationToken ct) =>
-            new IdResponse(await a.AddReviewAsync(ctx.Actor().UserId, id, req, ct))).RequireRateLimiting(RateLimits.Forms);
 
         g.MapGet("/stores", (string? q, int? countryId, int? page, HttpContext ctx, PublicContent c, CancellationToken ct) =>
             c.StoresAsync(Country(ctx.Request, countryId), q, new PageQuery(page ?? 1, 12), ct));

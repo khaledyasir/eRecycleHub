@@ -1,11 +1,10 @@
 import { Gavel, TrendingUp, Users } from "lucide-react";
 import type { Metadata } from "next";
-import { Star } from "lucide-react";
 import { getLocale, getTranslations } from "next-intl/server";
-import { EmptyState, PageHeader, Panel, Stat } from "@/components/ui/display";
+import { PageHeader, Panel, Stat } from "@/components/ui/display";
 import { Link } from "@/i18n/navigation";
 import { load, serverApi } from "@/lib/api/server";
-import { date, dateTime, money, number, pick } from "@/lib/format";
+import { dateTime, money, number } from "@/lib/format";
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getTranslations("seller.dashboard"))("title") };
@@ -28,9 +27,8 @@ export default async function SellerHome() {
         <Stat icon={TrendingUp} accent="orange" label={t("bids")} value={number(d.bids, locale)} />
         <Stat icon={Users} accent="lime" label={t("bidders")} value={number(d.bidders, locale)} />
         <Stat label={t("highest")} value={money(d.highestBid, locale)} />
-        <Stat icon={Star} accent="pink" label={t("reviews")} value={number(d.reviews, locale)} hint={d.reviews > 0 ? t("rating", { rating: d.ratingAverage }) : t("noRating")} />
       </div>
-      <div className="mt-6 grid gap-4 lg:grid-cols-2">
+      <div className="mt-6">
         <Panel title={t("recentBids")} bodyClassName="p-0">
           {d.recentBids.length === 0 ? (
             <p className="p-4 text-sm text-muted">{t("noBids")}</p>
@@ -41,26 +39,6 @@ export default async function SellerHome() {
                   <span className="truncate font-medium"><bdi>{b.userName}</bdi></span>
                   <span className="whitespace-nowrap text-muted">{dateTime(b.createdAtUtc, locale)}</span>
                   <span className="tabular font-semibold">{money(b.amount, locale)}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Panel>
-        <Panel title={t("recentReviews")} bodyClassName="p-0">
-          {d.recentReviews.length === 0 ? (
-            <EmptyState className="m-4" title={t("noReviews")} />
-          ) : (
-            <ul className="divide-y divide-line">
-              {d.recentReviews.map((r) => (
-                <li key={r.id} className="px-4 py-3 text-sm">
-                  <div className="flex items-center justify-between gap-2">
-                    <Link href={`/auctions/${r.auctionId}`} className="truncate font-medium hover:underline">{pick(locale, r.auctionTitleEn, r.auctionTitleAr)}</Link>
-                    <span className="inline-flex items-center gap-0.5" aria-label={`${r.rating}/5`}>
-                      {Array.from({ length: r.rating }, (_, i) => <Star key={i} className="h-3.5 w-3.5 fill-hivis text-hivis" aria-hidden />)}
-                    </span>
-                  </div>
-                  {r.comment && <p className="mt-1 text-ink-2">{r.comment}</p>}
-                  <p className="mt-1 text-xs text-muted"><bdi>{r.name}</bdi> · {date(r.createdAtUtc, locale)}</p>
                 </li>
               ))}
             </ul>

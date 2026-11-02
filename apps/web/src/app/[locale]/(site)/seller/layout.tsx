@@ -18,7 +18,6 @@ export default async function SellerLayout({ children }: { children: ReactNode }
       items: [
         { href: "/seller", label: t("dashboard"), icon: "LayoutDashboard", exact: true },
         { href: "/seller/auctions", label: t("auctions"), icon: "Gavel" },
-        { href: "/seller/reviews", label: t("reviews"), icon: "Star" },
         { href: "/seller/bidders", label: t("bidders"), icon: "Users" },
       ],
     },

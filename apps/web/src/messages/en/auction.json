@@ -78,7 +78,6 @@
     "historyBidder": "Bidder {number}",
     "historyYou": "You",
     "historyPrivacy": "Bidders are shown by number. Sellers see full details in their portal.",
-    "reviews": "Reviews",
     "related": "More lots like this",
     "gallery": "Photos",
     "photo": "Photo {n} of {total}",
@@ -116,18 +115,5 @@
     "whatNextBody": "If yours is the highest bid when the clock reaches zero, you win the lot. eRecycleHub emails the winner and the seller arranges payment and collection.",
     "invalid": "Enter an amount with at most two decimals.",
     "belowMin": "Enter at least {minimum}."
-  },
-  "reviews": {
-    "empty": "No reviews yet.",
-    "average": "{rating} out of 5 from {count, plural, one {# review} other {# reviews}}",
-    "write": "Write a review",
-    "rating": "Rating",
-    "stars": "{n, plural, one {# star} other {# stars}}",
-    "comment": "Your review",
-    "commentHint": "Optional. What went well, what could be better?",
-    "submit": "Post review",
-    "posted": "Thanks, your review is posted.",
-    "already": "You've reviewed this lot.",
-    "signIn": "Sign in to write a review."
   }
 }

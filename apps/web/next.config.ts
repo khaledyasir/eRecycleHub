@@ -25,6 +25,8 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   // ponytail: Cache Components off — almost every page reads per-visitor cookies (session, country) and live prices. Revisit for static shells.
   cacheComponents: false,
+  // Next buffers only 10MB of a proxied request body by default and cuts the rest, which broke auction uploads (photos + documents). Match the API's 60MB cap.
+  experimental: { proxyClientMaxBodySize: "60mb" },
   turbopack: {
     // What next-intl/plugin does, without loading the plugin (it pulls in @swc/core, whose native cache check fails on this machine).
     resolveAlias: { "next-intl/config": "./src/i18n/request.ts" },

@@ -5,7 +5,6 @@
     "dashboard": "Overview",
     "auctions": "Auctions",
     "newAuction": "New auction",
-    "reviews": "Reviews",
     "bidders": "Bidders",
     "profile": "Store profile",
     "password": "Password",
@@ -24,28 +23,9 @@
     "bids": "Bids received",
     "bidders": "Distinct bidders",
     "highest": "Highest bid",
-    "reviews": "Reviews",
-    "rating": "Average rating {rating} / 5",
-    "noRating": "No reviews yet",
     "recentBids": "Latest bids",
-    "recentReviews": "Latest reviews",
     "noBids": "No bids on your auctions yet.",
-    "noReviews": "No reviews yet.",
     "create": "Create an auction"
-  },
-  "reviews": {
-    "title": "Reviews",
-    "description": "What bidders say about your lots. You can remove a review that breaks the rules.",
-    "empty": "No reviews yet.",
-    "auction": "Auction",
-    "rating": "Rating",
-    "comment": "Review",
-    "date": "Date",
-    "by": "By",
-    "delete": "Delete review",
-    "deleteTitle": "Delete this review?",
-    "deleteBody": "The review is removed from the lot page. This can't be undone.",
-    "deleted": "Review deleted."
   },
   "bidders": {
     "title": "Bidders",
@@ -133,7 +113,11 @@
     "deactivated": "Auction is hidden.",
     "created": "Auction created. Add more photos below.",
     "saved": "Auction saved.",
-    "tabs": { "details": "Details", "photos": "Photos", "bids": "Bids" },
+    "tabs": {
+      "details": "Details",
+      "photos": "Photos",
+      "bids": "Bids"
+    },
     "form": {
       "basics": "Basics",
       "country": "Country",

@@ -4,7 +4,7 @@ import { siteUrl } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
 
-const STATIC = ["/", "/auctions", "/stores", "/about", "/benefits", "/how-to-buy", "/how-to-sell", "/faq", "/support", "/contact", "/advertise", "/apply", "/clients", "/terms", "/privacy"];
+const STATIC = ["/", "/auctions", "/stores", "/about", "/benefits", "/how-to-buy", "/how-to-sell", "/faq", "/support", "/contact", "/advertise", "/clients", "/terms", "/privacy"];
 
 /** Every public page in both languages, with hreflang alternates. Auctions and stores come from the API. */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {

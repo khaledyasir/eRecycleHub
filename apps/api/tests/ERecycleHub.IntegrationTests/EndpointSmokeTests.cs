@@ -12,7 +12,7 @@ public class EndpointSmokeTests(ApiFactory f)
     {
         "/api/home", "/api/home?countryId=1", "/api/countries", "/api/categories", "/api/auctions", "/api/auctions?status=live&sort=ending",
         "/api/auctions?status=upcoming", "/api/auctions?status=ended&sort=price_desc", "/api/auctions?q=copper&category=1&minPrice=1&maxPrice=99999&period=last30days",
-        "/api/auctions/facets", "/api/auctions/1", "/api/auctions/1/bids", "/api/auctions/1/reviews", "/api/stores", "/api/stores?q=green", "/api/stores/1",
+        "/api/auctions/facets", "/api/auctions/1", "/api/auctions/1/bids", "/api/stores", "/api/stores?q=green", "/api/stores/1",
         "/api/clients", "/api/content/about", "/api/content/benefits", "/api/content/how-to", "/api/content/faq", "/api/content/contact-info",
         "/api/content/settings/terms", "/api/content/settings/privacy-policy", "/api/i18n/ar", "/api/sitemap", "/api/health",
     };
@@ -45,7 +45,6 @@ public class EndpointSmokeTests(ApiFactory f)
     [InlineData("/api/seller/dashboard")]
     [InlineData("/api/seller/auctions")]
     [InlineData("/api/seller/auctions?view=archived&status=live&q=lot")]
-    [InlineData("/api/seller/reviews")]
     [InlineData("/api/seller/bidders")]
     [InlineData("/api/seller/bidders?q=test")]
     [InlineData("/api/seller/profile")]

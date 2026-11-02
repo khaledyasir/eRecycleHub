@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 namespace ERecycleHub.Application;
 
 public sealed record SellerDashboard(int Total, int Live, int Upcoming, int Ended, int Inactive, int Bids, int Bidders, decimal HighestBid,
-    int Reviews, double RatingAverage, IReadOnlyList<ManagedBid> RecentBids, IReadOnlyList<ReviewDto> RecentReviews);
+    IReadOnlyList<ManagedBid> RecentBids);
 public sealed record BidderRow(int UserId, string FullName, string Email, string? Phone, int BidCount, decimal HighestBid, DateTime LastBidAtUtc);
 public sealed record BidderBid(long Id, int AuctionId, string TitleEn, string TitleAr, decimal Amount, DateTime CreatedAtUtc);
 public sealed record BidderDetails(BidderRow Bidder, string? CompanyName, IReadOnlyList<BidderBid> Bids);
@@ -18,7 +18,7 @@ public sealed record StoreProfileInput(string FirstName, string? LastName, strin
 public sealed record StoreProfileFiles(UploadInput? Logo, UploadInput? Background, UploadInput? CrDocument, UploadInput? VatCertificate, UploadInput? IdDocument);
 
 /// <summary>Publisher portal reads. Every query is filtered by the caller's own publisher id.</summary>
-public sealed class SellerService(AppDbContext db, AuctionQueries auctions, FileService files, TimeProvider clock, Audit audit)
+public sealed class SellerService(AppDbContext db, FileService files, TimeProvider clock, Audit audit)
 {
     private static int Pid(Actor a) => a.PublisherId ?? throw AppException.Forbidden();
 
@@ -29,12 +29,9 @@ public sealed class SellerService(AppDbContext db, AuctionQueries auctions, File
         var mine = db.Auctions.AsNoTracking().Where(a => a.PublisherId == pid);
         var active = mine.Where(a => a.IsActive);
         var bids = db.Bids.AsNoTracking().Where(b => b.Auction!.PublisherId == pid);
-        var reviews = db.Reviews.AsNoTracking().Where(r => r.Auction!.PublisherId == pid);
-        var rating = await reviews.GroupBy(_ => 1).Select(g => new { Avg = g.Average(r => (double)r.Rating), Count = g.Count() }).FirstOrDefaultAsync(ct);
 
         var recentBids = await bids.OrderByDescending(b => b.Id).Take(8)
             .Select(b => new ManagedBid(b.Id, b.UserId, b.User!.FullName, b.User.Phone, b.User.Email, b.Amount, b.CreatedAtUtc, false)).ToListAsync(ct);
-        var recentReviews = (await auctions.ReviewsAsync(reviews, new PageQuery(1, 5), ct)).Items;
 
         return new SellerDashboard(
             await mine.CountAsync(ct),
@@ -45,18 +42,7 @@ public sealed class SellerService(AppDbContext db, AuctionQueries auctions, File
             await bids.CountAsync(ct),
             await bids.Select(b => b.UserId).Distinct().CountAsync(ct),
             await bids.MaxAsync(b => (decimal?)b.Amount, ct) ?? 0,
-            rating?.Count ?? 0, Math.Round(rating?.Avg ?? 0, 1), recentBids, recentReviews);
-    }
-
-    public Task<PagedResult<ReviewDto>> ReviewsAsync(Actor actor, PageQuery page, CancellationToken ct = default) =>
-        auctions.ReviewsAsync(db.Reviews.AsNoTracking().Where(r => r.Auction!.PublisherId == Pid(actor)), page, ct);
-
-    public async Task DeleteReviewAsync(Actor actor, int id, CancellationToken ct = default)
-    {
-        var pid = Pid(actor);
-        if (await db.Reviews.Where(r => r.Id == id && r.Auction!.PublisherId == pid).ExecuteDeleteAsync(ct) == 0) throw AppException.NotFound("review");
-        audit.Record(actor, "review.delete", nameof(Review), id);
-        await db.SaveChangesAsync(ct);
+            recentBids);
     }
 
     /// <summary>Accounts that bid on this publisher's auctions, most recent bidder first. Filters apply to users before the record projection.</summary>

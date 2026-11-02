@@ -636,70 +636,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/auctions/{id}/reviews": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: {
-                    page?: number;
-                };
-                header?: never;
-                path: {
-                    id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["PagedResultOfReviewDto"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: number;
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["ReviewInput"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["IdResponse"];
-                    };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/stores": {
         parameters: {
             query?: never;
@@ -2236,78 +2172,6 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/seller/reviews": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: {
-                    page?: number;
-                };
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["PagedResultOfReviewDto"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/seller/reviews/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
         options?: never;
         head?: never;
         patch?: never;
@@ -5867,6 +5731,11 @@ export interface components {
             crDocument: null | components["schemas"]["FileRef"];
             vatCertificate: null | components["schemas"]["FileRef"];
             idDocument: null | components["schemas"]["FileRef"];
+            crNumber?: null | string;
+            vatNumber?: null | string;
+            bankName?: null | string;
+            accountNumber?: null | string;
+            accountHolderName?: null | string;
         };
         /** @enum {unknown} */
         ApplicationStatus: "Pending" | "Approved" | "Rejected";
@@ -5928,7 +5797,6 @@ export interface components {
             /** Format: date-time */
             createdAtUtc: string;
             viewer: components["schemas"]["ViewerState"];
-            reviews: components["schemas"]["ReviewSummary"];
             related: components["schemas"]["AuctionCard"][];
         };
         AuctionFacets: {
@@ -6627,17 +6495,6 @@ export interface components {
             /** Format: int32 */
             totalPages?: number;
         };
-        PagedResultOfReviewDto: {
-            items: components["schemas"]["ReviewDto"][];
-            /** Format: int32 */
-            page: number;
-            /** Format: int32 */
-            pageSize: number;
-            /** Format: int32 */
-            total: number;
-            /** Format: int32 */
-            totalPages?: number;
-        };
         PagedResultOfStoreCard: {
             items: components["schemas"]["StoreCard"][];
             /** Format: int32 */
@@ -6838,33 +6695,6 @@ export interface components {
             token: string;
             password: string;
         };
-        ReviewDto: {
-            /** Format: int32 */
-            id: number;
-            /** Format: int32 */
-            auctionId: number;
-            auctionTitleEn: null | string;
-            auctionTitleAr: null | string;
-            name: null | string;
-            /** Format: int32 */
-            rating: number;
-            comment: null | string;
-            /** Format: date-time */
-            createdAtUtc: string;
-            /** Format: uuid */
-            avatarFileId: null | string;
-        };
-        ReviewInput: {
-            /** Format: int32 */
-            rating: number;
-            comment: null | string;
-        };
-        ReviewSummary: {
-            /** Format: double */
-            average: number;
-            /** Format: int32 */
-            count: number;
-        };
         SellerApplicationDto: {
             /** Format: int32 */
             id: number;
@@ -6914,12 +6744,7 @@ export interface components {
             bidders: number;
             /** Format: double */
             highestBid: number;
-            /** Format: int32 */
-            reviews: number;
-            /** Format: double */
-            ratingAverage: number;
             recentBids: components["schemas"]["ManagedBid"][];
-            recentReviews: components["schemas"]["ReviewDto"][];
         };
         SellerStatus: {
             isSeller: boolean;
@@ -7021,10 +6846,6 @@ export interface components {
             email: null | string;
             countryNameEn: null | string;
             countryNameAr: null | string;
-            /** Format: double */
-            ratingAverage: number;
-            /** Format: int32 */
-            ratingCount: number;
         };
         StoreProfileDto: {
             /** Format: int32 */
@@ -7112,7 +6933,6 @@ export interface components {
             isOwner: boolean;
             isFavorite: boolean;
             isWatched: boolean;
-            hasReviewed: boolean;
             /** Format: double */
             walletBalance: null | number;
             canBid: boolean;

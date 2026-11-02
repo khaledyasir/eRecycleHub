@@ -589,82 +589,6 @@
         }
       }
     },
-    "/api/auctions/{id}/reviews": {
-      "get": {
-        "tags": [
-          "Public"
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int32"
-            }
-          },
-          {
-            "name": "page",
-            "in": "query",
-            "schema": {
-              "type": "integer",
-              "format": "int32"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PagedResultOfReviewDto"
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "tags": [
-          "Public"
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int32"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ReviewInput"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/IdResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/stores": {
       "get": {
         "tags": [
@@ -1902,58 +1826,6 @@
                 }
               }
             }
-          }
-        }
-      }
-    },
-    "/api/seller/reviews": {
-      "get": {
-        "tags": [
-          "Seller"
-        ],
-        "parameters": [
-          {
-            "name": "page",
-            "in": "query",
-            "schema": {
-              "type": "integer",
-              "format": "int32"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PagedResultOfReviewDto"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/seller/reviews/{id}": {
-      "delete": {
-        "tags": [
-          "Seller"
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int32"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK"
           }
         }
       }
@@ -6116,6 +5988,36 @@
                 "$ref": "#/components/schemas/FileRef"
               }
             ]
+          },
+          "crNumber": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "vatNumber": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "bankName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "accountNumber": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "accountHolderName": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -6291,7 +6193,6 @@
           "minimumNextBid",
           "createdAtUtc",
           "viewer",
-          "reviews",
           "related"
         ],
         "type": "object",
@@ -6385,9 +6286,6 @@
           },
           "viewer": {
             "$ref": "#/components/schemas/ViewerState"
-          },
-          "reviews": {
-            "$ref": "#/components/schemas/ReviewSummary"
           },
           "related": {
             "type": "array",
@@ -9046,39 +8944,6 @@
           }
         }
       },
-      "PagedResultOfReviewDto": {
-        "required": [
-          "items",
-          "page",
-          "pageSize",
-          "total"
-        ],
-        "type": "object",
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ReviewDto"
-            }
-          },
-          "page": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "pageSize": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "total": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "totalPages": {
-            "type": "integer",
-            "format": "int32"
-          }
-        }
-      },
       "PagedResultOfStoreCard": {
         "required": [
           "items",
@@ -9874,105 +9739,6 @@
           }
         }
       },
-      "ReviewDto": {
-        "required": [
-          "id",
-          "auctionId",
-          "auctionTitleEn",
-          "auctionTitleAr",
-          "name",
-          "rating",
-          "comment",
-          "createdAtUtc",
-          "avatarFileId"
-        ],
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "auctionId": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "auctionTitleEn": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "auctionTitleAr": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "name": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "rating": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "comment": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "createdAtUtc": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "avatarFileId": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "format": "uuid"
-          }
-        }
-      },
-      "ReviewInput": {
-        "required": [
-          "rating",
-          "comment"
-        ],
-        "type": "object",
-        "properties": {
-          "rating": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "comment": {
-            "type": [
-              "null",
-              "string"
-            ]
-          }
-        }
-      },
-      "ReviewSummary": {
-        "required": [
-          "average",
-          "count"
-        ],
-        "type": "object",
-        "properties": {
-          "average": {
-            "type": "number",
-            "format": "double"
-          },
-          "count": {
-            "type": "integer",
-            "format": "int32"
-          }
-        }
-      },
       "SellerApplicationDto": {
         "required": [
           "id",
@@ -10169,10 +9935,7 @@
           "bids",
           "bidders",
           "highestBid",
-          "reviews",
-          "ratingAverage",
-          "recentBids",
-          "recentReviews"
+          "recentBids"
         ],
         "type": "object",
         "properties": {
@@ -10208,24 +9971,10 @@
             "type": "number",
             "format": "double"
           },
-          "reviews": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "ratingAverage": {
-            "type": "number",
-            "format": "double"
-          },
           "recentBids": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ManagedBid"
-            }
-          },
-          "recentReviews": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ReviewDto"
             }
           }
         }
@@ -10665,9 +10414,7 @@
           "store",
           "email",
           "countryNameEn",
-          "countryNameAr",
-          "ratingAverage",
-          "ratingCount"
+          "countryNameAr"
         ],
         "type": "object",
         "properties": {
@@ -10691,14 +10438,6 @@
               "null",
               "string"
             ]
-          },
-          "ratingAverage": {
-            "type": "number",
-            "format": "double"
-          },
-          "ratingCount": {
-            "type": "integer",
-            "format": "int32"
           }
         }
       },
@@ -11086,7 +10825,6 @@
           "isOwner",
           "isFavorite",
           "isWatched",
-          "hasReviewed",
           "walletBalance",
           "canBid",
           "isLeading"
@@ -11103,9 +10841,6 @@
             "type": "boolean"
           },
           "isWatched": {
-            "type": "boolean"
-          },
-          "hasReviewed": {
             "type": "boolean"
           },
           "walletBalance": {

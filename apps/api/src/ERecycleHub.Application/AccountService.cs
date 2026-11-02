@@ -15,7 +15,6 @@ public sealed record ProfileInput(string FullName, string? Phone, int CountryId,
     string? BankName, string? AccountNumber, string? CardNumber, string? AccountHolderName = null);
 public sealed record ProfileFiles(UploadInput? Avatar, UploadInput? CrDocument, UploadInput? VatCertificate, UploadInput? IdDocument);
 public sealed record NotificationDto(int Id, string Kind, int? AuctionId, string? AuctionTitleEn, string? AuctionTitleAr, decimal? Amount, string? Title, string? Body, string? Url, bool IsRead, DateTime CreatedAtUtc);
-public sealed record ReviewInput(int Rating, string? Comment);
 public sealed record SellerApplicationInput(string Name, string? Company, string? Mobile, string? Address, int[]? CategoryIds,
     string? CrNumber = null, string? VatNumber = null, string? BankName = null, string? AccountNumber = null, string? CardNumber = null,
     string? AccountHolderName = null, string? AccountType = null);
@@ -25,7 +24,7 @@ public sealed record SellerApplicationDto(int Id, string Name, string? Company, 
 /// <summary><c>CanApply</c> is true only for a customer without a seller profile and without a pending application (a rejected one may be re-submitted).</summary>
 public sealed record SellerStatus(bool IsSeller, bool CanApply, SellerApplicationDto? Application);
 
-/// <summary>Customer self-service: dashboard, bids, profile, favourites, watch list, notifications, reviews.</summary>
+/// <summary>Customer self-service: dashboard, bids, profile, favourites, watch list, notifications.</summary>
 public sealed class AccountService(AppDbContext db, AuctionQueries auctions, FileService files, TimeProvider clock, Audit audit)
 {
     private DateTime Now => clock.GetUtcNow().UtcDateTime;
@@ -282,20 +281,5 @@ public sealed class AccountService(AppDbContext db, AuctionQueries auctions, Fil
     public async Task DeleteNotificationAsync(int userId, int id, CancellationToken ct = default)
     {
         if (await db.Notifications.Where(n => n.Id == id && n.UserId == userId).ExecuteDeleteAsync(ct) == 0) throw AppException.NotFound("notification");
-    }
-
-    /// <summary>One review per account per auction; rating 1..5.</summary>
-    public async Task<int> AddReviewAsync(int userId, int auctionId, ReviewInput input, CancellationToken ct = default)
-    {
-        if (input.Rating is < 1 or > 5) throw new AppException("review.invalid_rating");
-        var comment = Normalize.Text(input.Comment);
-        if (comment is { Length: > 2000 }) throw new AppException("review.comment_too_long");
-        await EnsureVisibleAsync(auctionId, ct);
-        if (await db.Reviews.AnyAsync(r => r.UserId == userId && r.AuctionId == auctionId, ct)) throw AppException.Conflict("review.already_reviewed");
-        var name = await db.Users.Where(u => u.Id == userId).Select(u => u.FullName).SingleAsync(ct);
-        var r = new Review { AuctionId = auctionId, UserId = userId, Rating = input.Rating, Comment = comment, Name = name, CreatedAtUtc = Now };
-        db.Reviews.Add(r);
-        await db.SaveChangesAsync(ct);
-        return r.Id;
     }
 }

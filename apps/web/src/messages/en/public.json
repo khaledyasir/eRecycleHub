@@ -51,8 +51,6 @@
     "emptyTitle": "No stores found",
     "emptyBody": "Try a different name, or choose all countries.",
     "view": "View store",
-    "rating": "{rating} / 5 ({count, plural, one {# review} other {# reviews}})",
-    "noRating": "No reviews yet",
     "contact": "Contact",
     "lotsTitle": "Lots from this store",
     "lotsEmpty": "This store has no lots matching these filters."

@@ -18,7 +18,8 @@ public sealed record PublisherFiles(UploadInput? Logo, UploadInput? Background, 
 public sealed record AdminPublisherDetails(PublisherRow Publisher, StoreProfileDto Profile, decimal WalletBalance, int BidsOnAuctions, int Bidders);
 public sealed record ApplicationRow(int Id, int UserId, string Name, string Email, string? Mobile, string? Company, string? Address, string? CountryNameEn, string? CountryNameAr,
     ApplicationStatus Status, string? RejectionReason, DateTime CreatedAtUtc, DateTime? DecidedAtUtc, IReadOnlyList<CategoryRef> Categories,
-    FileRef? CrDocument, FileRef? VatCertificate, FileRef? IdDocument);
+    FileRef? CrDocument, FileRef? VatCertificate, FileRef? IdDocument,
+    string? CrNumber = null, string? VatNumber = null, string? BankName = null, string? AccountNumber = null, string? AccountHolderName = null);
 public sealed record ApprovalResult(int UserId, int PublisherId, bool EmailSent);
 public sealed record RejectInput(string Reason);
 
@@ -218,12 +219,14 @@ public sealed class AdminPeople(AppDbContext db, PasswordService passwords, File
             a.Status, a.RejectionReason, a.CreatedAtUtc, a.DecidedAtUtc,
             Categories = a.Categories.Select(c => new CategoryRef(c.CategoryId, c.Category!.TitleEn, c.Category.TitleAr)).ToList(),
             a.CrDocumentFileId, a.VatCertificateFileId, a.IdDocumentFileId,
+            a.User!.CrNumber, a.User.VatNumber, a.User.BankName, a.User.AccountNumber, a.User.AccountHolderName,
         }).ToListAsync(ct);
         var ids = rows.SelectMany(r => new[] { r.CrDocumentFileId, r.VatCertificateFileId, r.IdDocumentFileId }).Where(x => x != null).Select(x => x!.Value).ToList();
         var docs = await db.Files.AsNoTracking().Where(f => ids.Contains(f.Id)).ToDictionaryAsync(f => f.Id, f => new FileRef(f.Id, f.OriginalName, f.ContentType), ct);
         FileRef? Doc(Guid? id) => id is not null && docs.TryGetValue(id.Value, out var d) ? d : null;
         var items = rows.Select(r => new ApplicationRow(r.Id, r.UserId, r.Name, r.Email, r.Mobile, r.Company, r.Address, r.CountryEn, r.CountryAr, r.Status, r.RejectionReason,
-            r.CreatedAtUtc, r.DecidedAtUtc, r.Categories, Doc(r.CrDocumentFileId), Doc(r.VatCertificateFileId), Doc(r.IdDocumentFileId))).ToList();
+            r.CreatedAtUtc, r.DecidedAtUtc, r.Categories, Doc(r.CrDocumentFileId), Doc(r.VatCertificateFileId), Doc(r.IdDocumentFileId),
+            r.CrNumber, r.VatNumber, r.BankName, r.AccountNumber, r.AccountHolderName)).ToList();
         return new(items, page.SafePage, page.SafeSize, total);
     }
 

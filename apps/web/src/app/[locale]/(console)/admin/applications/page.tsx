@@ -41,6 +41,10 @@ export default async function Applications({ searchParams }: { searchParams: Pro
                     {pick(locale, a.countryNameEn, a.countryNameAr)}{a.countryNameEn ? " — " : ""}{t("submitted")}: {date(a.createdAtUtc, locale)}{a.decidedAtUtc ? ` — ${t("decided")}: ${date(a.decidedAtUtc, locale)}` : ""}
                   </p>
                   {a.address && <p className="mt-1 text-xs text-muted">{t("address")}: {a.address}</p>}
+                  <p className="mt-1 text-xs text-muted">{t("accountType")}: {a.company || a.crNumber ? t("business") : t("individual")}{a.crNumber && ` — ${t("crNumber")}: ${a.crNumber}`}{a.vatNumber && ` — ${t("vatNumber")}: ${a.vatNumber}`}</p>
+                  {(a.bankName || a.accountNumber) && (
+                    <p className="mt-1 text-xs text-muted">{t("bank")}: <bdi>{a.bankName}</bdi> — {t("accountNumber")}: <bdi dir="ltr">{a.accountNumber}</bdi>{a.accountHolderName && <> — {t("accountHolder")}: <bdi>{a.accountHolderName}</bdi></>}</p>
+                  )}
                   {a.categories.length > 0 && (
                     <p className="mt-2 flex flex-wrap gap-1"><span className="text-xs text-muted">{t("categories")}:</span>{a.categories.map((c) => <Badge key={c.id}>{pick(locale, c.titleEn, c.titleAr)}</Badge>)}</p>
                   )}

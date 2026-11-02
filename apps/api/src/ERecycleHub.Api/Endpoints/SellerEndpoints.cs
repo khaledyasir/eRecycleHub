@@ -68,8 +68,6 @@ public static class SellerEndpoints
         var g = api.MapGroup("/seller").WithTags("Seller").RequireAuthorization(Policies.Publisher);
         g.MapManagedAuctions();
         g.MapGet("/dashboard", (HttpContext ctx, SellerService s, CancellationToken ct) => s.DashboardAsync(ctx.Actor(), ct));
-        g.MapGet("/reviews", (int? page, HttpContext ctx, SellerService s, CancellationToken ct) => s.ReviewsAsync(ctx.Actor(), new PageQuery(page ?? 1, 20), ct));
-        g.MapDelete("/reviews/{id:int}", async (int id, HttpContext ctx, SellerService s, CancellationToken ct) => { await s.DeleteReviewAsync(ctx.Actor(), id, ct); return Results.NoContent(); });
         g.MapGet("/bidders", (string? q, int? page, HttpContext ctx, SellerService s, CancellationToken ct) => s.BiddersAsync(ctx.Actor(), q, new PageQuery(page ?? 1, 20), ct));
         g.MapGet("/bidders/{userId:int}", (int userId, HttpContext ctx, SellerService s, CancellationToken ct) => s.BidderAsync(ctx.Actor(), userId, ct));
         g.MapGet("/profile", (HttpContext ctx, SellerService s, CancellationToken ct) => s.ProfileAsync(ctx.Actor(), ct));

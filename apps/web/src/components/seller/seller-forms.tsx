@@ -1,34 +1,17 @@
 "use client";
 
-import { Trash2 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
 import { CurrentFile } from "@/components/account/account-forms";
-import { useAction } from "@/components/manage/manage-actions";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/display";
 import { Field, FileInput, Input, PhoneInput, Select } from "@/components/ui/form";
-import { ConfirmDialog } from "@/components/ui/overlay";
 import { useRouter } from "@/i18n/navigation";
-import { sendForm, sendJson } from "@/lib/api/client";
+import { sendForm } from "@/lib/api/client";
 import type { Schema } from "@/lib/api/types";
 import { fileUrl } from "@/lib/format";
 import { useForm, useValidators } from "@/lib/use-form";
-
-export function DeleteReviewButton({ id }: { id: number }) {
-  const t = useTranslations("seller.reviews");
-  const run = useAction();
-  return (
-    <ConfirmDialog
-      trigger={<Button variant="ghost" size="icon" aria-label={t("delete")}><Trash2 className="h-4 w-4 text-rust" /></Button>}
-      title={t("deleteTitle")}
-      body={t("deleteBody")}
-      confirmLabel={t("delete")}
-      onConfirm={() => run(() => sendJson("DELETE", `/api/seller/reviews/${id}`), t("deleted"))}
-    />
-  );
-}
 
 export function StoreProfileForm({ profile, countries }: { profile: Schema<"StoreProfileDto">; countries: { id: number; nameEn: string; nameAr: string }[] }) {
   const t = useTranslations("seller.profile");
