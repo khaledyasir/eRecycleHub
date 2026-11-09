@@ -2,6 +2,7 @@ using System.Security.Claims;
 using ERecycleHub.Application;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.BearerToken;
 using Microsoft.AspNetCore.Authentication.Cookies;
 
 namespace ERecycleHub.Api;
@@ -55,12 +56,47 @@ public static class Security
         }
     }
 
-    /// <summary>Validates the antiforgery token on every state-changing /api request (header <see cref="CsrfHeader"/>).</summary>
+    public const string AutoScheme = "auto";
+    public const string ClientHeader = "X-Client";
+
+    /// <summary>The request carries an Authorization: Bearer token (mobile app, Swagger).</summary>
+    public static bool HasBearer(HttpRequest req) => req.Headers.Authorization.ToString().StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Token client (mobile app): sends a Bearer token or <c>X-Client: mobile</c> (for calls made before it has a token). Such requests
+    /// need no CSRF token: a browser cannot add a custom header to a cross-site request without a CORS preflight, and this API allows none.
+    /// </summary>
+    public static bool IsTokenClient(HttpRequest req) => HasBearer(req) || req.Headers[ClientHeader].ToString() == "mobile";
+
+    /// <summary>
+    /// The Bearer counterpart of <see cref="ValidateSessionAsync"/>: a token is only honoured while the account is active and its security stamp
+    /// and role are unchanged, so password change/reset, deactivation and deletion end mobile sessions at once. The principal is rebuilt from
+    /// the database, so the seller claim is always current.
+    /// </summary>
+    public static async Task ValidateBearerAsync(HttpContext ctx, RequestDelegate next)
+    {
+        var principal = ctx.User;
+        if (principal.Identity is { IsAuthenticated: true, AuthenticationType: BearerTokenDefaults.AuthenticationScheme })
+            ctx.User = await SessionPrincipalAsync(ctx, principal) ?? new ClaimsPrincipal(new ClaimsIdentity());
+        await next(ctx);
+    }
+
+    /// <summary>A fresh Bearer principal for the user in <paramref name="principal"/>, or null when that session has ended.</summary>
+    public static async Task<ClaimsPrincipal?> SessionPrincipalAsync(HttpContext ctx, ClaimsPrincipal principal)
+    {
+        if (!int.TryParse(principal.FindFirstValue(ClaimTypes.NameIdentifier), out var userId)) return null;
+        var session = await ctx.RequestServices.GetRequiredService<AuthService>().GetSessionAsync(userId, ctx.RequestAborted);
+        return session is not null && session.SecurityStamp == principal.FindFirstValue(Claims.Stamp) && session.Role.ToString() == principal.FindFirstValue(ClaimTypes.Role)
+            ? Claims.Principal(session, BearerTokenDefaults.AuthenticationScheme)
+            : null;
+    }
+
+    /// <summary>Validates the antiforgery token on every state-changing /api request (header <see cref="CsrfHeader"/>), except from token clients.</summary>
     public static async Task CsrfAsync(HttpContext ctx, RequestDelegate next)
     {
         var m = ctx.Request.Method;
         var unsafeMethod = !(HttpMethods.IsGet(m) || HttpMethods.IsHead(m) || HttpMethods.IsOptions(m) || HttpMethods.IsTrace(m));
-        if (unsafeMethod && ctx.Request.Path.StartsWithSegments("/api"))
+        if (unsafeMethod && ctx.Request.Path.StartsWithSegments("/api") && !IsTokenClient(ctx.Request))
         {
             var antiforgery = ctx.RequestServices.GetRequiredService<IAntiforgery>();
             try
@@ -92,8 +128,8 @@ public static class Security
             h["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()";
             h["Cross-Origin-Opener-Policy"] = "same-origin";
             // File responses set their own (frameable by the same origin for PDF viewing); everything else is JSON and never framed.
-            // The Scalar docs page is an HTML app; 'none' would leave it blank.
-            if (ctx.Request.Path.StartsWithSegments("/api/reference")) h.ContentSecurityPolicy = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'";
+            // The Swagger UI page is an HTML app; 'none' would leave it blank. 'unsafe-eval': Swagger UI builds the request interceptor from a string.
+            if (ctx.Request.Path.StartsWithSegments("/api/swagger")) h.ContentSecurityPolicy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'";
             else if (!h.ContainsKey("Content-Security-Policy"))
             {
                 h.ContentSecurityPolicy = "default-src 'none'; frame-ancestors 'none'";

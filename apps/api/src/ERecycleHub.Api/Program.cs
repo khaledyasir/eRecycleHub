@@ -5,12 +5,13 @@ using ERecycleHub.Api.Endpoints;
 using ERecycleHub.Application;
 using ERecycleHub.Infrastructure;
 using Microsoft.AspNetCore.Antiforgery;
+using Microsoft.AspNetCore.Authentication.BearerToken;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
-using Scalar.AspNetCore;
+using Microsoft.OpenApi;
 
 var builder = WebApplication.CreateBuilder(args);
 var config = builder.Configuration;
@@ -39,6 +40,16 @@ builder.Services.AddOpenApi(o => o.AddDocumentTransformer((doc, _, _) =>
 {
     doc.Info.Title = "eRecycleHub API";
     doc.Info.Version = "v1";
+    doc.Servers = [new OpenApiServer { Url = "/", Description = "The host serving this document (e.g. https://erecyclehub.com)" }];
+    doc.Components ??= new OpenApiComponents();
+    doc.Components.SecuritySchemes ??= new Dictionary<string, IOpenApiSecurityScheme>();
+    doc.Components.SecuritySchemes["Bearer"] = new OpenApiSecurityScheme
+    {
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        Description = "Mobile app: POST /api/auth/token with header X-Client: mobile, then send the accessToken here. The web app uses the cookie session instead.",
+    };
+    doc.Security = [new OpenApiSecurityRequirement { [new OpenApiSecuritySchemeReference("Bearer", doc)] = [] }];
     return Task.CompletedTask;
 }));
 
@@ -46,9 +57,17 @@ const long MaxUpload = 60 * 1024 * 1024;
 builder.WebHost.ConfigureKestrel(k => k.Limits.MaxRequestBodySize = MaxUpload);
 builder.Services.Configure<FormOptions>(o => o.MultipartBodyLengthLimit = MaxUpload);
 
-// ---- authentication: one HttpOnly cookie, re-validated against the database on every request ----
+// ---- authentication: an HttpOnly cookie for the web app, Bearer tokens for the mobile app; both re-validated against the database on every request ----
 var secureCookies = builder.Environment.IsDevelopment() ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always;
-builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme).AddCookie(o =>
+builder.Services.AddAuthentication(Security.AutoScheme)
+    .AddPolicyScheme(Security.AutoScheme, null, o => o.ForwardDefaultSelector = c =>
+        Security.HasBearer(c.Request) ? BearerTokenDefaults.AuthenticationScheme : CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddBearerToken(o =>
+    {
+        o.BearerTokenExpiration = TimeSpan.FromHours(1);
+        o.RefreshTokenExpiration = TimeSpan.FromDays(30);
+    })
+    .AddCookie(o =>
 {
     o.Cookie.Name = "erh.auth";
     o.Cookie.HttpOnly = true;
@@ -111,15 +130,21 @@ app.UseExceptionHandler();
 app.UseStatusCodePages();
 if (!app.Environment.IsDevelopment()) app.UseHsts();
 app.Use(Security.HeadersAsync);
+// API reference, public on purpose (the mobile/backend team reads it). Under /api so the web app's existing /api proxy serves it:
+// https://<site>/api/swagger (page) and /api/openapi/v1.json (spec). "Try it out" calls are sent as a token client (X-Client: mobile).
+app.UseSwaggerUI(o =>
+{
+    o.RoutePrefix = "api/swagger";
+    o.SwaggerEndpoint("/api/openapi/v1.json", "eRecycleHub API v1");
+    o.UseRequestInterceptor("(req) => { req.headers['X-Client'] = 'mobile'; return req; }");
+});
 app.UseAuthentication();
+app.Use(Security.ValidateBearerAsync);
 app.UseAuthorization();
 app.Use(Security.CsrfAsync);
 app.UseRateLimiter();
 
-// API reference, public on purpose (the mobile/backend team reads it). Under /api so the web app's existing /api proxy serves it:
-// https://<site>/api/reference/v1 (page) and /api/openapi/v1.json (spec).
 app.MapOpenApi("/api/openapi/{documentName}.json").AllowAnonymous();
-app.MapScalarApiReference("/api/reference", o => o.WithOpenApiRoutePattern("/api/openapi/{documentName}.json")).AllowAnonymous();
 
 var api = app.MapGroup("/api").DisableAntiforgery(); // antiforgery is enforced for every unsafe /api request by Security.CsrfAsync
 app.MapHub<AuctionHub>("/hubs/auctions").AllowAnonymous(); // outside /api: no CSRF check on the negotiate POST, not proxied by the web app

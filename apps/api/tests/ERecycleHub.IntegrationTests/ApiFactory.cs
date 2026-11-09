@@ -63,6 +63,7 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         b.UseSetting("RateLimits:AuthPerMinute", "100000");
         b.UseSetting("RateLimits:FormsPerMinute", "100000");
         b.UseSetting("RateLimits:BidsPerMinute", "100000");
+        b.UseSetting("Otp:FixedCode", "123456");
         b.ConfigureServices(s =>
         {
             s.AddSingleton<TimeProvider>(Clock);

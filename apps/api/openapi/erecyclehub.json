@@ -4,6 +4,12 @@
     "title": "eRecycleHub API",
     "version": "v1"
   },
+  "servers": [
+    {
+      "url": "/",
+      "description": "The host serving this document (e.g. https://erecyclehub.com)"
+    }
+  ],
   "paths": {
     "/api/auth/me": {
       "get": {
@@ -46,6 +52,123 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/MeResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/token": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Sign in for the mobile app",
+        "description": "Returns a Bearer access token (expiresIn seconds, 1 hour) and a refresh token (30 days). Then call GET /api/auth/me for the user. A password change or reset ends all tokens.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessTokenResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/token/refresh": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "New tokens from a refresh token",
+        "description": "401 auth.refresh_invalid when the refresh token is expired, malformed, or the account's session has ended: sign in again.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessTokenResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/otp/send": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Password reset by phone, step 1: send the code",
+        "description": "No SMS provider yet: outside Production the code is always the configured fixed code; in Production this returns 503 otp.unavailable.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OtpSendRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/auth/otp/verify": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Password reset by phone, step 2: check the code",
+        "description": "Returns a resetToken (valid 1 hour). Step 3: POST /api/auth/reset-password {token: resetToken, password}. Wrong code, unknown number or a number shared by several accounts: 400 otp.invalid.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OtpVerifyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OtpVerifyResponse"
                 }
               }
             }
@@ -179,6 +302,7 @@
         "tags": [
           "Auth"
         ],
+        "description": "Cookie session: returns MeResponse. Bearer client: returns new tokens (AccessTokenResponse); the old ones stop working.",
         "requestBody": {
           "content": {
             "application/json": {
@@ -5061,6 +5185,32 @@
           }
         }
       },
+      "AccessTokenResponse": {
+        "required": [
+          "accessToken",
+          "expiresIn",
+          "refreshToken"
+        ],
+        "type": "object",
+        "properties": {
+          "tokenType": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "accessToken": {
+            "type": "string"
+          },
+          "expiresIn": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "refreshToken": {
+            "type": "string"
+          }
+        }
+      },
       "AccountDashboard": {
         "required": [
           "auctionsAttended",
@@ -8482,6 +8632,43 @@
           }
         }
       },
+      "OtpSendRequest": {
+        "required": [
+          "phone"
+        ],
+        "type": "object",
+        "properties": {
+          "phone": {
+            "type": "string"
+          }
+        }
+      },
+      "OtpVerifyRequest": {
+        "required": [
+          "phone",
+          "code"
+        ],
+        "type": "object",
+        "properties": {
+          "phone": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          }
+        }
+      },
+      "OtpVerifyResponse": {
+        "required": [
+          "resetToken"
+        ],
+        "type": "object",
+        "properties": {
+          "resetToken": {
+            "type": "string"
+          }
+        }
+      },
       "PagedResultOfApplicationRow": {
         "required": [
           "items",
@@ -9517,6 +9704,17 @@
           "auctionCount": {
             "type": "integer",
             "format": "int32"
+          }
+        }
+      },
+      "RefreshRequest": {
+        "required": [
+          "refreshToken"
+        ],
+        "type": "object",
+        "properties": {
+          "refreshToken": {
+            "type": "string"
           }
         }
       },
@@ -11087,8 +11285,20 @@
           }
         }
       }
+    },
+    "securitySchemes": {
+      "Bearer": {
+        "type": "http",
+        "description": "Mobile app: POST /api/auth/token with header X-Client: mobile, then send the accessToken here. The web app uses the cookie session instead.",
+        "scheme": "bearer"
+      }
     }
   },
+  "security": [
+    {
+      "Bearer": [ ]
+    }
+  ],
   "tags": [
     {
       "name": "Auth"

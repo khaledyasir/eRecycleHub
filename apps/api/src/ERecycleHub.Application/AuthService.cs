@@ -141,13 +141,7 @@ public sealed class AuthService(AppDbContext db, PasswordService passwords, File
         var user = await db.Users.FirstOrDefaultAsync(u => u.Email == emailNorm && u.IsActive && !u.IsDeleted, ct);
         if (user is null) return;
 
-        var now = Now;
-        // A new request supersedes older unused links.
-        await db.PasswordResetTokens.Where(t => t.UserId == user.Id && t.UsedAtUtc == null).ExecuteUpdateAsync(s => s.SetProperty(t => t.UsedAtUtc, now), ct);
-        var token = PasswordService.NewToken();
-        db.PasswordResetTokens.Add(new PasswordResetToken { UserId = user.Id, TokenHash = PasswordService.Sha256(token), CreatedAtUtc = now, ExpiresAtUtc = now + ResetTokenLifetime });
-        await db.SaveChangesAsync(ct);
-
+        var token = await NewResetTokenAsync(user.Id, ct);
         var (subject, html) = EmailTemplates.PasswordReset(arabic, resetUrlBase + Uri.EscapeDataString(token));
         try
         {
@@ -158,6 +152,29 @@ public sealed class AuthService(AppDbContext db, PasswordService passwords, File
             // Delivery failure must not change the response the requester sees.
             log.LogError(ex, "Password reset email for user {UserId} could not be sent", user.Id);
         }
+    }
+
+    /// <summary>
+    /// Phone reset, after the caller has checked the SMS code: a reset token (same as the e-mailed one, used with ResetPasswordAsync) for the
+    /// single active account with this number. An unknown or shared number gets the same error as a wrong code.
+    /// </summary>
+    public async Task<string> PhoneResetTokenAsync(string phone, CancellationToken ct = default)
+    {
+        var p = Normalize.Text(phone);
+        var ids = await db.Users.Where(u => u.Phone == p && u.IsActive && !u.IsDeleted).Select(u => u.Id).Take(2).ToListAsync(ct);
+        if (ids.Count != 1) throw new AppException("otp.invalid");
+        return await NewResetTokenAsync(ids[0], ct);
+    }
+
+    private async Task<string> NewResetTokenAsync(int userId, CancellationToken ct)
+    {
+        var now = Now;
+        // A new request supersedes older unused tokens.
+        await db.PasswordResetTokens.Where(t => t.UserId == userId && t.UsedAtUtc == null).ExecuteUpdateAsync(s => s.SetProperty(t => t.UsedAtUtc, now), ct);
+        var token = PasswordService.NewToken();
+        db.PasswordResetTokens.Add(new PasswordResetToken { UserId = userId, TokenHash = PasswordService.Sha256(token), CreatedAtUtc = now, ExpiresAtUtc = now + ResetTokenLifetime });
+        await db.SaveChangesAsync(ct);
+        return token;
     }
 
     public async Task<bool> IsResetTokenValidAsync(string token, CancellationToken ct = default)
