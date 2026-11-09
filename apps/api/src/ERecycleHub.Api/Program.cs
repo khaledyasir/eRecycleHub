@@ -32,6 +32,7 @@ builder.Services.ConfigureHttpJsonOptions(o =>
     o.SerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.Never;
     o.SerializerOptions.NumberHandling = JsonNumberHandling.Strict; // amounts must be JSON numbers, never strings
 });
+builder.Services.AddSignalR();
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<ProblemExceptionHandler>();
 builder.Services.AddOpenApi(o => o.AddDocumentTransformer((doc, _, _) =>
@@ -122,6 +123,7 @@ if (app.Environment.IsDevelopment())
 }
 
 var api = app.MapGroup("/api").DisableAntiforgery(); // antiforgery is enforced for every unsafe /api request by Security.CsrfAsync
+app.MapHub<AuctionHub>("/hubs/auctions").AllowAnonymous(); // outside /api: no CSRF check on the negotiate POST, not proxied by the web app
 api.MapAuthEndpoints();
 api.MapPublicEndpoints();
 api.MapAccountEndpoints();

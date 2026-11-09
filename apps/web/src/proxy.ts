@@ -63,6 +63,6 @@ export default function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Everything except the API proxy, Next internals and files with an extension.
-  matcher: "/((?!api|_next|_vercel|.*\\..*).*)",
+  // Everything except the API/SignalR proxies, Next internals and files with an extension.
+  matcher: "/((?!api|hubs|_next|_vercel|.*\\..*).*)",
 };

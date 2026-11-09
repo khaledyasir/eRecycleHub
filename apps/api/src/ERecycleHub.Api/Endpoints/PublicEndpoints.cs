@@ -1,6 +1,7 @@
 using ERecycleHub.Application;
 using ERecycleHub.Domain;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.Net.Http.Headers;
 
 namespace ERecycleHub.Api.Endpoints;
@@ -37,8 +38,14 @@ public static class PublicEndpoints
 
         // --- member actions on an auction ---
         var m = api.MapGroup("/auctions/{id:int}").WithTags("Public").RequireAuthorization(Policies.Member);
-        m.MapPost("/bids", (int id, PlaceBidRequest req, HttpContext ctx, BiddingService bidding, CancellationToken ct) =>
-            bidding.PlaceBidAsync(ctx.Actor().UserId, id, req.Amount, ct)).RequireRateLimiting(RateLimits.Bids);
+        m.MapPost("/bids", async (int id, PlaceBidRequest req, HttpContext ctx, BiddingService bidding, IHubContext<AuctionHub> hub, TimeProvider clock, CancellationToken ct) =>
+        {
+            var placed = await bidding.PlaceBidAsync(ctx.Actor().UserId, id, req.Amount, ct);
+            // The bid is committed; a failed push must not turn it into an error for the bidder (clients refetch on reconnect).
+            try { await hub.Clients.Group(AuctionHub.Room(id)).SendAsync("bid.placed", new { placed.AuctionId, placed.CurrentPrice, placed.MinimumNextBid, BidsCount = placed.BidCount, placed.BidId, ServerTime = clock.GetUtcNow().UtcDateTime }, CancellationToken.None); }
+            catch (Exception) { }
+            return placed;
+        }).RequireRateLimiting(RateLimits.Bids);
         m.MapPut("/favorite", async (int id, HttpContext ctx, AccountService a, CancellationToken ct) => { await a.SetFavoriteAsync(ctx.Actor().UserId, id, true, ct); return Results.NoContent(); });
         m.MapDelete("/favorite", async (int id, HttpContext ctx, AccountService a, CancellationToken ct) => { await a.SetFavoriteAsync(ctx.Actor().UserId, id, false, ct); return Results.NoContent(); });
         m.MapPut("/watch", async (int id, HttpContext ctx, AccountService a, CancellationToken ct) => { await a.SetWatchAsync(ctx.Actor().UserId, id, true, ct); return Results.NoContent(); });

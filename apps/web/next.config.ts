@@ -35,7 +35,10 @@ const nextConfig: NextConfig = {
     },
   },
   async rewrites() {
-    return [{ source: "/api/:path*", destination: `${apiUrl}/api/:path*` }];
+    return [
+      { source: "/api/:path*", destination: `${apiUrl}/api/:path*` },
+      { source: "/hubs/:path*", destination: `${apiUrl}/hubs/:path*` }, // SignalR (live bids)
+    ];
   },
   async headers() {
     return [
