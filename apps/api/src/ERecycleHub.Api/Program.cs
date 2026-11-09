@@ -116,11 +116,10 @@ app.UseAuthorization();
 app.Use(Security.CsrfAsync);
 app.UseRateLimiter();
 
-if (app.Environment.IsDevelopment())
-{
-    app.MapOpenApi().AllowAnonymous();
-    app.MapScalarApiReference().AllowAnonymous();
-}
+// API reference, public on purpose (the mobile/backend team reads it). Under /api so the web app's existing /api proxy serves it:
+// https://<site>/api/docs/v1 (page) and /api/openapi/v1.json (spec).
+app.MapOpenApi("/api/openapi/{documentName}.json").AllowAnonymous();
+app.MapScalarApiReference("/api/docs", o => o.WithOpenApiRoutePattern("/api/openapi/{documentName}.json")).AllowAnonymous();
 
 var api = app.MapGroup("/api").DisableAntiforgery(); // antiforgery is enforced for every unsafe /api request by Security.CsrfAsync
 app.MapHub<AuctionHub>("/hubs/auctions").AllowAnonymous(); // outside /api: no CSRF check on the negotiate POST, not proxied by the web app
