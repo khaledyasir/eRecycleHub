@@ -112,7 +112,7 @@ public sealed class SessionService(AppDbContext db, TimeProvider clock, IOptions
 
 public sealed class OtpOptions
 {
-    /// <summary>Development/testing only (the host clears it in Production): every code is this value instead of a random one.</summary>
+    /// <summary>When set, every code is this value instead of a random one and phone codes need no SMS provider. Insecure: clear it once SMS works.</summary>
     public string? FixedCode { get; set; }
     public int Length { get; set; } = 5;
     public int LifetimeMinutes { get; set; } = 10;
@@ -170,7 +170,8 @@ public sealed class OtpService(AppDbContext db, TimeProvider clock, IOptions<Otp
 
         var isEmail = target.Contains('@');
         var sms = isEmail ? null : services.GetService(typeof(ISmsSender)) as ISmsSender;
-        if (!isEmail && sms is null) throw new AppException("otp.unavailable", 503);
+        var fixedCode = !string.IsNullOrEmpty(O.FixedCode);
+        if (!isEmail && sms is null && !fixedCode) throw new AppException("otp.unavailable", 503);
 
         var code = string.IsNullOrEmpty(O.FixedCode) ? RandomNumberGenerator.GetInt32(0, (int)Math.Pow(10, O.Length)).ToString("D" + O.Length) : O.FixedCode;
         // A new code replaces any earlier unverified one.
@@ -189,7 +190,8 @@ public sealed class OtpService(AppDbContext db, TimeProvider clock, IOptions<Otp
             else
             {
                 var text = arabic ? $"رمز التحقق في eRecycleHub: {code}" : $"Your eRecycleHub verification code: {code}";
-                await sms!.SendAsync(MobilePhone.ToE164(target)!, text, ct);
+                // With a fixed code and no provider there is nothing to deliver: the user already knows the code.
+                if (sms is not null) await sms.SendAsync(MobilePhone.ToE164(target)!, text, ct);
             }
         }
         catch (Exception ex) when (ex is not OperationCanceledException)

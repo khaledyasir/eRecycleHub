@@ -22,18 +22,16 @@ builder.Services.Configure<StorageOptions>(config.GetSection("Storage"));
 builder.Services.Configure<EmailOptions>(config.GetSection("Email"));
 builder.Services.Configure<TokenSessionOptions>(config.GetSection("Sessions"));
 builder.Services.Configure<MobileOptions>(config.GetSection("Mobile"));
-builder.Services.Configure<OtpOptions>(o =>
-{
-    config.GetSection("Otp").Bind(o);
-    // A known code would let anyone verify any phone number: never in Production.
-    if (builder.Environment.IsProduction()) o.FixedCode = null;
-});
+// Otp:FixedCode (default "12345" in appsettings.json) makes every one-time code that value, in every environment, and no SMS is needed.
+// SECURITY: while it is set, anyone who knows a phone number can verify it and reset that account's password. Clear it once an SMS
+// provider (ISmsSender) is registered below.
+builder.Services.Configure<OtpOptions>(config.GetSection("Otp"));
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<PasswordService>();
 if (config["Email:Provider"] == "SendGrid") builder.Services.AddScoped<IEmailSender, SendGridEmailSender>();
 else builder.Services.AddScoped<IEmailSender, PickupEmailSender>();
-// ponytail: no SMS provider yet. Outside Production the code is only logged; in Production phone codes answer 503 OTP_UNAVAILABLE
-// until a real ISmsSender is registered here.
+// ponytail: no SMS provider yet. Outside Production the code is only logged; in Production, without Otp:FixedCode, phone codes answer
+// 503 OTP_UNAVAILABLE until a real ISmsSender is registered here.
 if (!builder.Environment.IsProduction()) builder.Services.AddSingleton<ISmsSender, LoggingSmsSender>();
 builder.Services.AddApplicationServices();
 builder.Services.AddHttpContextAccessor();
@@ -101,6 +99,8 @@ builder.Services.Configure<ForwardedHeadersOptions>(o =>
 var app = builder.Build();
 
 if (args.Length > 0 && await Commands.RunAsync(app, args)) return;
+if (app.Environment.IsProduction() && !string.IsNullOrEmpty(config["Otp:FixedCode"]))
+    app.Logger.LogWarning("Otp:FixedCode is set: every one-time code is the same fixed value. Clear it once SMS delivery is configured.");
 
 app.UseForwardedHeaders();
 app.UseExceptionHandler();
