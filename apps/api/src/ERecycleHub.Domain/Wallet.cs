@@ -9,6 +9,14 @@ public enum WalletTransactionStatus
     Reversed = 3,
 }
 
+public enum WalletTransactionType
+{
+    /// <summary>Money in: a top-up request or an administrator credit.</summary>
+    Credit = 0,
+    /// <summary>Money out: a customer's withdrawal request. The balance is debited only when an administrator approves it.</summary>
+    Withdrawal = 1,
+}
+
 /// <summary>A wallet credit: a customer's top-up request (starts Pending) or an administrator's direct credit (starts Approved).
 /// Legacy table [Transaction]; the only legacy type is "Credit".</summary>
 public class WalletTransaction
@@ -16,6 +24,7 @@ public class WalletTransaction
     public int Id { get; set; }
     public int UserId { get; set; }
     public User? User { get; set; }
+    public WalletTransactionType Type { get; set; }
     public decimal Amount { get; set; }
     public WalletTransactionStatus Status { get; set; }
     public Guid? ProofFileId { get; set; }
@@ -35,6 +44,7 @@ public enum LedgerReason
     TopUpApproved = 1,
     AdminCredit = 2,
     CreditReversed = 3,
+    WithdrawalPaid = 4,
 }
 
 /// <summary>Append-only record of every balance change. Sum of entries per user equals <see cref="User.WalletBalance"/>.</summary>

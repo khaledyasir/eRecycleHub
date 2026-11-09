@@ -158,12 +158,21 @@ public sealed class AuthService(AppDbContext db, PasswordService passwords, File
     /// Phone reset, after the caller has checked the SMS code: a reset token (same as the e-mailed one, used with ResetPasswordAsync) for the
     /// single active account with this number. An unknown or shared number gets the same error as a wrong code.
     /// </summary>
-    public async Task<string> PhoneResetTokenAsync(string phone, CancellationToken ct = default)
+    public async Task<string> PhoneResetTokenAsync(string phone, CancellationToken ct = default) =>
+        await ResetTokenForAsync(phone, ct) ?? throw new AppException("otp.invalid");
+
+    /// <summary>
+    /// After a verified one-time code: a reset token for the single active account with this phone number (07XXXXXXXX) or e-mail address,
+    /// or null when there is none (or several share the number).
+    /// </summary>
+    public async Task<string?> ResetTokenForAsync(string target, CancellationToken ct = default)
     {
-        var p = Normalize.Text(phone);
-        var ids = await db.Users.Where(u => u.Phone == p && u.IsActive && !u.IsDeleted).Select(u => u.Id).Take(2).ToListAsync(ct);
-        if (ids.Count != 1) throw new AppException("otp.invalid");
-        return await NewResetTokenAsync(ids[0], ct);
+        var t = Normalize.Text(target);
+        if (t is null) return null;
+        var q = db.Users.Where(u => u.IsActive && !u.IsDeleted);
+        q = t.Contains('@') ? q.Where(u => u.Email == Normalize.Email(t)) : q.Where(u => u.Phone == t);
+        var ids = await q.Select(u => u.Id).Take(2).ToListAsync(ct);
+        return ids.Count == 1 ? await NewResetTokenAsync(ids[0], ct) : null;
     }
 
     private async Task<string> NewResetTokenAsync(int userId, CancellationToken ct)
@@ -185,7 +194,8 @@ public sealed class AuthService(AppDbContext db, PasswordService passwords, File
         return await db.PasswordResetTokens.AnyAsync(t => t.TokenHash == hash && t.UsedAtUtc == null && t.ExpiresAtUtc > now, ct);
     }
 
-    public async Task ResetPasswordAsync(string token, string newPassword, CancellationToken ct = default)
+    /// <summary>Returns the id of the account whose password was reset.</summary>
+    public async Task<int> ResetPasswordAsync(string token, string newPassword, CancellationToken ct = default)
     {
         ValidatePassword(newPassword);
         var hash = PasswordService.Sha256(token ?? "");
@@ -205,6 +215,7 @@ public sealed class AuthService(AppDbContext db, PasswordService passwords, File
         audit.Record(new Actor(userId, user.Role), "user.password_reset", nameof(User), userId);
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
+        return userId;
     }
 
     private static SessionUser ToSession(User u, int? publisherId) => new(u.Id, u.FullName, u.Email, u.Role, u.SecurityStamp, u.AvatarFileId, publisherId);

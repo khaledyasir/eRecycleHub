@@ -25,6 +25,8 @@ public static class NotificationKinds
     public const string Outbid = "auction.outbid";
     public const string TopUpApproved = "wallet.topup_approved";
     public const string TopUpRejected = "wallet.topup_rejected";
+    public const string WithdrawalApproved = "wallet.withdrawal_approved";
+    public const string WithdrawalRejected = "wallet.withdrawal_rejected";
     public const string AuctionWon = "auction.won";
     public const string SellerApproved = "seller.approved";
     public const string SellerRejected = "seller.rejected";
@@ -44,6 +46,8 @@ public class Notification
     public string? Url { get; set; }
     public bool IsRead { get; set; }
     public DateTime CreatedAtUtc { get; set; }
+    /// <summary>Soft delete: hidden from the list but restorable (mobile "undo").</summary>
+    public DateTime? DeletedAtUtc { get; set; }
 }
 
 public class Review

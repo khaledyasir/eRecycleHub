@@ -63,7 +63,7 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         b.UseSetting("RateLimits:AuthPerMinute", "100000");
         b.UseSetting("RateLimits:FormsPerMinute", "100000");
         b.UseSetting("RateLimits:BidsPerMinute", "100000");
-        b.UseSetting("Otp:FixedCode", "123456");
+        b.UseSetting("Otp:FixedCode", "12345");
         b.ConfigureServices(s =>
         {
             s.AddSingleton<TimeProvider>(Clock);
@@ -146,69 +146,57 @@ public sealed class ApiCollection : ICollectionFixture<ApiFactory>
     public const string Name = "api";
 }
 
-/// <summary>HTTP client that behaves like the web app: cookie session + antiforgery header on unsafe requests.</summary>
+/// <summary>HTTP client that behaves like the mobile app: Bearer token, lang header, JSON envelope.</summary>
 public sealed class ApiClient(HttpClient http)
 {
     public static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web) { Converters = { new JsonStringEnumConverter() } };
-    private string? _csrf;
 
     public HttpClient Http => http;
+    public string? Token { get; private set; }
 
-    public async Task<string> CsrfAsync()
+    public void UseToken(string? token)
     {
-        if (_csrf is null)
-        {
-            var me = await http.GetFromJsonAsync<JsonElement>("/api/auth/me", Json);
-            _csrf = me.GetProperty("csrfToken").GetString();
-        }
-        return _csrf!;
-    }
-
-    private async Task<HttpResponseMessage> SendAsync(HttpMethod method, string url, HttpContent? content, bool withCsrf = true)
-    {
-        var req = new HttpRequestMessage(method, url) { Content = content };
-        if (withCsrf) req.Headers.Add("X-CSRF-TOKEN", await CsrfAsync());
-        var res = await http.SendAsync(req);
-        // Sign-in state changes return a token bound to the new identity.
-        if (res.IsSuccessStatusCode && url.StartsWith("/api/auth/") && res.Content.Headers.ContentType?.MediaType == "application/json")
-        {
-            var body = await res.Content.ReadFromJsonAsync<JsonElement>(Json);
-            if (body.ValueKind == JsonValueKind.Object && body.TryGetProperty("csrfToken", out var t)) _csrf = t.GetString();
-        }
-        return res;
+        Token = token;
+        http.DefaultRequestHeaders.Authorization = token is null ? null : new AuthenticationHeaderValue("Bearer", token);
     }
 
     public Task<HttpResponseMessage> GetAsync(string url) => http.GetAsync(url);
-    public async Task<T> GetJsonAsync<T>(string url) => (await http.GetFromJsonAsync<T>(url, Json))!;
-    public Task<HttpResponseMessage> PostAsync(string url, object? body = null, bool withCsrf = true) =>
-        SendAsync(HttpMethod.Post, url, body is null ? null : JsonContent.Create(body, options: Json), withCsrf);
-    public Task<HttpResponseMessage> PutAsync(string url, object? body = null) => SendAsync(HttpMethod.Put, url, body is null ? null : JsonContent.Create(body, options: Json));
-    public Task<HttpResponseMessage> DeleteAsync(string url) => SendAsync(HttpMethod.Delete, url, null);
+    public Task<HttpResponseMessage> PostAsync(string url, object? body = null) => http.PostAsync(url, JsonContent.Create(body ?? new { }, options: Json));
+    public Task<HttpResponseMessage> PutAsync(string url, object body) => http.PutAsync(url, JsonContent.Create(body, options: Json));
+    public Task<HttpResponseMessage> DeleteAsync(string url) => http.DeleteAsync(url);
 
-    public Task<HttpResponseMessage> MultipartAsync(HttpMethod method, string url, object data, params (string name, string fileName, byte[] bytes)[] files)
+    /// <summary>The envelope's <c>data</c>, after asserting success.</summary>
+    public async Task<JsonElement> DataAsync(Task<HttpResponseMessage> call)
     {
-        var form = new MultipartFormDataContent { { new StringContent(JsonSerializer.Serialize(data, Json)), "data" } };
-        foreach (var (name, fileName, bytes) in files)
-        {
-            var part = new ByteArrayContent(bytes);
-            part.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
-            form.Add(part, name, fileName);
-        }
-        return SendAsync(method, url, form);
+        var res = await call;
+        var body = await Body(res);
+        Assert.True(res.IsSuccessStatusCode && body.GetProperty("success").GetBoolean(), $"{(int)res.StatusCode}: {body}");
+        return body.GetProperty("data");
     }
 
-    public Task<HttpResponseMessage> LoginAsync(string email, string password, bool adminOnly = false) =>
-        PostAsync("/api/auth/login", new { email, password, adminOnly });
-
-    public Task<HttpResponseMessage> BidAsync(int auctionId, decimal amount) => PostAsync($"/api/auctions/{auctionId}/bids", new { amount });
-
-    public static async Task<string?> CodeAsync(HttpResponseMessage r)
+    public static async Task<JsonElement> Body(HttpResponseMessage r)
     {
-        var body = await r.Content.ReadAsStringAsync();
-        if (string.IsNullOrEmpty(body)) return null;
-        using var doc = JsonDocument.Parse(body);
-        return doc.RootElement.TryGetProperty("code", out var c) ? c.GetString() : null;
+        var text = await r.Content.ReadAsStringAsync();
+        using var doc = JsonDocument.Parse(text);
+        return doc.RootElement.Clone();
     }
+
+    /// <summary>Asserts a failure envelope and returns its errorCode.</summary>
+    public static async Task<string?> ErrorCodeAsync(HttpResponseMessage r)
+    {
+        var body = await Body(r);
+        Assert.False(body.GetProperty("success").GetBoolean());
+        return body.GetProperty("errorCode").GetString();
+    }
+
+    public async Task<HttpResponseMessage> LoginAsync(string email, string password)
+    {
+        var r = await PostAsync("/api/v1/auth/login", new { email, password });
+        if (r.IsSuccessStatusCode) UseToken((await Body(r)).GetProperty("data").GetProperty("token").GetString());
+        return r;
+    }
+
+    public Task<HttpResponseMessage> BidAsync(int auctionId, decimal amount) => PostAsync($"/api/v1/auctions/{auctionId}/bids", new { amount });
 }
 
 public static class TestFiles

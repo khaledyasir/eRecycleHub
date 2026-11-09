@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 namespace ERecycleHub.Application;
 
 public sealed record WalletTransactionDto(int Id, int UserId, string? UserName, string? UserEmail, decimal Amount, WalletTransactionStatus Status,
-    Guid? ProofFileId, int? AuctionId, string? Note, DateTime CreatedAtUtc, DateTime? DecidedAtUtc);
+    Guid? ProofFileId, int? AuctionId, string? Note, DateTime CreatedAtUtc, DateTime? DecidedAtUtc, WalletTransactionType Type = WalletTransactionType.Credit);
 
 public sealed record LedgerEntryDto(long Id, decimal Amount, decimal BalanceAfter, LedgerReason Reason, int? WalletTransactionId, DateTime CreatedAtUtc);
 
@@ -49,6 +49,31 @@ public sealed class WalletService(AppDbContext db, TimeProvider clock, Audit aud
         return (await GetAsync(t.Id, ct))!;
     }
 
+    /// <summary>
+    /// Customer withdrawal request. Never touches the balance (an administrator pays it out and approves it). The user row is locked so
+    /// concurrent requests cannot together ask for more than the balance minus the withdrawals already pending.
+    /// </summary>
+    public async Task<WalletTransactionDto> RequestWithdrawalAsync(int userId, decimal amount, CancellationToken ct = default)
+    {
+        if (!Money.IsValidPositive(amount, MaxTopUp)) throw new AppException("wallet.invalid_amount", 400, new { max = MaxTopUp });
+        await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
+        var balances = await db.Database.SqlQuery<decimal>($"SELECT WalletBalance AS Value FROM Users WITH (UPDLOCK, ROWLOCK) WHERE Id = {userId}").ToListAsync(ct);
+        if (balances.Count != 1) throw AppException.NotFound("user");
+        var pending = await db.WalletTransactions
+            .Where(t => t.UserId == userId && t.Type == WalletTransactionType.Withdrawal && t.Status == WalletTransactionStatus.Pending)
+            .SumAsync(t => (decimal?)t.Amount, ct) ?? 0;
+        if (amount > balances[0] - pending) throw new AppException("wallet.insufficient", 422, new { available = balances[0] - pending });
+        var t = new WalletTransaction
+        {
+            UserId = userId, Type = WalletTransactionType.Withdrawal, Amount = amount, Status = WalletTransactionStatus.Pending,
+            CreatedByUserId = userId, CreatedAtUtc = Now,
+        };
+        db.WalletTransactions.Add(t);
+        await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
+        return (await GetAsync(t.Id, ct))!;
+    }
+
     /// <summary>Administrator adds funds directly (already approved).</summary>
     public async Task<WalletTransactionDto> CreateApprovedCreditAsync(Actor admin, int userId, decimal amount, Guid? proofFileId, int? auctionId, string? note, CancellationToken ct = default)
     {
@@ -72,16 +97,24 @@ public sealed class WalletService(AppDbContext db, TimeProvider clock, Audit aud
     }
 
     /// <summary>Pending → Approved and credits the wallet exactly once. A second (or concurrent) call fails with wallet.not_pending.</summary>
-    public Task<WalletTransactionDto> ApproveAsync(Actor admin, int id, CancellationToken ct = default) =>
-        TransitionAsync(admin, id, WalletTransactionStatus.Pending, WalletTransactionStatus.Approved, +1, LedgerReason.TopUpApproved, NotificationKinds.TopUpApproved, ct);
+    /// <summary>For a withdrawal: Pending → Approved and debits the wallet exactly once (wallet.insufficient if the balance no longer covers it).</summary>
+    public async Task<WalletTransactionDto> ApproveAsync(Actor admin, int id, CancellationToken ct = default) =>
+        await TypeOfAsync(id, ct) == WalletTransactionType.Withdrawal
+            ? await TransitionAsync(admin, id, WalletTransactionStatus.Pending, WalletTransactionStatus.Approved, -1, LedgerReason.WithdrawalPaid, NotificationKinds.WithdrawalApproved, ct)
+            : await TransitionAsync(admin, id, WalletTransactionStatus.Pending, WalletTransactionStatus.Approved, +1, LedgerReason.TopUpApproved, NotificationKinds.TopUpApproved, ct);
 
-    public Task<WalletTransactionDto> RejectAsync(Actor admin, int id, CancellationToken ct = default) =>
-        TransitionAsync(admin, id, WalletTransactionStatus.Pending, WalletTransactionStatus.Rejected, 0, null, NotificationKinds.TopUpRejected, ct);
+    public async Task<WalletTransactionDto> RejectAsync(Actor admin, int id, CancellationToken ct = default) =>
+        await TransitionAsync(admin, id, WalletTransactionStatus.Pending, WalletTransactionStatus.Rejected, 0, null,
+            await TypeOfAsync(id, ct) == WalletTransactionType.Withdrawal ? NotificationKinds.WithdrawalRejected : NotificationKinds.TopUpRejected, ct);
+
+    private async Task<WalletTransactionType> TypeOfAsync(int id, CancellationToken ct) =>
+        await db.WalletTransactions.Where(t => t.Id == id).Select(t => (WalletTransactionType?)t.Type).FirstOrDefaultAsync(ct)
+            ?? throw AppException.NotFound("transaction");
 
     /// <summary>Approved → Reversed and debits the credited amount (replaces the legacy "delete reverses an approved credit").
     /// The balance may go below zero if the funds were already used, exactly as in the legacy system.</summary>
-    public Task<WalletTransactionDto> ReverseAsync(Actor admin, int id, CancellationToken ct = default) =>
-        TransitionAsync(admin, id, WalletTransactionStatus.Approved, WalletTransactionStatus.Reversed, -1, LedgerReason.CreditReversed, null, ct);
+    public async Task<WalletTransactionDto> ReverseAsync(Actor admin, int id, CancellationToken ct = default) =>
+        await TypeOfAsync(id, ct) == WalletTransactionType.Withdrawal ? throw AppException.Conflict("wallet.reverse_not_allowed") : await TransitionAsync(admin, id, WalletTransactionStatus.Approved, WalletTransactionStatus.Reversed, -1, LedgerReason.CreditReversed, null, ct);
 
     /// <summary>Only requests that never moved money (pending or rejected) can be deleted; approved credits must be reversed.</summary>
     public async Task DeleteAsync(Actor admin, int id, CancellationToken ct = default)
@@ -124,6 +157,12 @@ public sealed class WalletService(AppDbContext db, TimeProvider clock, Audit aud
         }
 
         var t = await db.WalletTransactions.AsNoTracking().SingleAsync(x => x.Id == id, ct);
+        if (sign < 0 && t.Type == WalletTransactionType.Withdrawal
+            && await db.Users.Where(u => u.Id == t.UserId).Select(u => u.WalletBalance).SingleAsync(ct) < t.Amount)
+        {
+            await tx.RollbackAsync(ct);
+            throw new AppException("wallet.insufficient", 422);
+        }
         if (reason is not null) await PostAsync(t.UserId, sign * t.Amount, reason.Value, t.Id, admin.UserId, ct);
         if (notificationKind is not null)
             db.Notifications.Add(new Notification { UserId = t.UserId, FromUserId = admin.UserId, Kind = notificationKind, Amount = t.Amount, Url = "/account/wallet", CreatedAtUtc = now });
@@ -154,7 +193,7 @@ public sealed class WalletService(AppDbContext db, TimeProvider clock, Audit aud
         Project(db.WalletTransactions.Where(t => t.Id == id)).FirstOrDefaultAsync(ct);
 
     public static IQueryable<WalletTransactionDto> Project(IQueryable<WalletTransaction> q) => q.Select(t => new WalletTransactionDto(
-        t.Id, t.UserId, t.User!.FullName, t.User.Email, t.Amount, t.Status, t.ProofFileId, t.AuctionId, t.Note, t.CreatedAtUtc, t.DecidedAtUtc));
+        t.Id, t.UserId, t.User!.FullName, t.User.Email, t.Amount, t.Status, t.ProofFileId, t.AuctionId, t.Note, t.CreatedAtUtc, t.DecidedAtUtc, t.Type));
 
     public async Task<PagedResult<WalletTransactionDto>> ListAsync(int? userId, WalletTransactionStatus? status, string? search, DateTime? fromUtc, DateTime? toUtc, PageQuery page, CancellationToken ct = default)
     {

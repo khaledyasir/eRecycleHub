@@ -36,4 +36,8 @@ public static class EmailTemplates
             $"<p>عزيزي {E(userName)}،</p><p>يسعدنا إبلاغك بفوزك بالمزاد التالي:</p><ul><li>المزاد: {E(title)}</li><li>الرقم المرجعي: {E(refNumber)}</li><li>مبلغ الفوز: {amount:N2} دينار</li><li>تاريخ الانتهاء (UTC): {endedUtc:yyyy-MM-dd HH:mm}</li></ul><p><a href=\"{E(url)}\">عرض المزاد</a></p><p>يرجى التواصل معنا لاستكمال الإجراءات.</p>"))
         : ($"Congratulations! You won the auction: {title}", Layout(false, "Congratulations, you won the auction",
             $"<p>Dear {E(userName)},</p><p>We are pleased to inform you that you won the following auction:</p><ul><li>Auction: {E(title)}</li><li>Reference: {E(refNumber)}</li><li>Winning bid: JOD {amount:N2}</li><li>Ended (UTC): {endedUtc:yyyy-MM-dd HH:mm}</li></ul><p><a href=\"{E(url)}\">View the auction</a></p><p>Please contact us to complete the process.</p>"));
+
+    public static (string subject, string html) OneTimeCode(bool ar, string code) => ar
+        ? ("رمز التحقق", Layout(true, "رمز التحقق", $"<p>رمز التحقق الخاص بك هو:</p><p style=\"font-size:28px;font-weight:700;letter-spacing:6px\">{E(code)}</p><p>ينتهي خلال 10 دقائق. إذا لم تطلبه فتجاهل هذه الرسالة.</p>"))
+        : ("Your verification code", Layout(false, "Your verification code", $"<p>Your verification code is:</p><p style=\"font-size:28px;font-weight:700;letter-spacing:6px\">{E(code)}</p><p>It expires in 10 minutes. If you did not ask for it, ignore this email.</p>"));
 }

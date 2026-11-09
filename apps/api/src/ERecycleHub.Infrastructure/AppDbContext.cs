@@ -37,6 +37,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Setting> Settings => Set<Setting>();
     public DbSet<TranslationOverride> TranslationOverrides => Set<TranslationOverride>();
     public DbSet<StoredFile> Files => Set<StoredFile>();
+    public DbSet<UserSession> UserSessions => Set<UserSession>();
+    public DbSet<DeviceToken> DeviceTokens => Set<DeviceToken>();
+    public DbSet<OtpCode> OtpCodes => Set<OtpCode>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder b)
     {
@@ -174,6 +177,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId);
             e.HasOne<Auction>().WithMany().HasForeignKey(x => x.AuctionId);
             e.HasIndex(x => new { x.Status, x.CreatedAtUtc });
+            e.HasIndex(x => new { x.UserId, x.Type, x.Status });
             e.HasIndex(x => new { x.UserId, x.IdempotencyKey }).IsUnique().HasFilter("[IdempotencyKey] IS NOT NULL");
             e.Property(x => x.IdempotencyKey).HasMaxLength(100);
             e.Property(x => x.Note).HasMaxLength(1000);
@@ -208,6 +212,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         {
             e.HasOne<User>().WithMany().HasForeignKey(x => x.UserId);
             e.HasIndex(x => new { x.UserId, x.IsRead, x.CreatedAtUtc });
+            e.HasIndex(x => new { x.UserId, x.DeletedAtUtc });
             e.Property(x => x.Kind).HasMaxLength(64);
             e.Property(x => x.Body).HasMaxLength(4000);
             e.Property(x => x.Url).HasMaxLength(1000);
@@ -281,6 +286,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         {
             e.Property(x => x.Link).HasMaxLength(1000);
             e.Property(x => x.Type).HasMaxLength(20);
+            e.Property(x => x.Description).HasMaxLength(2000);
+            e.Property(x => x.DescriptionAr).HasMaxLength(2000);
+            e.Property(x => x.ButtonText).HasMaxLength(100);
+            e.Property(x => x.ButtonTextAr).HasMaxLength(100);
             FileFk(e, x => x.ImageFileId);
         });
         m.Entity<Announcement>(e =>
@@ -309,6 +318,28 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(x => x.LegacyUrl).HasMaxLength(1000);
             e.HasIndex(x => x.LegacyUrl).HasFilter("[LegacyUrl] IS NOT NULL");
             e.HasOne<User>().WithMany().HasForeignKey(x => x.OwnerUserId);
+        });
+
+        m.Entity<UserSession>(e =>
+        {
+            e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId);
+            e.HasIndex(x => x.TokenHash).IsUnique();
+            e.Property(x => x.TokenHash).HasMaxLength(64);
+            e.HasIndex(x => new { x.UserId, x.RevokedAtUtc });
+        });
+        m.Entity<DeviceToken>(e =>
+        {
+            e.HasOne<User>().WithMany().HasForeignKey(x => x.UserId);
+            e.HasOne<UserSession>().WithMany().HasForeignKey(x => x.SessionId);
+            e.Property(x => x.Token).HasMaxLength(450);
+            e.HasIndex(x => x.Token).IsUnique();
+            e.HasIndex(x => x.UserId);
+        });
+        m.Entity<OtpCode>(e =>
+        {
+            e.Property(x => x.Target).HasMaxLength(256);
+            e.Property(x => x.CodeHash).HasMaxLength(64);
+            e.HasIndex(x => new { x.Target, x.CreatedAtUtc });
         });
 
         // Nothing cascades except an auction's own images/specs and an application's category picks:

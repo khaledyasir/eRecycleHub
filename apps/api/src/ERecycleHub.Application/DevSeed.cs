@@ -146,7 +146,7 @@ public sealed class DevSeed(AppDbContext db, PasswordService passwords, FileServ
             new Setting { Key = "payment-processing-time", ValueEn = "2 business hours", ValueAr = "ساعتي عمل" },
             new Setting { Key = SettingKeys.Terms, TitleEn = "Terms and conditions", TitleAr = "الشروط والأحكام", ValueEn = "<p>Sample terms for development.</p>", ValueAr = "<p>شروط تجريبية لبيئة التطوير.</p>" },
             new Setting { Key = SettingKeys.PrivacyPolicy, TitleEn = "Privacy policy", TitleAr = "سياسة الخصوصية", ValueEn = "<p>Sample privacy policy for development.</p>", ValueAr = "<p>سياسة خصوصية تجريبية لبيئة التطوير.</p>" });
-        db.Sliders.Add(new Slider { Title = "Recycle smarter", Link = "/auctions", Type = "Web", SortOrder = 1, ImageFileId = await SvgAsync(Banner("#0b3d2e", "#10b981"), "slide.svg", ct) });
+        db.Sliders.Add(new Slider { Title = "Recycle smarter", TitleAr = "أعد التدوير بذكاء", Description = "List your materials and let buyers compete.", DescriptionAr = "اعرض موادك ودع المشترين يتنافسون.", ButtonText = "Learn more", ButtonTextAr = "اعرف المزيد", Link = "https://erecyclehub.com/", Type = "Web", SortOrder = 1, ImageFileId = await SvgAsync(Banner("#0b3d2e", "#10b981"), "slide.svg", ct) });
         db.Announcements.Add(new Announcement { CountryId = jordan.Id, SortOrder = 1, ImageFileId = await SvgAsync(Banner("#78350f", "#f59e0b"), "announcement.svg", ct) });
         db.PublisherApplications.Add(new PublisherApplication { UserId = c2.Id, Name = "New Recycler", Mobile = "0790000099", Company = "New Recycler Ltd", Address = "Amman", CountryId = jordan.Id,
             Status = ApplicationStatus.Pending, CreatedAtUtc = now.AddDays(-1),

@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ERecycleHub.Application;
 
-public sealed record BidPlaced(long BidId, int AuctionId, decimal CurrentPrice, decimal MinimumNextBid, int BidCount);
+public sealed record BidPlaced(long BidId, int AuctionId, decimal CurrentPrice, decimal MinimumNextBid, int BidCount, int UserId = 0, DateTime CreatedAtUtc = default);
 
 public sealed class BiddingService(AppDbContext db, TimeProvider clock)
 {
@@ -50,12 +50,16 @@ public sealed class BiddingService(AppDbContext db, TimeProvider clock)
         {
             object? args = error switch
             {
-                BidErrors.BelowMinimum => new { minimum = AuctionRules.MinimumNextBid(a.CurrentPrice, a.BidIncrement) },
+                BidErrors.BelowMinimum => new { minimum = AuctionRules.MinimumNextBid(a.CurrentPrice, a.BidIncrement), currentPrice = a.CurrentPrice },
                 BidErrors.InsufficientInsurance => new { insurance = a.InsuranceAmount },
                 _ => null,
             };
             throw new AppException(error, 400, args);
         }
+
+        // Read before this bid exists: whoever led until now is told they were outbid.
+        var previousLeader = await db.Bids.Where(b => b.AuctionId == auctionId).OrderByDescending(b => b.Amount).ThenBy(b => b.Id)
+            .Select(b => (int?)b.UserId).FirstOrDefaultAsync(ct);
 
         var bid = new Bid { AuctionId = auctionId, UserId = userId, Amount = amount, CreatedAtUtc = now };
         db.Bids.Add(bid);
@@ -65,7 +69,14 @@ public sealed class BiddingService(AppDbContext db, TimeProvider clock)
             .SetProperty(x => x.UpdatedAtUtc, now), ct);
 
         // Legacy behaviour: everyone who asked to be notified about this auction (except the bidder) gets an in-app notification.
-        var watchers = await db.AuctionWatches.Where(w => w.AuctionId == auctionId && w.UserId != userId).Select(w => w.UserId).ToListAsync(ct);
+        if (previousLeader is int outbid && outbid != userId)
+            db.Notifications.Add(new Notification
+            {
+                UserId = outbid, FromUserId = userId, Kind = NotificationKinds.Outbid, AuctionId = auctionId, Amount = amount,
+                Url = $"/auctions/{auctionId}", CreatedAtUtc = now,
+            });
+        var watchers = await db.AuctionWatches.Where(w => w.AuctionId == auctionId && w.UserId != userId && w.UserId != previousLeader)
+            .Select(w => w.UserId).ToListAsync(ct);
         db.Notifications.AddRange(watchers.Select(w => new Notification
         {
             UserId = w,
@@ -81,6 +92,6 @@ public sealed class BiddingService(AppDbContext db, TimeProvider clock)
         await tx.CommitAsync(ct);
 
         var count = await db.Auctions.Where(x => x.Id == auctionId).Select(x => x.BidCount).SingleAsync(ct);
-        return new BidPlaced(bid.Id, auctionId, amount, AuctionRules.MinimumNextBid(amount, a.BidIncrement), count);
+        return new BidPlaced(bid.Id, auctionId, amount, AuctionRules.MinimumNextBid(amount, a.BidIncrement), count, userId, now);
     }
 }

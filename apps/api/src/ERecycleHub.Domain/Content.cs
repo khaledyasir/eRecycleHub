@@ -94,6 +94,11 @@ public class Slider
 {
     public int Id { get; set; }
     public string? Title { get; set; }
+    public string? TitleAr { get; set; }
+    public string? Description { get; set; }
+    public string? DescriptionAr { get; set; }
+    public string? ButtonText { get; set; }
+    public string? ButtonTextAr { get; set; }
     public string? Link { get; set; }
     public Guid? ImageFileId { get; set; }
     /// <summary>Legacy values "Web" (homepage) or others.</summary>
@@ -129,6 +134,8 @@ public static class SettingKeys
 {
     public const string PrivacyPolicy = "privacy-policy";
     public const string Terms = "terms";
+    /// <summary>Payment instructions page (mobile content id 4).</summary>
+    public const string Payment = "payment";
 }
 
 /// <summary>Bilingual named text (legacy Setting). Legacy rows 3 and 5 are the privacy policy and terms.</summary>

@@ -1,15 +1,14 @@
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 using ERecycleHub.Api;
-using ERecycleHub.Api.Endpoints;
+using ERecycleHub.Api.Mobile;
 using ERecycleHub.Application;
+using ERecycleHub.Application.Mobile;
 using ERecycleHub.Infrastructure;
-using Microsoft.AspNetCore.Antiforgery;
-using Microsoft.AspNetCore.Authentication.BearerToken;
-using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi;
 
@@ -21,88 +20,66 @@ builder.Services.AddDbContext<AppDbContext>(o => o.UseSqlServer(config.GetConnec
 
 builder.Services.Configure<StorageOptions>(config.GetSection("Storage"));
 builder.Services.Configure<EmailOptions>(config.GetSection("Email"));
+builder.Services.Configure<TokenSessionOptions>(config.GetSection("Sessions"));
+builder.Services.Configure<MobileOptions>(config.GetSection("Mobile"));
+builder.Services.Configure<OtpOptions>(o =>
+{
+    config.GetSection("Otp").Bind(o);
+    // A known code would let anyone verify any phone number: never in Production.
+    if (builder.Environment.IsProduction()) o.FixedCode = null;
+});
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<PasswordService>();
 if (config["Email:Provider"] == "SendGrid") builder.Services.AddScoped<IEmailSender, SendGridEmailSender>();
 else builder.Services.AddScoped<IEmailSender, PickupEmailSender>();
+// ponytail: no SMS provider yet. Outside Production the code is only logged; in Production phone codes answer 503 OTP_UNAVAILABLE
+// until a real ISmsSender is registered here.
+if (!builder.Environment.IsProduction()) builder.Services.AddSingleton<ISmsSender, LoggingSmsSender>();
 builder.Services.AddApplicationServices();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<IFileUrls, FileUrls>();
+builder.Services.AddSingleton<AuctionSockets>();
+builder.Services.AddHostedService<AuctionLifecycleWatcher>();
 
 builder.Services.ConfigureHttpJsonOptions(o =>
 {
     o.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
     o.SerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.Never;
-    o.SerializerOptions.NumberHandling = JsonNumberHandling.Strict; // amounts must be JSON numbers, never strings
 });
-builder.Services.AddSignalR();
+// Malformed JSON or a wrong field type reaches the exception handler (→ 422 VALIDATION_FAILED) instead of an empty 400.
+builder.Services.Configure<RouteHandlerOptions>(o => o.ThrowOnBadRequest = true);
+builder.Services.AddExceptionHandler<EnvelopeExceptionHandler>();
 builder.Services.AddProblemDetails();
-builder.Services.AddExceptionHandler<ProblemExceptionHandler>();
 builder.Services.AddOpenApi(o => o.AddDocumentTransformer((doc, _, _) =>
 {
-    doc.Info.Title = "eRecycleHub API";
+    doc.Info.Title = "eRecycleHub mobile API";
     doc.Info.Version = "v1";
-    doc.Servers = [new OpenApiServer { Url = "/", Description = "The host serving this document (e.g. https://erecyclehub.com)" }];
+    doc.Info.Description = "Contract: docs/API_REQUIREMENTS.md. Every response is { success, message, data } or { success: false, message, errorCode, errors }. " +
+        "Send `Authorization: Bearer <token>` (from /api/v1/auth/login or /register) and `lang: en|ar`. Live bids: wss://<host>/ws/auctions/{id}.";
+    doc.Servers = [new OpenApiServer { Url = "/", Description = "This host" }];
     doc.Components ??= new OpenApiComponents();
     doc.Components.SecuritySchemes ??= new Dictionary<string, IOpenApiSecurityScheme>();
-    doc.Components.SecuritySchemes["Bearer"] = new OpenApiSecurityScheme
-    {
-        Type = SecuritySchemeType.Http,
-        Scheme = "bearer",
-        Description = "Mobile app: POST /api/auth/token with header X-Client: mobile, then send the accessToken here. The web app uses the cookie session instead.",
-    };
+    doc.Components.SecuritySchemes["Bearer"] = new OpenApiSecurityScheme { Type = SecuritySchemeType.Http, Scheme = "bearer" };
     doc.Security = [new OpenApiSecurityRequirement { [new OpenApiSecuritySchemeReference("Bearer", doc)] = [] }];
     return Task.CompletedTask;
 }));
 
-const long MaxUpload = 60 * 1024 * 1024;
+const long MaxUpload = 20 * 1024 * 1024;
 builder.WebHost.ConfigureKestrel(k => k.Limits.MaxRequestBodySize = MaxUpload);
 builder.Services.Configure<FormOptions>(o => o.MultipartBodyLengthLimit = MaxUpload);
 
-// ---- authentication: an HttpOnly cookie for the web app, Bearer tokens for the mobile app; both re-validated against the database on every request ----
-var secureCookies = builder.Environment.IsDevelopment() ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always;
-builder.Services.AddAuthentication(Security.AutoScheme)
-    .AddPolicyScheme(Security.AutoScheme, null, o => o.ForwardDefaultSelector = c =>
-        Security.HasBearer(c.Request) ? BearerTokenDefaults.AuthenticationScheme : CookieAuthenticationDefaults.AuthenticationScheme)
-    .AddBearerToken(o =>
-    {
-        o.BearerTokenExpiration = TimeSpan.FromHours(1);
-        o.RefreshTokenExpiration = TimeSpan.FromDays(30);
-    })
-    .AddCookie(o =>
-{
-    o.Cookie.Name = "erh.auth";
-    o.Cookie.HttpOnly = true;
-    o.Cookie.SameSite = SameSiteMode.Lax;
-    o.Cookie.SecurePolicy = secureCookies;
-    o.ExpireTimeSpan = TimeSpan.FromHours(8);
-    o.SlidingExpiration = true;
-    o.Events.OnRedirectToLogin = c => { c.Response.StatusCode = 401; return Task.CompletedTask; };
-    o.Events.OnRedirectToAccessDenied = c => { c.Response.StatusCode = 403; return Task.CompletedTask; };
-    o.Events.OnValidatePrincipal = Security.ValidateSessionAsync;
-});
+builder.Services.AddAuthentication(SessionAuthHandler.SchemeName)
+    .AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, SessionAuthHandler>(SessionAuthHandler.SchemeName, null);
 builder.Services.AddAuthorizationBuilder()
-    .SetFallbackPolicy(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build())
-    .AddPolicy(Policies.Member, p => p.RequireAuthenticatedUser())
-    .AddPolicy(Policies.Admin, p => p.RequireRole(nameof(ERecycleHub.Domain.UserRole.Admin)))
-    // A seller is a customer account that owns a publisher profile (created when an admin approves an application). The profile claim is
-    // re-derived from the database on every request (see Security.ValidateSessionAsync), so revoking it takes effect immediately.
-    .AddPolicy(Policies.Publisher, p => p.RequireRole(nameof(ERecycleHub.Domain.UserRole.Customer)).RequireClaim(Claims.PublisherId));
-
-builder.Services.AddAntiforgery(o =>
-{
-    o.HeaderName = Security.CsrfHeader;
-    o.Cookie.Name = "erh.af";
-    o.Cookie.HttpOnly = true;
-    o.Cookie.SameSite = SameSiteMode.Strict;
-    o.Cookie.SecurePolicy = secureCookies;
-});
+    .SetFallbackPolicy(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build());
 
 builder.Services.AddRateLimiter(o =>
 {
     o.RejectionStatusCode = 429;
-    o.OnRejected = async (c, ct) =>
+    o.OnRejected = async (c, _) =>
     {
-        c.HttpContext.Response.ContentType = "application/problem+json";
-        await c.HttpContext.Response.WriteAsync("""{"status":429,"title":"rate.limited","code":"rate.limited"}""", ct);
+        if (c.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retry)) c.HttpContext.Response.Headers.RetryAfter = ((int)Math.Ceiling(retry.TotalSeconds)).ToString();
+        await ErrorCodes.WriteAsync(c.HttpContext, 429, "RATE_LIMITED", "rate.limited");
     };
     static string Ip(HttpContext c) => c.Connection.RemoteIpAddress?.ToString() ?? "unknown";
     o.AddPolicy(RateLimits.Auth, c => RateLimitPartition.GetFixedWindowLimiter(Ip(c),
@@ -115,8 +92,8 @@ builder.Services.AddRateLimiter(o =>
 
 builder.Services.Configure<ForwardedHeadersOptions>(o =>
 {
-    // The API is only reachable through the Next.js server / reverse proxy, which sets X-Forwarded-For.
-    o.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    // Behind a reverse proxy (IIS / nginx) that sets X-Forwarded-For and X-Forwarded-Proto.
+    o.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost;
     o.KnownIPNetworks.Clear();
     o.KnownProxies.Clear();
 });
@@ -127,34 +104,33 @@ if (args.Length > 0 && await Commands.RunAsync(app, args)) return;
 
 app.UseForwardedHeaders();
 app.UseExceptionHandler();
-app.UseStatusCodePages();
+// Bodiless framework answers (404 unknown route, 405, 415…) also get the envelope.
+app.UseStatusCodePages(async c => await ErrorCodes.WriteAsync(c.HttpContext, c.HttpContext.Response.StatusCode,
+    ErrorCodes.ForStatus(c.HttpContext.Response.StatusCode), null));
 if (!app.Environment.IsDevelopment()) app.UseHsts();
 app.Use(Security.HeadersAsync);
-// API reference, public on purpose (the mobile/backend team reads it). Under /api so the web app's existing /api proxy serves it:
-// https://<site>/api/swagger (page) and /api/openapi/v1.json (spec). "Try it out" calls are sent as a token client (X-Client: mobile).
 app.UseSwaggerUI(o =>
 {
     o.RoutePrefix = "api/swagger";
-    o.SwaggerEndpoint("/api/openapi/v1.json", "eRecycleHub API v1");
-    o.UseRequestInterceptor("(req) => { req.headers['X-Client'] = 'mobile'; return req; }");
+    o.SwaggerEndpoint("/api/openapi/v1.json", "eRecycleHub mobile API v1");
 });
+app.UseWebSockets(new WebSocketOptions { KeepAliveInterval = TimeSpan.FromSeconds(30) });
 app.UseAuthentication();
-app.Use(Security.ValidateBearerAsync);
 app.UseAuthorization();
-app.Use(Security.CsrfAsync);
 app.UseRateLimiter();
 
 app.MapOpenApi("/api/openapi/{documentName}.json").AllowAnonymous();
+app.MapGet("/api/health", async (AppDbContext db, CancellationToken ct) =>
+    await db.Database.CanConnectAsync(ct) ? Results.Ok(new { status = "ok" }) : Results.Json(new { status = "db.unavailable" }, statusCode: 503))
+    .AllowAnonymous().ExcludeFromDescription();
 
-var api = app.MapGroup("/api").DisableAntiforgery(); // antiforgery is enforced for every unsafe /api request by Security.CsrfAsync
-app.MapHub<AuctionHub>("/hubs/auctions").AllowAnonymous(); // outside /api: no CSRF check on the negotiate POST, not proxied by the web app
-api.MapAuthEndpoints();
-api.MapPublicEndpoints();
-api.MapAccountEndpoints();
-api.MapSellerEndpoints();
-api.MapAdminEndpoints();
-api.MapGet("/health", async (AppDbContext db, CancellationToken ct) =>
-    await db.Database.CanConnectAsync(ct) ? Results.Ok(new { status = "ok" }) : Results.Problem(statusCode: 503, title: "db.unavailable")).AllowAnonymous();
+// The app's SERVER setting is https://<host>/api/v1; the live socket is at the host root (it drops SERVER's path, docs M2).
+var v1 = app.MapGroup("/api/v1").DisableAntiforgery();
+v1.MapAuthEndpoints();
+v1.MapCatalogEndpoints();
+v1.MapAccountEndpoints();
+v1.MapFileEndpoints();
+AuctionSockets.Map(app);
 
 app.Run();
 
