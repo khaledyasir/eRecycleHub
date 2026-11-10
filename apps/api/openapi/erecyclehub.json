@@ -2,7 +2,7 @@
   "openapi": "3.1.1",
   "info": {
     "title": "eRecycleHub mobile API",
-    "description": "Contract: docs/API_REQUIREMENTS.md. Every response is { success, message, data } or { success: false, message, errorCode, errors }. Send `Authorization: Bearer <token>` (from /api/v1/auth/login or /register) and `lang: en|ar`. Live bids: wss://<host>/ws/auctions/{id}.",
+    "description": "Contract: docs/API_REQUIREMENTS.md. Every response is { success, message, data } or { success: false, message, errorCode, errors }. Send `Authorization: Bearer <token>` (from /api/v1/auth/login or /register) and `lang: en|ar`. Live bids: wss://<host>/api/ws/auctions/{id}.",
     "version": "v1"
   },
   "servers": [
@@ -435,7 +435,7 @@
           "Auctions"
         ],
         "summary": "Place a bid; returns the full auction details",
-        "description": "Errors: 409 AUCTION_CLOSED, 409 AUCTION_NOT_STARTED, 409 OUTBID (someone bid first: reload), 422 BID_TOO_LOW, 422 INSUFFICIENT_WALLET, 403 BID_NOT_ALLOWED (own auction). Listeners of /ws/auctions/{id} get bid.placed with the same bid id.",
+        "description": "Errors: 409 AUCTION_CLOSED, 409 AUCTION_NOT_STARTED, 409 OUTBID (someone bid first: reload), 422 BID_TOO_LOW, 422 INSUFFICIENT_WALLET, 403 BID_NOT_ALLOWED (own auction). Listeners of /api/ws/auctions/{id} get bid.placed with the same bid id.",
         "parameters": [
           {
             "name": "id",

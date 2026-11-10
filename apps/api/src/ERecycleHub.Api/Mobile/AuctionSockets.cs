@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore;
 namespace ERecycleHub.Api.Mobile;
 
 /// <summary>
-/// Live auction rooms for <c>wss://host/ws/auctions/{id}</c> (§3.4.4). Server → client only: JSON text frames
+/// Live auction rooms for <c>wss://host/api/ws/auctions/{id}</c> (§3.4.4). Server → client only: JSON text frames
 /// <c>{ "event": "...", "data": { ... } }</c>. In-memory, so this works for a single API instance; scale-out needs a backplane.
 /// </summary>
 public sealed class AuctionSockets(ILogger<AuctionSockets> log)
@@ -79,23 +79,32 @@ public sealed class AuctionSockets(ILogger<AuctionSockets> log)
         }));
     }
 
-    public static void Map(WebApplication app) =>
-        app.Map("/ws/auctions/{id:int}", async (int id, HttpContext ctx, AuctionQueries queries, AuctionSockets sockets, IHostApplicationLifetime life) =>
+    /// <summary>
+    /// Served at both <c>/api/ws/auctions/{id}</c> (what the app uses: everything under /api goes to this API, so the proxy needs
+    /// one rule) and the original <c>/ws/auctions/{id}</c>.
+    /// </summary>
+    public static void Map(WebApplication app)
+    {
+        foreach (var path in (string[])["/api/ws/auctions/{id:int}", "/ws/auctions/{id:int}"])
+            app.Map(path, Handle).RequireAuthorization().WithTags("Auctions").ExcludeFromDescription();
+    }
+
+    private static async Task Handle(int id, HttpContext ctx, AuctionQueries queries, AuctionSockets sockets, IHostApplicationLifetime life)
+    {
+        if (!ctx.WebSockets.IsWebSocketRequest)
         {
-            if (!ctx.WebSockets.IsWebSocketRequest)
-            {
-                await ErrorCodes.WriteAsync(ctx, 400, "VALIDATION_FAILED", "request.websocket_required");
-                return;
-            }
-            if (!await queries.Visible().AnyAsync(a => a.Id == id, ctx.RequestAborted))
-            {
-                await ErrorCodes.WriteAsync(ctx, 404, "NOT_FOUND", "auction.not_found");
-                return;
-            }
-            using var socket = await ctx.WebSockets.AcceptWebSocketAsync();
-            using var stop = CancellationTokenSource.CreateLinkedTokenSource(ctx.RequestAborted, life.ApplicationStopping);
-            await sockets.RunAsync(id, socket, stop.Token);
-        }).RequireAuthorization().WithTags("Auctions").ExcludeFromDescription();
+            await ErrorCodes.WriteAsync(ctx, 400, "VALIDATION_FAILED", "request.websocket_required");
+            return;
+        }
+        if (!await queries.Visible().AnyAsync(a => a.Id == id, ctx.RequestAborted))
+        {
+            await ErrorCodes.WriteAsync(ctx, 404, "NOT_FOUND", "auction.not_found");
+            return;
+        }
+        using var socket = await ctx.WebSockets.AcceptWebSocketAsync();
+        using var stop = CancellationTokenSource.CreateLinkedTokenSource(ctx.RequestAborted, life.ApplicationStopping);
+        await sockets.RunAsync(id, socket, stop.Token);
+    }
 }
 
 /// <summary>

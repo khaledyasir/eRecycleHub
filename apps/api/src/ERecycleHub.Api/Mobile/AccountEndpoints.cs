@@ -25,7 +25,7 @@ public static class AccountEndpoints
             if (!ctx.Request.HasFormContentType) throw new AppException("request.multipart_required", 415);
             var form = await ctx.Request.ReadFormAsync(ct);
             var file = form.Files.GetFile("file");
-            if (file is null || file.Length == 0) throw MobileAccount.Invalid("file", "Choose a photo.");
+            if (file is null || file.Length == 0) throw MobileAccount.Invalid("file", "file.required");
             await using var stream = file.OpenReadStream();
             return Reply.Data(await m.SetImageAsync(ctx.UserId(), new UploadInput(stream, file.FileName, file.Length), ct));
         }).RequireRateLimiting(RateLimits.Forms).DisableAntiforgery().Accepts<IFormFile>("multipart/form-data").Produces<Envelope<ProfileImageDto>>()

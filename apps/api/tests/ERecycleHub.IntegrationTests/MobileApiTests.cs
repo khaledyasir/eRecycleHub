@@ -205,13 +205,32 @@ public class MobileApiTests(ApiFactory f)
     }
 
     [Fact]
-    public async Task Websocket_listeners_receive_bid_placed_with_the_same_bid_id()
+    public async Task Error_messages_are_readable_in_the_requested_language()
+    {
+        var c = await CustomerAsync();
+        var id = await f.NewAuctionAsync(start: 100, increment: 10);
+
+        var low = await ApiClient.Body(await c.BidAsync(id, 105));
+        Assert.Equal("BID_TOO_LOW", low.GetProperty("errorCode").GetString());
+        Assert.Equal("Your bid must be at least 110.", low.GetProperty("message").GetString());
+
+        c.Http.DefaultRequestHeaders.Add("lang", "ar");
+        var bad = await ApiClient.Body(await c.PutAsync("/api/v1/profile", new { fullName = "X", email = "not-an-email", phone = "" }));
+        Assert.Equal("VALIDATION_FAILED", bad.GetProperty("errorCode").GetString());
+        Assert.Equal("يرجى إدخال بريد إلكتروني صحيح.", bad.GetProperty("message").GetString());
+        Assert.Equal("يرجى إدخال بريد إلكتروني صحيح.", bad.GetProperty("errors").GetProperty("email")[0].GetString());
+    }
+
+    [Theory]
+    [InlineData("api/ws")]
+    [InlineData("ws")]
+    public async Task Websocket_listeners_receive_bid_placed_with_the_same_bid_id(string prefix)
     {
         var id = await f.NewAuctionAsync(start: 100, increment: 10);
         var bidder = await CustomerAsync();
         var ws = f.Server.CreateWebSocketClient();
         ws.ConfigureRequest = r => r.Headers.Authorization = $"Bearer {bidder.Token}";
-        using var socket = await ws.ConnectAsync(new Uri($"ws://localhost/ws/auctions/{id}"), CancellationToken.None);
+        using var socket = await ws.ConnectAsync(new Uri($"ws://localhost/{prefix}/auctions/{id}"), CancellationToken.None);
 
         var placed = await bidder.DataAsync(bidder.BidAsync(id, 150));
         var buffer = new byte[4096];
@@ -225,12 +244,14 @@ public class MobileApiTests(ApiFactory f)
         await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, null, CancellationToken.None);
     }
 
-    [Fact]
-    public async Task Websocket_requires_a_token()
+    [Theory]
+    [InlineData("api/ws")]
+    [InlineData("ws")]
+    public async Task Websocket_requires_a_token(string prefix)
     {
         var id = await f.NewAuctionAsync();
         var ws = f.Server.CreateWebSocketClient();
-        await Assert.ThrowsAnyAsync<Exception>(() => ws.ConnectAsync(new Uri($"ws://localhost/ws/auctions/{id}"), CancellationToken.None));
+        await Assert.ThrowsAnyAsync<Exception>(() => ws.ConnectAsync(new Uri($"ws://localhost/{prefix}/auctions/{id}"), CancellationToken.None));
     }
 
     // ---------- favourites, notifications ----------

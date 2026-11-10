@@ -53,7 +53,7 @@ builder.Services.AddOpenApi(o => o.AddDocumentTransformer((doc, _, _) =>
     doc.Info.Title = "eRecycleHub mobile API";
     doc.Info.Version = "v1";
     doc.Info.Description = "Contract: docs/API_REQUIREMENTS.md. Every response is { success, message, data } or { success: false, message, errorCode, errors }. " +
-        "Send `Authorization: Bearer <token>` (from /api/v1/auth/login or /register) and `lang: en|ar`. Live bids: wss://<host>/ws/auctions/{id}.";
+        "Send `Authorization: Bearer <token>` (from /api/v1/auth/login or /register) and `lang: en|ar`. Live bids: wss://<host>/api/ws/auctions/{id}.";
     doc.Servers = [new OpenApiServer { Url = "/", Description = "This host" }];
     doc.Components ??= new OpenApiComponents();
     doc.Components.SecuritySchemes ??= new Dictionary<string, IOpenApiSecurityScheme>();
@@ -124,7 +124,7 @@ app.MapGet("/api/health", async (AppDbContext db, CancellationToken ct) =>
     await db.Database.CanConnectAsync(ct) ? Results.Ok(new { status = "ok" }) : Results.Json(new { status = "db.unavailable" }, statusCode: 503))
     .AllowAnonymous().ExcludeFromDescription();
 
-// The app's SERVER setting is https://<host>/api/v1; the live socket is at the host root (it drops SERVER's path, docs M2).
+// The app's SERVER setting is https://<host>/api/v1; the live socket is at /api/ws/auctions/{id} (also /ws/auctions/{id}).
 var v1 = app.MapGroup("/api/v1").DisableAntiforgery();
 v1.MapAuthEndpoints();
 v1.MapCatalogEndpoints();

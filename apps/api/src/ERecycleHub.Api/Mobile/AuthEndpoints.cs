@@ -49,14 +49,14 @@ public static partial class AuthEndpoints
         g.MapPost("/register", async (RegisterRequest req, AuthService auth, OtpService otp, SessionService sessions, AppDbContext db, CancellationToken ct) =>
         {
             var name = Normalize.Text(req.FullName);
-            if (name is null || name.Length > 200) throw MobileAccount.Invalid("fullName", "Name is required (200 characters at most).");
+            if (name is null || name.Length > 200) throw MobileAccount.Invalid("fullName", "name.required");
             var email = Normalize.Text(req.Email);
-            if (email is null || email.Length > 256 || !EmailPattern().IsMatch(email)) throw MobileAccount.Invalid("email", "Enter a valid e-mail address.");
+            if (email is null || email.Length > 256 || !EmailPattern().IsMatch(email)) throw MobileAccount.Invalid("email", "email.invalid");
             email = Normalize.Email(email);
-            var phone = MobilePhone.ToLocal(req.Phone) ?? throw MobileAccount.Invalid("phone", "Enter a valid Jordanian mobile number.");
+            var phone = MobilePhone.ToLocal(req.Phone) ?? throw MobileAccount.Invalid("phone", "phone.invalid");
             AuthService.ValidatePassword(req.Password);
-            if (await db.Users.AnyAsync(u => u.Email == email, ct)) throw MobileAccount.Invalid("email", "The email has already been taken.");
-            if (await db.Users.AnyAsync(u => u.Phone == phone && !u.IsDeleted, ct)) throw MobileAccount.Invalid("phone", "The phone has already been taken.");
+            if (await db.Users.AnyAsync(u => u.Email == email, ct)) throw MobileAccount.Invalid("email", "email.taken");
+            if (await db.Users.AnyAsync(u => u.Phone == phone && !u.IsDeleted, ct)) throw MobileAccount.Invalid("phone", "phone.taken");
 
             // The app always sends countryId 1 (docs M3) and the platform serves Jordan only: an unknown id falls back to the allowed country.
             var countryId = await db.Countries.Allowed().Where(c => c.IsActive && c.Id == req.CountryId).Select(c => (int?)c.Id).FirstOrDefaultAsync(ct)

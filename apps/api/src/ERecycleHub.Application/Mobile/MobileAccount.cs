@@ -10,9 +10,9 @@ public sealed class MobileAccount(AppDbContext db, AuctionQueries auctions, Mobi
 {
     private DateTime Now => clock.GetUtcNow().UtcDateTime;
 
-    /// <summary>A 422 VALIDATION_FAILED with a per-field message.</summary>
-    public static AppException Invalid(string field, string message) =>
-        new("validation.failed", 422, new Dictionary<string, string[]> { [field] = [message] });
+    /// <summary>A 422 VALIDATION_FAILED on one field. <paramref name="messageKey"/> is translated by the API (ErrorMessages), e.g. "email.taken".</summary>
+    public static AppException Invalid(string field, string messageKey) =>
+        new("validation.failed", 422, new Dictionary<string, string[]> { [field] = [messageKey] });
 
     // ---------- profile ----------
 
@@ -25,23 +25,23 @@ public sealed class MobileAccount(AppDbContext db, AuctionQueries auctions, Mobi
     public async Task<UserProfileDto> UpdateProfileAsync(int userId, string? fullName, string? email, string? phone, CancellationToken ct = default)
     {
         var name = Normalize.Text(fullName);
-        if (name is null || name.Length > 200) throw Invalid("fullName", "Name is required (200 characters at most).");
+        if (name is null || name.Length > 200) throw Invalid("fullName", "name.required");
         var mail = Normalize.Text(email) is { } e ? Normalize.Email(e) : null;
         if (mail is null || mail.Length > 256 || !System.Text.RegularExpressions.Regex.IsMatch(mail, @"^[^@\s]+@[^@\s]+\.[^@\s]{2,}$"))
-            throw Invalid("email", "Enter a valid e-mail address.");
+            throw Invalid("email", "email.invalid");
         string? local = null;
-        if (Normalize.Text(phone) is { } p && (local = MobilePhone.ToLocal(p)) is null) throw Invalid("phone", "Enter a valid Jordanian mobile number.");
+        if (Normalize.Text(phone) is { } p && (local = MobilePhone.ToLocal(p)) is null) throw Invalid("phone", "phone.invalid");
 
         var u = await db.Users.SingleAsync(x => x.Id == userId, ct);
-        if (mail != u.Email && await db.Users.AnyAsync(x => x.Email == mail && x.Id != userId, ct)) throw Invalid("email", "The email has already been taken.");
+        if (mail != u.Email && await db.Users.AnyAsync(x => x.Email == mail && x.Id != userId, ct)) throw Invalid("email", "email.taken");
         if (local is not null && local != u.Phone && await db.Users.AnyAsync(x => x.Phone == local && x.Id != userId && !x.IsDeleted, ct))
-            throw Invalid("phone", "The phone has already been taken.");
+            throw Invalid("phone", "phone.taken");
         u.FullName = name;
         u.Email = mail;
         u.Phone = local;
         audit.Record(new Actor(userId, u.Role), "user.profile_update", nameof(User), userId);
         try { await db.SaveChangesAsync(ct); }
-        catch (DbUpdateException) { throw Invalid("email", "The email has already been taken."); }
+        catch (DbUpdateException) { throw Invalid("email", "email.taken"); }
         return await ProfileAsync(userId, ct);
     }
 
@@ -132,7 +132,7 @@ public sealed class MobileAccount(AppDbContext db, AuctionQueries auctions, Mobi
     public async Task MarkReadAsync(int userId, int[]? ids, CancellationToken ct = default)
     {
         if (ids is null || ids.Length == 0) return;
-        if (ids.Length > 1000) throw Invalid("ids", "At most 1000 ids.");
+        if (ids.Length > 1000) throw Invalid("ids", "ids.too_many");
         await db.Notifications.Where(n => n.UserId == userId && ids.Contains(n.Id) && !n.IsRead).ExecuteUpdateAsync(s => s.SetProperty(n => n.IsRead, true), ct);
     }
 

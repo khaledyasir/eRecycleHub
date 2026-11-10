@@ -41,7 +41,7 @@ public static class CatalogEndpoints
             .Produces<Envelope<AuctionDetailsDto>>();
         a.MapPost("/{id:int}/bids", PlaceBidAsync).RequireRateLimiting(RateLimits.Bids).Produces<Envelope<AuctionDetailsDto>>()
             .WithSummary("Place a bid; returns the full auction details")
-            .WithDescription("Errors: 409 AUCTION_CLOSED, 409 AUCTION_NOT_STARTED, 409 OUTBID (someone bid first: reload), 422 BID_TOO_LOW, 422 INSUFFICIENT_WALLET, 403 BID_NOT_ALLOWED (own auction). Listeners of /ws/auctions/{id} get bid.placed with the same bid id.");
+            .WithDescription("Errors: 409 AUCTION_CLOSED, 409 AUCTION_NOT_STARTED, 409 OUTBID (someone bid first: reload), 422 BID_TOO_LOW, 422 INSUFFICIENT_WALLET, 403 BID_NOT_ALLOWED (own auction). Listeners of /api/ws/auctions/{id} get bid.placed with the same bid id.");
 
         var f = v1.MapGroup("/favorites").WithTags("Favorites");
         f.MapGet("", async (HttpContext ctx, MobileAccount m, CancellationToken ct) => Reply.Data(await m.FavoritesAsync(ctx.UserId(), ct)))
