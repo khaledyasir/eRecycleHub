@@ -41,8 +41,15 @@ public class Auction
 
     public DateTime CreatedAtUtc { get; set; }
     public DateTime UpdatedAtUtc { get; set; }
+    /// <summary>Set by the administrator's "notify winners" e-mail flow only. The automatic end job does not touch it.</summary>
     public DateTime? WinnerNotifiedAtUtc { get; set; }
+    /// <summary>Claimed once by the automatic end job when it has settled the winner's hold and written the in-app rows. Separate from <c>WinnerNotifiedAtUtc</c>.</summary>
+    public DateTime? EndProcessedAtUtc { get; set; }
+    /// <summary>Set once when the winner's payment at close failed (insufficient balance). The close job keeps retrying; an administrator can void the sale.</summary>
+    public DateTime? SettlementFailedAtUtc { get; set; }
     public int BidCount { get; set; }
+    /// <summary>Push-notification topic of this auction (<c>auction_{Id}</c>). A computed database column: never set by code.</summary>
+    public string? TopicName { get; private set; }
 
     public List<AuctionImage> Images { get; set; } = [];
     public List<AuctionSpec> Specs { get; set; } = [];
@@ -78,6 +85,15 @@ public class Bid
     public int UserId { get; set; }
     public User? User { get; set; }
     public decimal Amount { get; set; }
+    /// <summary>
+    /// Wallet money this bid RESERVES (the bid itself). The wallet balance and ledger are not touched by a bid. 0 for bids placed before wallet holds existed.
+    /// It is an active hold while <see cref="ReleasedAtUtc"/> and <see cref="SettledAtUtc"/> are both null. Only the current leader holds.
+    /// </summary>
+    public decimal HeldAmount { get; set; }
+    /// <summary>Set when the hold was released: the bidder was outbid, raised their own bid (the hold moved to the new bid), or the auction was deactivated. No ledger entry: nothing was ever debited.</summary>
+    public DateTime? ReleasedAtUtc { get; set; }
+    /// <summary>Set when the auction ended and this (winning) bid's hold was turned into a payment (an <c>AuctionPayment</c> ledger entry). A settled bid no longer holds.</summary>
+    public DateTime? SettledAtUtc { get; set; }
     public DateTime CreatedAtUtc { get; set; }
 }
 
@@ -86,4 +102,12 @@ public enum AuctionPhase
     Upcoming,
     Live,
     Ended,
+}
+
+/// <summary>A user who has bid in an auction. One row per (auction, user): the composite key is the uniqueness guarantee.</summary>
+public class AuctionParticipant
+{
+    public int AuctionId { get; set; }
+    public int UserId { get; set; }
+    public DateTime JoinedAtUtc { get; set; }
 }

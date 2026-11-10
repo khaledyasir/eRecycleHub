@@ -39,6 +39,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<StoredFile> Files => Set<StoredFile>();
     public DbSet<UserSession> UserSessions => Set<UserSession>();
     public DbSet<DeviceToken> DeviceTokens => Set<DeviceToken>();
+    public DbSet<AuctionParticipant> AuctionParticipants => Set<AuctionParticipant>();
     public DbSet<OtpCode> OtpCodes => Set<OtpCode>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder b)
@@ -133,6 +134,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         m.Entity<Auction>(e =>
         {
             e.HasIndex(x => x.RefNumber).IsUnique();
+            e.Property(x => x.TopicName).HasMaxLength(40).HasComputedColumnSql("'auction_' + CAST([Id] AS nvarchar(20))", stored: true);
             e.Property(x => x.RefNumber).HasMaxLength(32);
             foreach (var p in new[] { nameof(Auction.DescEn), nameof(Auction.DescAr), nameof(Auction.ShortDescEn), nameof(Auction.ShortDescAr) })
                 e.Property(p).HasColumnType("nvarchar(max)");
@@ -169,7 +171,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId);
             e.HasIndex(x => new { x.AuctionId, x.Amount });
             e.HasIndex(x => new { x.UserId, x.CreatedAtUtc });
-            e.ToTable(t => t.HasCheckConstraint("CK_Bid_Amount", "[Amount] > 0"));
+            e.ToTable(t => { t.HasCheckConstraint("CK_Bid_Amount", "[Amount] > 0"); t.HasCheckConstraint("CK_Bid_Held", "[HeldAmount] >= 0 AND [HeldAmount] <= [Amount]"); });
+            e.HasIndex(x => new { x.UserId, x.ReleasedAtUtc, x.SettledAtUtc });
         });
 
         m.Entity<WalletTransaction>(e =>
@@ -190,6 +193,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.HasOne<User>().WithMany().HasForeignKey(x => x.UserId);
             e.HasOne<WalletTransaction>().WithMany().HasForeignKey(x => x.WalletTransactionId);
             e.HasIndex(x => new { x.UserId, x.Id });
+            e.HasIndex(x => new { x.ReferenceType, x.ReferenceId });
+            // The winner is charged at most once per bid, whatever else goes wrong (AuctionPayment = 9).
+            e.HasIndex(x => new { x.ReferenceType, x.ReferenceId, x.Reason }).IsUnique().HasFilter("[Reason] = 9").HasDatabaseName("UX_WalletLedger_AuctionPayment");
+            e.Property(x => x.ReferenceType).HasMaxLength(30);
             // One credit and at most one reversal per transaction: a retried approval cannot post twice.
             e.HasIndex(x => new { x.WalletTransactionId, x.Reason }).IsUnique().HasFilter("[WalletTransactionId] IS NOT NULL");
         });
@@ -216,6 +223,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(x => x.Kind).HasMaxLength(64);
             e.Property(x => x.Body).HasMaxLength(4000);
             e.Property(x => x.Url).HasMaxLength(1000);
+            e.Property(x => x.EventKey).HasMaxLength(100);
+            e.HasIndex(x => new { x.UserId, x.EventKey }).IsUnique().HasFilter("[EventKey] IS NOT NULL");
         });
 
         m.Entity<Review>(e =>
@@ -333,6 +342,17 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.HasOne<UserSession>().WithMany().HasForeignKey(x => x.SessionId);
             e.Property(x => x.Token).HasMaxLength(450);
             e.HasIndex(x => x.Token).IsUnique();
+            e.HasIndex(x => x.UserId);
+            e.Property(x => x.Platform).HasMaxLength(10);
+            e.Property(x => x.DeviceId).HasMaxLength(100);
+            e.Property(x => x.Language).HasMaxLength(5);
+            e.HasIndex(x => new { x.UserId, x.DeviceId }).IsUnique().HasFilter("[DeviceId] IS NOT NULL");
+        });
+        m.Entity<AuctionParticipant>(e =>
+        {
+            e.HasKey(x => new { x.AuctionId, x.UserId });
+            e.HasOne<Auction>().WithMany().HasForeignKey(x => x.AuctionId);
+            e.HasOne<User>().WithMany().HasForeignKey(x => x.UserId);
             e.HasIndex(x => x.UserId);
         });
         m.Entity<OtpCode>(e =>

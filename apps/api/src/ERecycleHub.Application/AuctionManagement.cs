@@ -34,7 +34,7 @@ public sealed record ManagedAuctionFilter(string? View = "active", string? Statu
 /// Create/edit/activate/delete auctions for publishers (their own only) and administrators (any). Every query is scoped by
 /// <see cref="Scope"/>, so an id belonging to another publisher behaves exactly like a missing one (404).
 /// </summary>
-public sealed class AuctionManagement(AppDbContext db, FileService files, TimeProvider clock, Audit audit)
+public sealed class AuctionManagement(AppDbContext db, FileService files, TimeProvider clock, Audit audit, BiddingService bidding)
 {
     public const int MaxImages = 30;
     public const int MaxSpecs = 50;
@@ -167,6 +167,7 @@ public sealed class AuctionManagement(AppDbContext db, FileService files, TimePr
             if (hasBids) throw AppException.Conflict("auction.terms_frozen");
             a.PublisherId = await ResolvePublisherAsync(actor, input.PublisherId, ct);
         }
+        var wasActive = a.IsActive;
         ApplyText(a, input);
         if (uploads.MainImage is not null) a.MainImageFileId = (await files.SaveAsync(uploads.MainImage, FileCategory.AuctionImage, actor.UserId, ct)).Id;
         await ApplyDocumentsAsync(a, input, uploads, actor, ct);
@@ -175,16 +176,29 @@ public sealed class AuctionManagement(AppDbContext db, FileService files, TimePr
         a.UpdatedAtUtc = now;
         audit.Record(actor, "auction.update", nameof(Auction), id);
         await db.SaveChangesAsync(ct);
+        // Deactivating through an edit gives the leader their held money back, like the toggle does (the auction row is already locked: auction → wallet).
+        if (wasActive && !a.IsActive) await bidding.ReleaseHoldsAsync([id], actor.UserId, ct);
+        else if (!wasActive && a.IsActive) await bidding.RestoreHoldsAsync([id], actor.UserId, ct);
+        await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
     }
 
+    /// <summary>
+    /// Deactivating a running auction returns the leader's held money (refund + ledger entry) in the same transaction; reactivating holds it
+    /// again, or refuses with 409 <c>auction.leader_unfunded</c> when the leader can no longer cover it. Auction row locked first, then wallets.
+    /// </summary>
     public async Task<bool> SetActiveAsync(Actor actor, int id, bool active, CancellationToken ct = default)
     {
         RequireManager(actor);
+        await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
+        await LockAsync(id, ct);
         var rows = await Scope(actor).Where(a => a.Id == id).ExecuteUpdateAsync(s => s.SetProperty(a => a.IsActive, active).SetProperty(a => a.UpdatedAtUtc, Now), ct);
         if (rows == 0) throw AppException.NotFound("auction");
+        if (active) await bidding.RestoreHoldsAsync([id], actor.UserId, ct);
+        else await bidding.ReleaseHoldsAsync([id], actor.UserId, ct);
         audit.Record(actor, active ? "auction.activate" : "auction.deactivate", nameof(Auction), id);
         await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
         return active;
     }
 

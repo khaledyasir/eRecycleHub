@@ -47,7 +47,7 @@ public static class ErrorCodes
         "bid.not_started" => new(409, "AUCTION_NOT_STARTED"),
         "bid.below_minimum" => new(422, "BID_TOO_LOW"),
         "bid.outbid" => new(409, "OUTBID"),
-        "bid.insufficient_insurance" or "wallet.insufficient" => new(422, "INSUFFICIENT_WALLET"),
+        "bid.insufficient_insurance" or "bid.insufficient_balance" or "wallet.insufficient" => new(422, "INSUFFICIENT_WALLET"),
         "bid.own_auction" or "bid.admin_cannot_bid" or "bid.account_blocked" => new(403, "BID_NOT_ALLOWED"),
         "bid.invalid_amount" or "wallet.invalid_amount" => Field("amount", "amount.invalid"),
         "device.token_invalid" => Field("token", "token.required"),

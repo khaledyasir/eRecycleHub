@@ -21,6 +21,7 @@
     "admin_cannot_bid": "Administrator accounts can't bid.",
     "own_auction": "You can't bid on your own auction.",
     "insufficient_insurance": "Your wallet must hold at least {insurance} to bid on this auction.",
+    "insufficient_balance": "This bid needs {required} available in your wallet, but only {available} is (money held by your other leading bids and pending withdrawals is not available).",
     "below_minimum": "Your bid must be at least {minimum}."
   },
   "auth": {
@@ -63,6 +64,8 @@
     "too_many_specs": "Use at most {max} detail rows.",
     "spec_title_required": "Every detail row needs a name.",
     "terms_frozen": "Bids exist, so the start price, increment, insurance, start time and country can't change.",
+    "leader_unfunded": "The current leader's wallet no longer covers their bid ({required}; available {available}), so the auction can't be reactivated.",
+    "no_unsettled_sale": "There is no unpaid winning bid on this auction to void.",
     "has_bids": "This auction has bids and can't be deleted. Deactivate it instead.",
     "has_transactions": "Wallet transactions reference this auction, so it can't be deleted.",
     "too_many_images": "An auction can have at most {max} images."

@@ -66,7 +66,14 @@ public static partial class ErrorMessages
 
         // ---- wallet ----
         ["wallet.invalid_amount"] = ("Please enter a valid amount (up to {max}).", "يرجى إدخال مبلغ صحيح (حتى {max})."),
+        ["bid.insufficient_balance"] = ("This bid needs {required} but only {available} of your wallet is available (money held by your other leading bids and pending withdrawals is not available).", "تحتاج هذه المزايدة إلى {required} لكن المتاح من محفظتك {available} فقط (المبالغ المحجوزة لمزايداتك الأخرى وطلبات السحب المعلّقة غير متاحة)."),
         ["wallet.insufficient"] = ("Your wallet balance is not enough.", "رصيد محفظتك غير كافٍ."),
+        ["wallet.idempotency_key_reused"] = ("This request key was already used for a different request.", "تم استخدام مفتاح الطلب هذا لطلب مختلف."),
+        ["wallet.self_approval_not_allowed"] = ("You cannot approve your own request; another administrator must.", "لا يمكنك الموافقة على طلبك الخاص؛ يجب أن يوافق مسؤول آخر."),
+        ["wallet.self_credit_not_allowed"] = ("You cannot credit your own wallet; another administrator must.", "لا يمكنك إضافة رصيد إلى محفظتك؛ يجب أن يقوم بذلك مسؤول آخر."),
+        ["wallet.owner_inactive"] = ("This account is inactive or deleted, so the request cannot be approved or reversed.", "هذا الحساب غير نشط أو محذوف، لذلك لا يمكن الموافقة على الطلب أو عكسه."),
+        ["wallet.too_many_pending"] = ("You already have {max} requests waiting for approval. Please wait for them to be processed.", "لديك بالفعل {max} طلبات بانتظار الموافقة. يرجى الانتظار حتى تتم معالجتها."),
+        ["account.delete_blocked"] = ("Your account cannot be deleted while it has a wallet balance, a pending withdrawal or money held by a bid. Withdraw or use the balance first.", "لا يمكن حذف حسابك بينما يوجد رصيد في المحفظة أو طلب سحب معلّق أو مبلغ محجوز لمزايدة. يرجى سحب الرصيد أو استخدامه أولاً."),
         ["wallet.conflict"] = ("This request was already submitted.", "تم إرسال هذا الطلب مسبقاً."),
 
         // ---- not found ----

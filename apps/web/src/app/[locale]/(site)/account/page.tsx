@@ -40,7 +40,7 @@ export default async function AccountHome({ searchParams }: { searchParams: Prom
         <Stat label={t("attended")} value={number(d.auctionsAttended, locale)} icon={Gavel} accent="purple" />
         <Stat label={t("leading")} value={number(d.leading, locale)} icon={TrendingUp} accent="orange" />
         <Stat label={t("won")} value={number(d.won, locale)} icon={Trophy} accent="lime" />
-        <Stat label={t("wallet")} value={money(d.walletBalance, locale)} icon={Wallet} hint={<Link href="/account/wallet" className="text-patina hover:underline">{t("walletLink")}</Link>} />
+        <Stat label={t("wallet")} value={money(d.walletBalance, locale)} icon={Wallet} hint={<><Link href="/account/wallet" className="text-patina hover:underline">{t("walletLink")}</Link>{(d.heldInBids ?? 0) > 0 && <span className="text-muted"> · {t("heldInBids", { amount: money(d.heldInBids ?? 0, locale) })}</span>}</>} />
       </div>
       {d.unreadNotifications > 0 && (
         <p className="mt-3 text-sm">

@@ -136,6 +136,9 @@ namespace ERecycleHub.Infrastructure.Migrations
                         .HasMaxLength(400)
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<DateTime?>("EndProcessedAtUtc")
+                        .HasColumnType("datetime2");
+
                     b.Property<DateTime?>("EndsAtUtc")
                         .HasColumnType("datetime2");
 
@@ -159,6 +162,9 @@ namespace ERecycleHub.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(32)
                         .HasColumnType("nvarchar(32)");
+
+                    b.Property<DateTime?>("SettlementFailedAtUtc")
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("ShortDescAr")
                         .HasMaxLength(400)
@@ -187,6 +193,12 @@ namespace ERecycleHub.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(400)
                         .HasColumnType("nvarchar(400)");
+
+                    b.Property<string>("TopicName")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)")
+                        .HasComputedColumnSql("'auction_' + CAST([Id] AS nvarchar(20))", true);
 
                     b.Property<DateTime>("UpdatedAtUtc")
                         .HasColumnType("datetime2");
@@ -255,6 +267,24 @@ namespace ERecycleHub.Infrastructure.Migrations
                     b.HasIndex("FileId");
 
                     b.ToTable("AuctionImages");
+                });
+
+            modelBuilder.Entity("ERecycleHub.Domain.AuctionParticipant", b =>
+                {
+                    b.Property<int>("AuctionId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("JoinedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("AuctionId", "UserId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("AuctionParticipants");
                 });
 
             modelBuilder.Entity("ERecycleHub.Domain.AuctionSpec", b =>
@@ -419,6 +449,16 @@ namespace ERecycleHub.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("datetime2");
 
+                    b.Property<decimal>("HeldAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime?>("ReleasedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("SettledAtUtc")
+                        .HasColumnType("datetime2");
+
                     b.Property<int>("UserId")
                         .HasColumnType("int");
 
@@ -428,9 +468,13 @@ namespace ERecycleHub.Infrastructure.Migrations
 
                     b.HasIndex("UserId", "CreatedAtUtc");
 
+                    b.HasIndex("UserId", "ReleasedAtUtc", "SettledAtUtc");
+
                     b.ToTable("Bids", t =>
                         {
                             t.HasCheckConstraint("CK_Bid_Amount", "[Amount] > 0");
+
+                            t.HasCheckConstraint("CK_Bid_Held", "[HeldAmount] >= 0 AND [HeldAmount] <= [Amount]");
                         });
                 });
 
@@ -614,6 +658,18 @@ namespace ERecycleHub.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("DeviceId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Language")
+                        .HasMaxLength(5)
+                        .HasColumnType("nvarchar(5)");
+
+                    b.Property<string>("Platform")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
                     b.Property<Guid?>("SessionId")
                         .HasColumnType("uniqueidentifier");
 
@@ -636,6 +692,10 @@ namespace ERecycleHub.Infrastructure.Migrations
                         .IsUnique();
 
                     b.HasIndex("UserId");
+
+                    b.HasIndex("UserId", "DeviceId")
+                        .IsUnique()
+                        .HasFilter("[DeviceId] IS NOT NULL");
 
                     b.ToTable("DeviceTokens");
                 });
@@ -864,6 +924,10 @@ namespace ERecycleHub.Infrastructure.Migrations
                     b.Property<DateTime?>("DeletedAtUtc")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("EventKey")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
                     b.Property<int?>("FromUserId")
                         .HasColumnType("int");
 
@@ -874,6 +938,9 @@ namespace ERecycleHub.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(64)
                         .HasColumnType("nvarchar(64)");
+
+                    b.Property<DateTime?>("PushedAtUtc")
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("Title")
                         .HasMaxLength(400)
@@ -889,6 +956,10 @@ namespace ERecycleHub.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("UserId", "DeletedAtUtc");
+
+                    b.HasIndex("UserId", "EventKey")
+                        .IsUnique()
+                        .HasFilter("[EventKey] IS NOT NULL");
 
                     b.HasIndex("UserId", "IsRead", "CreatedAtUtc");
 
@@ -1502,11 +1573,22 @@ namespace ERecycleHub.Infrastructure.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<decimal?>("BalanceBefore")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("datetime2");
 
                     b.Property<int>("Reason")
                         .HasColumnType("int");
+
+                    b.Property<long?>("ReferenceId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ReferenceType")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
 
                     b.Property<int>("UserId")
                         .HasColumnType("int");
@@ -1516,11 +1598,18 @@ namespace ERecycleHub.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("ReferenceType", "ReferenceId");
+
                     b.HasIndex("UserId", "Id");
 
                     b.HasIndex("WalletTransactionId", "Reason")
                         .IsUnique()
                         .HasFilter("[WalletTransactionId] IS NOT NULL");
+
+                    b.HasIndex("ReferenceType", "ReferenceId", "Reason")
+                        .IsUnique()
+                        .HasDatabaseName("UX_WalletLedger_AuctionPayment")
+                        .HasFilter("[Reason] = 9");
 
                     b.ToTable("WalletLedger");
                 });
@@ -1693,6 +1782,21 @@ namespace ERecycleHub.Infrastructure.Migrations
                     b.HasOne("ERecycleHub.Domain.StoredFile", null)
                         .WithMany()
                         .HasForeignKey("FileId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ERecycleHub.Domain.AuctionParticipant", b =>
+                {
+                    b.HasOne("ERecycleHub.Domain.Auction", null)
+                        .WithMany()
+                        .HasForeignKey("AuctionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ERecycleHub.Domain.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });

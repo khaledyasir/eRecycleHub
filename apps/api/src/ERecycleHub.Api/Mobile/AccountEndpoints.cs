@@ -7,7 +7,7 @@ public sealed record UpdateProfileRequest(string? FullName, string? Email, strin
 public sealed record ChangePasswordRequest(string? CurrentPassword, string? NewPassword);
 public sealed record AmountRequest(decimal Amount);
 public sealed record IdsRequest(int[]? Ids);
-public sealed record FcmTokenRequest(string? Token);
+public sealed record FcmTokenRequest(string? Token, string? Platform = null, string? DeviceId = null);
 
 /// <summary>§3.6 notifications and devices, §3.7 profile and my auctions, §3.8 wallet. All require a bearer token.</summary>
 public static class AccountEndpoints
@@ -42,7 +42,7 @@ public static class AccountEndpoints
         {
             await m.DeleteAccountAsync(ctx.UserId(), ct);
             return Reply.Done();
-        }).Produces<Envelope<object>>().WithDescription("Removes personal data, ends every session and push token.");
+        }).Produces<Envelope<object>>().WithDescription("Removes personal data, ends every session and push token. 409 ACCOUNT_DELETE_BLOCKED while the account has a wallet balance, a pending withdrawal or money held by a leading bid (the message and arguments say how much): withdraw or use the money first.");
         p.MapGet("/auctions", async (HttpContext ctx, MobileAccount m, CancellationToken ct) => Reply.Data(await m.MyAuctionsAsync(ctx.UserId(), ct)))
             .Produces<Envelope<MyAuctionsDto>>().WithDescription("live: running auctions you bid on. won: ended auctions where your bid was highest.");
 
@@ -50,22 +50,41 @@ public static class AccountEndpoints
         w.MapGet("", async (HttpContext ctx, MobileAccount m, CancellationToken ct) => Reply.Data(await m.WalletAsync(ctx.UserId(), ct)))
             .Produces<Envelope<WalletDto>>()
             .WithDescription("type: Deposit | Withdraw. status: Pending | Completed | Rejected | Reversed.");
+        w.MapGet("/balance", async (HttpContext ctx, WalletService wallet, CancellationToken ct) => Reply.Data(await wallet.BalanceAsync(ctx.UserId(), ct)))
+            .Produces<Envelope<WalletBalanceDto>>()
+            .WithDescription("balance = money in the wallet. pendingWithdrawals = withdrawal requests awaiting approval. held = money reserved by your leading bids (only when wallet bidding is on). available = balance - pendingWithdrawals - held: what can be bid or withdrawn.");
+        w.MapGet("/ledger", async (HttpContext ctx, WalletService wallet, CancellationToken ct, int page = 1, int pageSize = 20) =>
+        {
+            var r = await wallet.LedgerAsync(ctx.UserId(), new PageQuery(page, pageSize), ct);
+            return Reply.Data(new PagedResult<LedgerItemDto>(r.Items.Select(l => new LedgerItemDto(l.Id, l.Reason.ToString(), l.Amount, l.BalanceBefore,
+                l.BalanceAfter, l.ReferenceType, l.ReferenceId, l.CreatedAtUtc)).ToList(), r.Page, r.PageSize, r.Total));
+        }).Produces<Envelope<PagedResult<LedgerItemDto>>>()
+            .WithDescription("Every balance change, newest first. amount is signed (negative = money out). balanceBefore is null on entries older than this field. pageSize max 100.");
         w.MapPost("/increase", async (AmountRequest req, HttpContext ctx, WalletService wallet, CancellationToken ct) =>
         {
-            await wallet.RequestTopUpAsync(ctx.UserId(), req.Amount, null, null, ct);
+            await wallet.RequestTopUpAsync(ctx.UserId(), req.Amount, null, ctx.Request.Headers["Idempotency-Key"].FirstOrDefault(), ct);
             return Reply.Done();
-        }).RequireRateLimiting(RateLimits.Forms).Produces<Envelope<object>>()
-            .WithDescription("Creates a Pending deposit; an administrator credits the wallet after the bank transfer arrives.");
+        }).RequireRateLimiting(RateLimits.Money).Produces<Envelope<object>>()
+            .WithDescription("Creates a Pending deposit; an administrator credits the wallet after the bank transfer arrives and you get a push and an in-app notification (topup_approved / topup_rejected). At most 5 requests (deposits and withdrawals together) can be Pending at once: 409 WALLET_TOO_MANY_PENDING. Optional Idempotency-Key header (max 100 chars): a retry with the same key returns the same request instead of creating another; 409 wallet.idempotency_key_reused if the key belongs to a different kind of request.");
         w.MapPost("/withdraw", async (AmountRequest req, HttpContext ctx, WalletService wallet, CancellationToken ct) =>
         {
-            await wallet.RequestWithdrawalAsync(ctx.UserId(), req.Amount, ct);
+            await wallet.RequestWithdrawalAsync(ctx.UserId(), req.Amount, ctx.Request.Headers["Idempotency-Key"].FirstOrDefault(), ct);
             return Reply.Done();
-        }).RequireRateLimiting(RateLimits.Forms).Produces<Envelope<object>>()
-            .WithDescription("Creates a Pending withdrawal; the balance is debited when an administrator approves it. 422 INSUFFICIENT_WALLET when the amount exceeds the balance minus pending withdrawals.");
+        }).RequireRateLimiting(RateLimits.Money).Produces<Envelope<object>>()
+            .WithDescription("Creates a Pending withdrawal; the balance is debited when an administrator approves it. 422 INSUFFICIENT_WALLET when the amount exceeds the available balance (balance - pending withdrawals - held). Approval later re-checks the same figure and notifies you (withdrawal_approved / withdrawal_rejected). Optional Idempotency-Key header: a retry with the same key and amount returns the same request; 409 wallet.idempotency_key_reused otherwise.");
 
         var n = v1.MapGroup("/notifications").WithTags("Notifications");
-        n.MapGet("", async (HttpContext ctx, MobileAccount m, CancellationToken ct) => Reply.Data(await m.NotificationsAsync(ctx.UserId(), ct)))
-            .Produces<Envelope<List<AppNotificationDto>>>().WithDescription("Newest first, at most 500. type: auction | bid | wallet | system.");
+        n.MapGet("", async (HttpContext ctx, MobileAccount m, CancellationToken ct, bool? unread = null, int? page = null, int? pageSize = null) =>
+                Reply.Data(await m.NotificationsAsync(ctx.UserId(), unread == true, page, pageSize, ct)))
+            .Produces<Envelope<List<AppNotificationDto>>>()
+            .WithDescription("Newest first, at most 500 (optional unread=true, page, pageSize). type: auction | bid | wallet | system. kind is the exact event (the push `type` with the same name); auctionId says which auction to open. Each push carries notification_id = id of the row here, so a push and its row are one notification.");
+        n.MapGet("/unread-count", async (HttpContext ctx, MobileAccount m, CancellationToken ct) => Reply.Data(new { count = await m.UnreadCountAsync(ctx.UserId(), ct) }))
+            .Produces<Envelope<object>>();
+        n.MapPost("/read-all", async (HttpContext ctx, MobileAccount m, CancellationToken ct) =>
+        {
+            await m.MarkAllReadAsync(ctx.UserId(), ct);
+            return Reply.Done();
+        }).Produces<Envelope<object>>();
         n.MapPost("/read", async (IdsRequest req, HttpContext ctx, MobileAccount m, CancellationToken ct) =>
         {
             await m.MarkReadAsync(ctx.UserId(), req.Ids, ct);
@@ -84,8 +103,8 @@ public static class AccountEndpoints
 
         v1.MapPost("/devices/fcm-token", async (FcmTokenRequest req, HttpContext ctx, SessionService sessions, CancellationToken ct) =>
         {
-            await sessions.RegisterDeviceAsync(ctx.UserId(), ctx.SessionId(), req.Token, ct);
+            await sessions.RegisterDeviceAsync(ctx.UserId(), ctx.SessionId(), req.Token, req.Platform, req.DeviceId, ctx.Request.Headers["lang"].ToString(), ct);
             return Reply.Done();
-        }).WithTags("Notifications").Produces<Envelope<object>>().WithDescription("Upsert; re-sending the same token is fine. Logout forgets it.");
+        }).WithTags("Notifications").Produces<Envelope<object>>().WithDescription("Upsert; re-sending the same token is fine. platform: android | ios (optional). deviceId (optional, max 100): a new token with the same deviceId replaces that device's old token. The backend subscribes the token to the topics of the auctions you take part in; the app does not. Logout forgets the token.");
     }
 }

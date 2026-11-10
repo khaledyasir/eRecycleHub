@@ -308,7 +308,7 @@
         "tags": [
           "Notifications"
         ],
-        "description": "Upsert; re-sending the same token is fine. Logout forgets it.",
+        "description": "Upsert; re-sending the same token is fine. platform: android | ios (optional). deviceId (optional, max 100): a new token with the same deviceId replaces that device's old token. The backend subscribes the token to the topics of the auctions you take part in; the app does not. Logout forgets the token.",
         "requestBody": {
           "content": {
             "application/json": {
@@ -435,7 +435,7 @@
           "Auctions"
         ],
         "summary": "Place a bid; returns the full auction details",
-        "description": "Errors: 409 AUCTION_CLOSED, 409 AUCTION_NOT_STARTED, 409 OUTBID (someone bid first: reload), 422 BID_TOO_LOW, 422 INSUFFICIENT_WALLET, 403 BID_NOT_ALLOWED (own auction). Listeners of /api/ws/auctions/{id} get bid.placed with the same bid id.",
+        "description": "When the server runs with Bidding__DebitWallet=true a bid HOLDS its amount: the wallet balance and ledger are not touched, the previous leader's hold is released, and the money is charged only if you win when the auction ends. The wallet field of the returned auction is then your available balance (balance minus pending withdrawals minus the money held by your leading bids). You may lead several auctions while the sum of your holds fits it. Errors: 409 AUCTION_CLOSED (auction ended, inactive or deactivated; = AUCTION_ENDED), 409 AUCTION_NOT_STARTED, 409 OUTBID (someone bid first: reload), 422 BID_TOO_LOW, 422 INSUFFICIENT_WALLET (= INSUFFICIENT_BALANCE: your available balance cannot cover the hold; the message states required and available; also returned when it is below the auction's insurance), 403 BID_NOT_ALLOWED (own auction, administrator or blocked account). Listeners of /api/ws/auctions/{id} get bid.placed with the same bid id.",
         "parameters": [
           {
             "name": "id",
@@ -603,7 +603,7 @@
         "tags": [
           "Profile"
         ],
-        "description": "Removes personal data, ends every session and push token.",
+        "description": "Removes personal data, ends every session and push token. 409 ACCOUNT_DELETE_BLOCKED while the account has a wallet balance, a pending withdrawal or money held by a leading bid (the message and arguments say how much): withdraw or use the money first.",
         "responses": {
           "200": {
             "description": "OK",
@@ -718,12 +718,80 @@
         }
       }
     },
+    "/api/v1/wallet/balance": {
+      "get": {
+        "tags": [
+          "Wallet"
+        ],
+        "description": "balance = money in the wallet. pendingWithdrawals = withdrawal requests awaiting approval. held = money reserved by your leading bids (only when wallet bidding is on). available = balance - pendingWithdrawals - held: what can be bid or withdrawn.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeOfWalletBalanceDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/wallet/ledger": {
+      "get": {
+        "tags": [
+          "Wallet"
+        ],
+        "description": "Every balance change, newest first. amount is signed (negative = money out). balanceBefore is null on entries older than this field. pageSize max 100.",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32",
+              "default": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32",
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeOfPagedResultOfLedgerItemDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/wallet/increase": {
       "post": {
         "tags": [
           "Wallet"
         ],
-        "description": "Creates a Pending deposit; an administrator credits the wallet after the bank transfer arrives.",
+        "description": "Creates a Pending deposit; an administrator credits the wallet after the bank transfer arrives and you get a push and an in-app notification (topup_approved / topup_rejected). At most 5 requests (deposits and withdrawals together) can be Pending at once: 409 WALLET_TOO_MANY_PENDING. Optional Idempotency-Key header (max 100 chars): a retry with the same key returns the same request instead of creating another; 409 wallet.idempotency_key_reused if the key belongs to a different kind of request.",
         "requestBody": {
           "content": {
             "application/json": {
@@ -753,7 +821,7 @@
         "tags": [
           "Wallet"
         ],
-        "description": "Creates a Pending withdrawal; the balance is debited when an administrator approves it. 422 INSUFFICIENT_WALLET when the amount exceeds the balance minus pending withdrawals.",
+        "description": "Creates a Pending withdrawal; the balance is debited when an administrator approves it. 422 INSUFFICIENT_WALLET when the amount exceeds the available balance (balance - pending withdrawals - held). Approval later re-checks the same figure and notifies you (withdrawal_approved / withdrawal_rejected). Optional Idempotency-Key header: a retry with the same key and amount returns the same request; 409 wallet.idempotency_key_reused otherwise.",
         "requestBody": {
           "content": {
             "application/json": {
@@ -783,7 +851,40 @@
         "tags": [
           "Notifications"
         ],
-        "description": "Newest first, at most 500. type: auction | bid | wallet | system.",
+        "description": "Newest first, at most 500 (optional unread=true, page, pageSize). type: auction | bid | wallet | system. kind is the exact event (the push `type` with the same name); auctionId says which auction to open. Each push carries notification_id = id of the row here, so a push and its row are one notification.",
+        "parameters": [
+          {
+            "name": "unread",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -791,6 +892,44 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/EnvelopeOfListOfAppNotificationDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notifications/unread-count": {
+      "get": {
+        "tags": [
+          "Notifications"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeOfObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notifications/read-all": {
+      "post": {
+        "tags": [
+          "Notifications"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeOfObject"
                 }
               }
             }
@@ -951,6 +1090,30 @@
           },
           "read": {
             "type": "boolean"
+          },
+          "kind": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "auctionId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "amount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
           }
         }
       },
@@ -1947,6 +2110,35 @@
           }
         }
       },
+      "EnvelopeOfPagedResultOfLedgerItemDto": {
+        "required": [
+          "success",
+          "message",
+          "data"
+        ],
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PagedResultOfLedgerItemDto"
+              }
+            ]
+          }
+        }
+      },
       "EnvelopeOfProfileImageDto": {
         "required": [
           "success",
@@ -2000,6 +2192,35 @@
               },
               {
                 "$ref": "#/components/schemas/UserProfileDto"
+              }
+            ]
+          }
+        }
+      },
+      "EnvelopeOfWalletBalanceDto": {
+        "required": [
+          "success",
+          "message",
+          "data"
+        ],
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WalletBalanceDto"
               }
             ]
           }
@@ -2083,6 +2304,18 @@
               "null",
               "string"
             ]
+          },
+          "platform": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "deviceId": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -2144,6 +2377,76 @@
               "string"
             ],
             "format": "double"
+          },
+          "createdDate": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "LedgerItemDto": {
+        "required": [
+          "id",
+          "reason",
+          "amount",
+          "balanceBefore",
+          "balanceAfter",
+          "referenceType",
+          "referenceId",
+          "createdDate"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "amount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "balanceBefore": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "balanceAfter": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "referenceType": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "referenceId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int64"
           },
           "createdDate": {
             "type": "string",
@@ -2277,6 +2580,55 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "PagedResultOfLedgerItemDto": {
+        "required": [
+          "items",
+          "page",
+          "pageSize",
+          "total"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LedgerItemDto"
+            }
+          },
+          "page": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "pageSize": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "total": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "totalPages": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           }
         }
       },
@@ -2524,6 +2876,49 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "WalletBalanceDto": {
+        "required": [
+          "balance",
+          "pendingWithdrawals",
+          "available"
+        ],
+        "type": "object",
+        "properties": {
+          "balance": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "pendingWithdrawals": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "available": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "held": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double",
+            "default": 0
           }
         }
       },

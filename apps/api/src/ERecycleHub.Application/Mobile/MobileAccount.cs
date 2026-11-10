@@ -6,7 +6,7 @@ namespace ERecycleHub.Application.Mobile;
 
 /// <summary>Signed-in user's data for the mobile API: profile, my auctions, favourites, wallet, notifications.</summary>
 public sealed class MobileAccount(AppDbContext db, AuctionQueries auctions, MobileCatalog catalog, FileService files, SessionService sessions,
-    IFileUrls urls, TimeProvider clock, Audit audit)
+    IFileUrls urls, TimeProvider clock, Audit audit, BiddingService bidding, WalletService walletService)
 {
     private DateTime Now => clock.GetUtcNow().UtcDateTime;
 
@@ -60,7 +60,24 @@ public sealed class MobileAccount(AppDbContext db, AuctionQueries auctions, Mobi
     public async Task DeleteAccountAsync(int userId, CancellationToken ct = default)
     {
         await using var tx = await db.Database.BeginTransactionAsync(ct);
+        // A seller's auctions stop being biddable with the account: lock them before the user row, return the leaders' held money afterwards.
+        var sellerAuctions = await bidding.LockSellerAuctionsAsync(userId, ct);
+        // Then the user's wallet row (auction rows first, wallet rows second, as everywhere): nothing can bid, withdraw or hold while the check runs.
+        await db.Database.SqlQuery<int>($"SELECT Id AS Value FROM Users WITH (UPDLOCK, ROWLOCK) WHERE Id = {userId}").ToListAsync(ct);
         var u = await db.Users.SingleAsync(x => x.Id == userId, ct);
+        // Money must be settled first: an account with a balance, a pending withdrawal or money held by a leading bid cannot be deleted.
+        var pending = await walletService.PendingWithdrawalsAsync(userId, ct);
+        var held = await walletService.HeldAsync(userId, ct);
+        if (u.WalletBalance > 0 || pending > 0 || held > 0)
+        {
+            var role = u.Role;
+            var balance = u.WalletBalance;
+            await tx.RollbackAsync(ct);
+            db.ChangeTracker.Clear();
+            audit.Record(new Actor(userId, role), "user.delete_refused", nameof(User), userId, new { balance, pendingWithdrawals = pending, held });
+            await db.SaveChangesAsync(ct);
+            throw AppException.Conflict("account.delete_blocked", new { balance, pendingWithdrawals = pending, held });
+        }
         u.IsDeleted = true;
         u.IsActive = false;
         u.FullName = "Deleted user";
@@ -74,6 +91,8 @@ public sealed class MobileAccount(AppDbContext db, AuctionQueries auctions, Mobi
         await db.Wishlist.Where(w => w.UserId == userId).ExecuteDeleteAsync(ct);
         await db.AuctionWatches.Where(w => w.UserId == userId).ExecuteDeleteAsync(ct);
         audit.Record(new Actor(userId, u.Role), "user.delete_self", nameof(User), userId);
+        await db.SaveChangesAsync(ct);
+        if (sellerAuctions.Count > 0) await bidding.ReleaseHoldsAsync(sellerAuctions, userId, ct);
         await db.SaveChangesAsync(ct);
         await sessions.RevokeAllAsync(userId, null, ct);
         await tx.CommitAsync(ct);
@@ -99,7 +118,7 @@ public sealed class MobileAccount(AppDbContext db, AuctionQueries auctions, Mobi
 
     public async Task<WalletDto> WalletAsync(int userId, CancellationToken ct = default)
     {
-        var balance = await db.Users.Where(u => u.Id == userId).Select(u => u.WalletBalance).SingleAsync(ct);
+        var balance = await walletService.ShownBalanceAsync(userId, ct);
         var rows = await db.WalletTransactions.AsNoTracking().Where(t => t.UserId == userId).OrderByDescending(t => t.Id)
             .Select(t => new { t.Id, t.Type, t.Amount, t.Status, t.CreatedAtUtc }).ToListAsync(ct);
         // Enum strings the app understands: type Deposit = money in, anything else = out; status Completed / Pending / anything else = rejected.
@@ -113,21 +132,33 @@ public sealed class MobileAccount(AppDbContext db, AuctionQueries auctions, Mobi
 
     public static readonly TimeSpan RestoreWindow = TimeSpan.FromDays(1);
 
-    public async Task<List<AppNotificationDto>> NotificationsAsync(int userId, CancellationToken ct = default)
+    /// <summary>Newest first. With no filters: at most 500, as before. <paramref name="unreadOnly"/> and <paramref name="page"/>/<paramref name="pageSize"/> narrow it.</summary>
+    public async Task<List<AppNotificationDto>> NotificationsAsync(int userId, bool unreadOnly = false, int? page = null, int? pageSize = null, CancellationToken ct = default)
     {
-        var rows = await db.Notifications.AsNoTracking().Where(n => n.UserId == userId && n.DeletedAtUtc == null).OrderByDescending(n => n.Id).Take(500)
+        var q = db.Notifications.AsNoTracking().Where(n => n.UserId == userId && n.DeletedAtUtc == null);
+        if (unreadOnly) q = q.Where(n => !n.IsRead);
+        q = q.OrderByDescending(n => n.Id);
+        var size = Math.Clamp(pageSize ?? 500, 1, 500);
+        if (page is int p && p > 1) q = q.Skip((p - 1) * size);
+        var rows = await q.Take(size)
             .Select(n => new
             {
-                n.Id, n.Kind, n.Amount, n.Title, n.Body, n.IsRead, n.CreatedAtUtc,
+                n.Id, n.Kind, n.Amount, n.Title, n.Body, n.IsRead, n.CreatedAtUtc, n.AuctionId,
                 AuctionEn = db.Auctions.Where(a => a.Id == n.AuctionId).Select(a => a.TitleEn).FirstOrDefault(),
                 AuctionAr = db.Auctions.Where(a => a.Id == n.AuctionId).Select(a => a.TitleAr).FirstOrDefault(),
             }).ToListAsync(ct);
         return rows.Select(n =>
         {
             var t = NotificationTexts.For(n.Kind, n.AuctionEn, n.AuctionAr, n.Amount, n.Title, n.Body);
-            return new AppNotificationDto(n.Id, NotificationTexts.TypeOf(n.Kind), t.TitleEn, t.TitleAr, t.BodyEn, t.BodyAr, n.CreatedAtUtc, n.IsRead);
+            return new AppNotificationDto(n.Id, NotificationTexts.TypeOf(n.Kind), t.TitleEn, t.TitleAr, t.BodyEn, t.BodyAr, n.CreatedAtUtc, n.IsRead, PushPayloads.TypeOf(n.Kind), n.AuctionId, n.Amount);
         }).ToList();
     }
+
+    public Task<int> UnreadCountAsync(int userId, CancellationToken ct = default) =>
+        db.Notifications.CountAsync(n => n.UserId == userId && n.DeletedAtUtc == null && !n.IsRead, ct);
+
+    public Task MarkAllReadAsync(int userId, CancellationToken ct = default) =>
+        db.Notifications.Where(n => n.UserId == userId && n.DeletedAtUtc == null && !n.IsRead).ExecuteUpdateAsync(s => s.SetProperty(n => n.IsRead, true), ct);
 
     public async Task MarkReadAsync(int userId, int[]? ids, CancellationToken ct = default)
     {

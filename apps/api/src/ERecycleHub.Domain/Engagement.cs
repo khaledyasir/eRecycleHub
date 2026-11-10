@@ -27,7 +27,15 @@ public static class NotificationKinds
     public const string TopUpRejected = "wallet.topup_rejected";
     public const string WithdrawalApproved = "wallet.withdrawal_approved";
     public const string WithdrawalRejected = "wallet.withdrawal_rejected";
+    /// <summary>An administrator reversed an approved credit (the amount was taken back).</summary>
+    public const string CreditReversed = "wallet.credit_reversed";
     public const string AuctionWon = "auction.won";
+    /// <summary>The user took part in an auction for the first time (their first bid).</summary>
+    public const string Joined = "auction.joined";
+    /// <summary>An auction the user took part in ended (they did not win).</summary>
+    public const string Ended = "auction.ended";
+    /// <summary>The user won but their wallet could not cover the winning amount at close.</summary>
+    public const string PaymentFailed = "auction.payment_failed";
     public const string SellerApproved = "seller.approved";
     public const string SellerRejected = "seller.rejected";
 }
@@ -46,6 +54,10 @@ public class Notification
     public string? Url { get; set; }
     public bool IsRead { get; set; }
     public DateTime CreatedAtUtc { get; set; }
+    /// <summary>Identifies the event this row announces to this user (e.g. <c>bid:123</c>, <c>join:42</c>, <c>end:42</c>); unique per user, so a repeated job cannot create a second row.</summary>
+    public string? EventKey { get; set; }
+    /// <summary>Set (once) when the push for this row was handed to the push service, so a repeated job cannot send it twice.</summary>
+    public DateTime? PushedAtUtc { get; set; }
     /// <summary>Soft delete: hidden from the list but restorable (mobile "undo").</summary>
     public DateTime? DeletedAtUtc { get; set; }
 }

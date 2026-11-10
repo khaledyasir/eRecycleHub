@@ -15,6 +15,13 @@ public static class AdminEndpoints
     {
         var g = api.MapGroup("/admin").WithTags("Admin").RequireAuthorization(Policies.Admin);
         g.MapManagedAuctions();
+        g.MapGet("/wallet-consistency", (WalletConsistency c, CancellationToken ct) => c.CheckAsync(ct)).Produces<WalletConsistencyReport>()
+            .WithDescription("Read-only: do wallet balances, held bid amounts, payments and the ledger agree, per user, per auction and in total. Errors fail it; warnings (unpaid ended auctions, old-model ledger rows) do not.");
+        g.MapGet("/unsettled-auctions", (WalletConsistency c, CancellationToken ct) => c.UnsettledAsync(failedOnly: true, ct)).Produces<List<UnsettledAuction>>()
+            .WithDescription("Read-only: auctions whose winner's payment FAILED at close (the wallet did not cover the winning amount). Nothing was charged; the close job retries every few seconds, so a top-up settles it. POST /admin/auctions/{id}/void-sale ends the sale without a payment.");
+        g.MapPost("/auctions/{id:int}/void-sale", async (int id, HttpContext ctx, AuctionClosing c, CancellationToken ct) => { await c.VoidSaleAsync(ctx.Actor(), id, ct); return Results.NoContent(); })
+            .RequireRateLimiting(RateLimits.AdminMoney)
+            .WithDescription("Releases the winner's hold on an auction whose payment cannot be completed, so it ends without a payment. 409 auction.no_unsettled_sale when there is nothing to void.");
 
         // ---- dashboard, reports, winners ----
         g.MapGet("/dashboard", (HttpContext ctx, ReportsService r, CancellationToken ct) => r.DashboardAsync(ctx.Actor(), ct));
@@ -91,11 +98,11 @@ public static class AdminEndpoints
         {
             var (data, f) = await ctx.Request.ReadMultipartAsync<CreditRequest>(ct);
             var proof = await SaveProofAsync(f, ctx, files, db, data.UserId, ct);
-            return await w.CreateApprovedCreditAsync(ctx.Actor(), data.UserId, data.Amount, proof, data.AuctionId, data.Note, ct);
-        }).Accepts<CreditRequest>("multipart/form-data").Produces<WalletTransactionDto>();
-        g.MapPost("/transactions/{id:int}/approve", (int id, HttpContext ctx, WalletService w, CancellationToken ct) => w.ApproveAsync(ctx.Actor(), id, ct));
-        g.MapPost("/transactions/{id:int}/reject", (int id, HttpContext ctx, WalletService w, CancellationToken ct) => w.RejectAsync(ctx.Actor(), id, ct));
-        g.MapPost("/transactions/{id:int}/reverse", (int id, HttpContext ctx, WalletService w, CancellationToken ct) => w.ReverseAsync(ctx.Actor(), id, ct));
+            return await w.CreateApprovedCreditAsync(ctx.Actor(), data.UserId, data.Amount, proof, data.AuctionId, data.Note, ctx.Request.Headers["Idempotency-Key"].FirstOrDefault(), ct);
+        }).RequireRateLimiting(RateLimits.AdminMoney).Accepts<CreditRequest>("multipart/form-data").Produces<WalletTransactionDto>();
+        g.MapPost("/transactions/{id:int}/approve", (int id, HttpContext ctx, WalletService w, CancellationToken ct) => w.ApproveAsync(ctx.Actor(), id, ct)).RequireRateLimiting(RateLimits.AdminMoney);
+        g.MapPost("/transactions/{id:int}/reject", (int id, HttpContext ctx, WalletService w, CancellationToken ct) => w.RejectAsync(ctx.Actor(), id, ct)).RequireRateLimiting(RateLimits.AdminMoney);
+        g.MapPost("/transactions/{id:int}/reverse", (int id, HttpContext ctx, WalletService w, CancellationToken ct) => w.ReverseAsync(ctx.Actor(), id, ct)).RequireRateLimiting(RateLimits.AdminMoney);
         g.MapDelete("/transactions/{id:int}", async (int id, HttpContext ctx, WalletService w, CancellationToken ct) => { await w.DeleteAsync(ctx.Actor(), id, ct); return Results.NoContent(); });
         g.MapPut("/transactions/{id:int}/proof", async (int id, HttpContext ctx, WalletService w, FileService files, ERecycleHub.Infrastructure.AppDbContext db, CancellationToken ct) =>
         {

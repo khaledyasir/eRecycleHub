@@ -43,3 +43,35 @@
 * Rate limits are per API instance (in-memory partitions). Account lockout is persistent; for a multi-instance deployment add a distributed limiter at the reverse proxy.
 * `CardNumber` / `AccountNumber` are stored as plain text, as in the legacy system. They are not used for payments; if they are real card numbers (PAN) the business is in PCI-DSS scope — recommend removing the field or encrypting it (Always Encrypted / column encryption). Not changed without business approval.
 * Malware scanning of uploads is not implemented (no scanner available); files are type-checked and never executed or served inline as HTML.
+
+## Phase 6: wallet, bidding and notifications review
+
+Scope: the hold-and-pay bidding model, the end-of-auction payment, wallet requests and their approval, and the notification pipeline.
+
+### Verified (by code reading; tests named where they exist)
+
+| Area | Result | Evidence |
+|---|---|---|
+| One writer for the balance | Only `WalletService` (plus the one-time conversion script and the dev seed) changes `WalletBalance` | `WalletInvariantTests` (unit, runs without a database) |
+| Admin-only access | Every `/api/admin/*` route refuses customers (403) and anonymous callers (401) | `SecurityReviewTests.Every_admin_route_refuses_customers_and_anonymous_callers` (enumerates the route table, so a new admin route is covered automatically) |
+| Ownership | Mobile wallet and notification calls only ever read or change the caller's own rows | `The_mobile_wallet_and_notification_endpoints_only_touch_the_callers_own_rows` |
+| Input validation | Money amounts: positive, at most 2 decimals, bounded (`Money.IsValidPositive`; columns are decimal(18,2)); header and paging inputs bounded | `Money_inputs_reject_...`, `Paging_and_header_inputs_are_bounded_...` |
+| Rate limits | Bids 30/min per user; wallet requests 10/min per user (`RateLimits:MoneyPerMinute`); administrator money actions 60/min per administrator (`RateLimits:AdminMoneyPerMinute`); the limiter runs after authentication, so the partition is the user, not the IP | `Wallet_requests_are_limited_per_user_...`, `Administrator_money_actions_are_limited_...` |
+| Audit | Admin credit, approve, reject, reverse, delete, proof and void-sale each write one audit row with actor, target and amount; **refused** approvals and reversals are now audited too (`wallet.approve_refused`, `wallet.reverse_refused`) | `Every_admin_money_action_leaves_one_audit_row_...`, `A_refused_money_decision_is_audited_...` |
+| Separation of duties | A decision that moves money into or out of a wallet cannot be made by the request's own owner (`wallet.self_approval_not_allowed`, 403). Rejecting one's own request, and crediting other users, are unaffected | `An_administrator_cannot_approve_their_own_request_...` |
+| Double spend | Holds, pending withdrawals and approvals share one guarded balance UPDATE and one lock order (auction rows, wallet rows, everything else) | Phase 3 to 5 tests |
+
+### Changed in Phase 6
+Per-user money rate limit; per-administrator money rate limit; self-approval refused; refused admin money decisions audited. No schema change.
+
+### Decisions applied after the review
+| Finding | Decision | Behaviour now |
+|---|---|---|
+| Administrator credits their own wallet | Blocked | 403 `wallet.self_credit_not_allowed`; audited as `wallet.credit_refused`. Crediting anyone else is unchanged. |
+| Deleting an account with money in play | Blocked | 409 `account.delete_blocked` while there is a balance, a pending withdrawal or an active hold; audited as `user.delete_refused`. The check runs under the user's wallet lock, after any seller auction locks (lock order unchanged). |
+| Decisions for inactive or deleted owners | Approve and reverse refused, reject allowed | 409 `wallet.owner_inactive`, audited as `wallet.approve_refused` or `wallet.reverse_refused` with reason `owner_inactive`. Checked under the owner's wallet lock. |
+| Admin credit idempotency | Optional `Idempotency-Key` header | A retry returns the original credit; a different amount under the same key is 409 `wallet.idempotency_key_reused`. Keys are scoped to the target user. |
+| Opening credit | Same transaction as the user | Both exist or neither does. |
+| Pending requests per user | Capped at 5 (`Wallet__MaxPendingRequests`, 1-100) | 409 `wallet.too_many_pending`, enforced under the user's wallet lock so simultaneous requests cannot pass the cap. An idempotent retry of an existing request still answers. |
+
+Left as is by decision: the anonymous auction hub does not cap watched rooms, and `Security.IsTokenClient` is unused.

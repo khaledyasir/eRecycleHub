@@ -40,7 +40,12 @@ builder.Services.AddApplicationServices();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IFileUrls, FileUrls>();
 builder.Services.AddSingleton<AuctionSockets>();
+builder.Services.AddSingleton<IBiddingSettings, ConfiguredBiddingSettings>();
 builder.Services.AddHostedService<AuctionLifecycleWatcher>();
+builder.Services.AddSingleton(sp => new BackgroundWorkQueue(sp.GetRequiredService<ILogger<BackgroundWorkQueue>>(), config.GetValue("BackgroundWork:QueueCapacity", BackgroundWorkQueue.DefaultCapacity)));
+builder.Services.AddHostedService<BackgroundWorkRunner>();
+builder.Services.AddHostedService<AuctionEndScanner>();
+builder.Services.AddPush(config, warnWhenMissing: !builder.Environment.IsDevelopment() && !builder.Environment.IsEnvironment("Testing"));
 
 builder.Services.ConfigureHttpJsonOptions(o =>
 {
@@ -119,6 +124,10 @@ builder.Services.AddRateLimiter(o =>
         _ => new FixedWindowRateLimiterOptions { PermitLimit = config.GetValue("RateLimits:FormsPerMinute", 10), Window = TimeSpan.FromMinutes(1) }));
     o.AddPolicy(RateLimits.Bids, c => RateLimitPartition.GetFixedWindowLimiter(c.ActorOrNull()?.UserId.ToString() ?? Ip(c),
         _ => new FixedWindowRateLimiterOptions { PermitLimit = config.GetValue("RateLimits:BidsPerMinute", 30), Window = TimeSpan.FromMinutes(1) }));
+    o.AddPolicy(RateLimits.Money, c => RateLimitPartition.GetFixedWindowLimiter(c.ActorOrNull()?.UserId.ToString() ?? Ip(c),
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = config.GetValue("RateLimits:MoneyPerMinute", 10), Window = TimeSpan.FromMinutes(1) }));
+    o.AddPolicy(RateLimits.AdminMoney, c => RateLimitPartition.GetFixedWindowLimiter(c.ActorOrNull()?.UserId.ToString() ?? Ip(c),
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = config.GetValue("RateLimits:AdminMoneyPerMinute", 60), Window = TimeSpan.FromMinutes(1) }));
 });
 
 builder.Services.Configure<ForwardedHeadersOptions>(o =>

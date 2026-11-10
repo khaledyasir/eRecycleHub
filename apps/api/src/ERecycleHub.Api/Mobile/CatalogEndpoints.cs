@@ -42,7 +42,11 @@ public static class CatalogEndpoints
             .Produces<Envelope<AuctionDetailsDto>>();
         a.MapPost("/{id:int}/bids", PlaceBidAsync).RequireRateLimiting(RateLimits.Bids).Produces<Envelope<AuctionDetailsDto>>()
             .WithSummary("Place a bid; returns the full auction details")
-            .WithDescription("Errors: 409 AUCTION_CLOSED, 409 AUCTION_NOT_STARTED, 409 OUTBID (someone bid first: reload), 422 BID_TOO_LOW, 422 INSUFFICIENT_WALLET, 403 BID_NOT_ALLOWED (own auction). Listeners of /api/ws/auctions/{id} get bid.placed with the same bid id.");
+            .WithDescription("When the server runs with Bidding__DebitWallet=true a bid HOLDS its amount: the wallet balance and ledger are not touched, the previous leader's hold is released, and the money is charged only if you win when the auction ends. " +
+                "The wallet field of the returned auction is then your available balance (balance minus pending withdrawals minus the money held by your leading bids). You may lead several auctions while the sum of your holds fits it. " +
+                "Errors: 409 AUCTION_CLOSED (auction ended, inactive or deactivated; = AUCTION_ENDED), 409 AUCTION_NOT_STARTED, 409 OUTBID (someone bid first: reload), 422 BID_TOO_LOW, " +
+                "422 INSUFFICIENT_WALLET (= INSUFFICIENT_BALANCE: your available balance cannot cover the hold; the message states required and available; also returned when it is below the auction's insurance), " +
+                "403 BID_NOT_ALLOWED (own auction, administrator or blocked account). Listeners of /api/ws/auctions/{id} get bid.placed with the same bid id.");
 
         var f = v1.MapGroup("/favorites").WithTags("Favorites");
         f.MapGet("", async (HttpContext ctx, MobileAccount m, CancellationToken ct) => Reply.Data(await m.FavoritesAsync(ctx.UserId(), ct)))

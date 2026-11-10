@@ -216,7 +216,7 @@ export default async function AuctionPage({ params }: Params) {
             insurance={c.insuranceAmount}
             bidCount={c.bidCount}
             serverNow={serverNow}
-            viewer={{ isOwner: a.viewer.isOwner, walletBalance: a.viewer.walletBalance ?? null, isLeading: a.viewer.isLeading }}
+            viewer={{ isOwner: a.viewer.isOwner, walletBalance: a.viewer.walletBalance ?? null, isLeading: a.viewer.isLeading, heldByViewer: a.viewer.heldByViewer ?? 0, debitsWallet: a.viewer.debitsWallet ?? false }}
           />
           {a.publisher && (
             <section className="relative flex items-center gap-3 rounded-lg border border-line bg-surface p-4">

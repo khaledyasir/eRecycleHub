@@ -57,7 +57,7 @@ public static class AccountEndpoints
                 await db.SaveChangesAsync(ct);
             }
             return await w.RequestTopUpAsync(userId, data.Amount, proof, data.IdempotencyKey, ct);
-        }).RequireRateLimiting(RateLimits.Forms).Accepts<TopUpRequest>("multipart/form-data").Produces<WalletTransactionDto>();
+        }).RequireRateLimiting(RateLimits.Money).Accepts<TopUpRequest>("multipart/form-data").Produces<WalletTransactionDto>();
 
         g.MapGet("/notifications", (bool? unread, int? page, HttpContext ctx, AccountService a, CancellationToken ct) =>
             a.NotificationsAsync(ctx.Actor().UserId, unread == true, new PageQuery(page ?? 1, 20), ct));

@@ -11,8 +11,61 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace ERecycleHub.IntegrationTests;
+
+/// <summary>Stands in for Firebase: remembers every topic change and can report tokens as dead or fail.</summary>
+public sealed class FakePushGateway : IPushGateway
+{
+    public sealed record Call(bool Subscribe, string Topic, string[] Tokens);
+
+    private readonly List<Call> _calls = [];
+    public HashSet<string> DeadTokens { get; } = [];
+    public volatile bool Throw;
+
+    public IReadOnlyList<Call> Calls { get { lock (_calls) return _calls.ToList(); } }
+
+    public bool Did(bool subscribe, string topic, string token) => Calls.Any(c => c.Subscribe == subscribe && c.Topic == topic && c.Tokens.Contains(token));
+
+    private Task<TopicResult> RecordAsync(bool subscribe, IReadOnlyList<string> tokens, string topic)
+    {
+        if (Throw) throw new InvalidOperationException("Injected push failure");
+        lock (_calls) _calls.Add(new Call(subscribe, topic, tokens.ToArray()));
+        return Task.FromResult(new TopicResult(tokens.Where(DeadTokens.Contains).ToList()));
+    }
+
+    public Task<TopicResult> SubscribeAsync(IReadOnlyList<string> tokens, string topic, CancellationToken ct = default) => RecordAsync(true, tokens, topic);
+    public Task<TopicResult> UnsubscribeAsync(IReadOnlyList<string> tokens, string topic, CancellationToken ct = default) => RecordAsync(false, tokens, topic);
+
+    private readonly List<PushTarget> _sent = [];
+    private readonly List<(string Topic, PushMessage Message)> _topicSent = [];
+
+    /// <summary>Every device message sent so far (token + message).</summary>
+    public IReadOnlyList<PushTarget> Sent { get { lock (_sent) return _sent.ToList(); } }
+    public IReadOnlyList<(string Topic, PushMessage Message)> TopicSent { get { lock (_topicSent) return _topicSent.ToList(); } }
+
+    public Task<TopicResult> SendAsync(IReadOnlyList<PushTarget> targets, CancellationToken ct = default)
+    {
+        if (Throw) throw new InvalidOperationException("Injected push failure");
+        lock (_sent) _sent.AddRange(targets);
+        return Task.FromResult(new TopicResult(targets.Select(t => t.Token).Where(DeadTokens.Contains).Distinct().ToList()));
+    }
+
+    public Task SendToTopicAsync(string topic, PushMessage message, CancellationToken ct = default)
+    {
+        if (Throw) throw new InvalidOperationException("Injected push failure");
+        lock (_topicSent) _topicSent.Add((topic, message));
+        return Task.CompletedTask;
+    }
+}
+
+/// <summary>The wallet-debit switch, flippable per test (it is a startup setting in production).</summary>
+public sealed class TestBiddingSettings : IBiddingSettings
+{
+    public volatile bool On;
+    public bool DebitWallet => On;
+}
 
 /// <summary>Clock the tests can move. Defaults to real time.</summary>
 public sealed class TestClock : TimeProvider
@@ -25,9 +78,16 @@ public sealed class TestClock : TimeProvider
 public sealed class LedgerFailure : SaveChangesInterceptor
 {
     public volatile bool Armed;
+    /// <summary>Fails the next SaveChanges that adds an in-app notification (late in the bid transaction, after the bid row is written).</summary>
+    public volatile bool ArmedOnNotification;
 
     public override ValueTask<InterceptionResult<int>> SavingChangesAsync(DbContextEventData e, InterceptionResult<int> result, CancellationToken ct = default)
     {
+        if (ArmedOnNotification && e.Context!.ChangeTracker.Entries<Notification>().Any(x => x.State == EntityState.Added))
+        {
+            ArmedOnNotification = false;
+            throw new InvalidOperationException("Injected database failure");
+        }
         if (Armed && e.Context!.ChangeTracker.Entries<WalletLedgerEntry>().Any(x => x.State == EntityState.Added))
         {
             Armed = false;
@@ -47,6 +107,11 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
     public readonly string DataRoot = Path.Combine(Path.GetTempPath(), "erh-tests", Guid.NewGuid().ToString("N"));
     public TestClock Clock { get; } = new();
     public LedgerFailure Failure { get; } = new();
+    public FakePushGateway Push { get; } = new();
+    public TestBiddingSettings Flags { get; } = new();
+
+    /// <summary>Waits until the background queue (push subscriptions) has run everything queued so far.</summary>
+    public async Task IdleAsync() => Assert.True(await Services.GetRequiredService<BackgroundWorkQueue>().WhenIdleAsync(TimeSpan.FromSeconds(10)), "background work did not finish");
 
     public string ConnectionString =>
         Environment.GetEnvironmentVariable("ERH_TEST_SQL") is { Length: > 0 } custom
@@ -63,10 +128,18 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         b.UseSetting("RateLimits:AuthPerMinute", "100000");
         b.UseSetting("RateLimits:FormsPerMinute", "100000");
         b.UseSetting("RateLimits:BidsPerMinute", "100000");
+        b.UseSetting("RateLimits:MoneyPerMinute", "100000");
+        b.UseSetting("RateLimits:AdminMoneyPerMinute", "100000");
+        b.UseSetting("Wallet:MaxPendingRequests", "100");   // the cap has its own tests; others create many requests per user
         b.UseSetting("Otp:FixedCode", "12345");
+        b.UseSetting("AuctionEnd:Enabled", "false");   // tests close auctions explicitly; the timer must not touch their data
         b.ConfigureServices(s =>
         {
             s.AddSingleton<TimeProvider>(Clock);
+            s.RemoveAll<IBiddingSettings>();
+            s.AddSingleton<IBiddingSettings>(Flags);
+            s.RemoveAll<IPushGateway>();
+            s.AddSingleton<IPushGateway>(Push);
             s.ConfigureDbContext<AppDbContext>(o => o.AddInterceptors(Failure));
         });
     }

@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using System.Security.Cryptography;
 using ERecycleHub.Domain;
 using ERecycleHub.Infrastructure;
@@ -40,7 +41,7 @@ public sealed record IssuedToken(string Token, DateTime ExpiresAtUtc, Guid Sessi
 public sealed record ActiveSession(Guid SessionId, SessionUser User);
 
 /// <summary>Opaque bearer tokens backed by <see cref="UserSession"/> rows (only the SHA-256 of a token is stored).</summary>
-public sealed class SessionService(AppDbContext db, TimeProvider clock, IOptions<TokenSessionOptions> options)
+public sealed class SessionService(AppDbContext db, TimeProvider clock, IOptions<TokenSessionOptions> options, AuctionTopicService topics, BackgroundWorkQueue queue)
 {
     private DateTime Now => clock.GetUtcNow().UtcDateTime;
 
@@ -79,34 +80,76 @@ public sealed class SessionService(AppDbContext db, TimeProvider clock, IOptions
         return new ActiveSession(row.Id, row.User);
     }
 
-    /// <summary>Ends one session and forgets the push token(s) registered by it.</summary>
+    /// <summary>Ends one session. Its push tokens come off the auction topics (queued) and are then forgotten.</summary>
     public async Task RevokeAsync(Guid sessionId, CancellationToken ct = default)
     {
         var now = Now;
+        var devices = await db.DeviceTokens.Where(d => d.SessionId == sessionId).Select(d => new { d.UserId, d.Token }).ToListAsync(ct);
         await db.DeviceTokens.Where(d => d.SessionId == sessionId).ExecuteDeleteAsync(ct);
         await db.UserSessions.Where(s => s.Id == sessionId && s.RevokedAtUtc == null).ExecuteUpdateAsync(s => s.SetProperty(x => x.RevokedAtUtc, now), ct);
+        foreach (var user in devices.GroupBy(d => d.UserId))
+            await QueueUnsubscribeAsync(user.Key, user.Select(d => d.Token).ToList(), ct);
     }
 
-    /// <summary>Ends every session of the user except <paramref name="keep"/>, and their push tokens.</summary>
+    /// <summary>Ends every session of the user except <paramref name="keep"/>, and their push tokens (taken off the auction topics first).</summary>
     public async Task RevokeAllAsync(int userId, Guid? keep = null, CancellationToken ct = default)
     {
         var now = Now;
+        var tokens = await db.DeviceTokens.Where(d => d.UserId == userId && (keep == null || d.SessionId != keep)).Select(d => d.Token).ToListAsync(ct);
         await db.DeviceTokens.Where(d => d.UserId == userId && (keep == null || d.SessionId != keep)).ExecuteDeleteAsync(ct);
         await db.UserSessions.Where(s => s.UserId == userId && s.RevokedAtUtc == null && (keep == null || s.Id != keep))
             .ExecuteUpdateAsync(s => s.SetProperty(x => x.RevokedAtUtc, now), ct);
+        await QueueUnsubscribeAsync(userId, tokens, ct);
     }
 
-    /// <summary>Upserts a push token for the user and session (a token re-sent on every sign-in is fine; it moves to the latest user).</summary>
-    public async Task RegisterDeviceAsync(int userId, Guid sessionId, string? token, CancellationToken ct = default)
+    /// <summary>Takes just-deleted tokens off the user's running auction topics, in the background. If that work is lost the token is already gone from our side.</summary>
+    private async Task QueueUnsubscribeAsync(int userId, IReadOnlyList<string> tokens, CancellationToken ct)
+    {
+        if (tokens.Count == 0) return;
+        var topicNames = await topics.ActiveTopicsAsync(userId, ct);
+        if (topicNames.Count == 0) return;
+        queue.TryEnqueue("push.unsubscribe", (sp, c) => sp.GetRequiredService<AuctionTopicService>().UnsubscribeTokensAsync(tokens, topicNames, c));
+    }
+
+    public static readonly string[] Platforms = ["android", "ios"];
+
+    /// <summary>
+    /// Upserts a push token for the user and session (a token re-sent on every sign-in is fine). A token that moves to another user comes
+    /// off the previous user's topics; a new token for a known <paramref name="deviceId"/> replaces that device's old token. The token
+    /// then joins the topics of the user's running auctions in the background.
+    /// </summary>
+    public async Task RegisterDeviceAsync(int userId, Guid sessionId, string? token, string? platform = null, string? deviceId = null, string? language = null, CancellationToken ct = default)
     {
         var t = Normalize.Text(token);
         if (t is null || t.Length > 450) throw new AppException("device.token_invalid", 422);
+        var p = Normalize.Text(platform)?.ToLowerInvariant();
+        if (p is not null && !Platforms.Contains(p)) throw new AppException("device.platform_invalid", 422);
+        var lang = Normalize.Text(language)?.ToLowerInvariant();
+        lang = lang is "en" or "ar" ? lang : null;
+        var d = Normalize.Text(deviceId);
+        if (d is { Length: > 100 }) throw new AppException("device.id_invalid", 422);
         var now = Now;
-        var existing = await db.DeviceTokens.FirstOrDefaultAsync(d => d.Token == t, ct);
-        if (existing is null) db.DeviceTokens.Add(new DeviceToken { UserId = userId, SessionId = sessionId, Token = t, CreatedAtUtc = now, UpdatedAtUtc = now });
-        else (existing.UserId, existing.SessionId, existing.UpdatedAtUtc) = (userId, sessionId, now);
+
+        // Tokens that stop being this device's: its previous token (refresh) .
+        var replaced = d is null ? [] : await db.DeviceTokens.Where(x => x.UserId == userId && x.DeviceId == d && x.Token != t).Select(x => x.Token).ToListAsync(ct);
+        if (replaced.Count > 0) await db.DeviceTokens.Where(x => x.UserId == userId && x.DeviceId == d && x.Token != t).ExecuteDeleteAsync(ct);
+
+        var existing = await db.DeviceTokens.FirstOrDefaultAsync(x => x.Token == t, ct);
+        var previousOwner = existing is not null && existing.UserId != userId ? existing.UserId : (int?)null;
+        if (existing is null) db.DeviceTokens.Add(new DeviceToken { UserId = userId, SessionId = sessionId, Token = t, Platform = p, DeviceId = d, Language = lang, CreatedAtUtc = now, UpdatedAtUtc = now });
+        else
+        {
+            (existing.UserId, existing.SessionId, existing.UpdatedAtUtc) = (userId, sessionId, now);
+            if (p is not null) existing.Platform = p;
+            if (d is not null) existing.DeviceId = d;
+            if (lang is not null) existing.Language = lang;
+        }
         try { await db.SaveChangesAsync(ct); }
         catch (DbUpdateException) { /* a concurrent registration of the same token won; it points at this user too */ }
+
+        if (replaced.Count > 0) await QueueUnsubscribeAsync(userId, replaced, ct);
+        if (previousOwner is int old) await QueueUnsubscribeAsync(old, [t], ct);
+        queue.TryEnqueue("push.sync-token", (sp, c) => sp.GetRequiredService<AuctionTopicService>().SyncTokenAsync(t, userId, c));
     }
 }
 

@@ -45,6 +45,26 @@ public enum LedgerReason
     AdminCredit = 2,
     CreditReversed = 3,
     WithdrawalPaid = 4,
+    /// <summary>OBSOLETE (debit-at-bid model, never enabled in production). Kept so old rows still read.</summary>
+    BidDeduction = 5,
+    /// <summary>OBSOLETE (debit-at-bid model).</summary>
+    BidRefund = 6,
+    /// <summary>OBSOLETE (debit-at-bid model).</summary>
+    AuctionRefund = 7,
+    /// <summary>OBSOLETE (debit-at-bid model).</summary>
+    AuctionRehold = 8,
+    /// <summary>The winner's held bid charged when the auction ended. The money goes to the platform (no seller payout).</summary>
+    AuctionPayment = 9,
+    /// <summary>One-time correction when converting bids held under the old debit-at-bid model: the amount held on running auctions is credited back so it is a hold again.</summary>
+    HoldConversion = 10,
+}
+
+/// <summary>What <see cref="WalletLedgerEntry.ReferenceId"/> points at.</summary>
+public static class LedgerReferences
+{
+    public const string WalletTransaction = "wallet_transaction";
+    public const string Bid = "bid";
+    public const string Auction = "auction";
 }
 
 /// <summary>Append-only record of every balance change. Sum of entries per user equals <see cref="User.WalletBalance"/>.</summary>
@@ -53,9 +73,14 @@ public class WalletLedgerEntry
     public long Id { get; set; }
     public int UserId { get; set; }
     public decimal Amount { get; set; }
+    /// <summary>Balance before this entry. Null on rows written before the column existed.</summary>
+    public decimal? BalanceBefore { get; set; }
     public decimal BalanceAfter { get; set; }
     public LedgerReason Reason { get; set; }
     public int? WalletTransactionId { get; set; }
     public int? ActorUserId { get; set; }
+    /// <summary>What caused the entry (see <see cref="LedgerReferences"/>) and its id. Null on older rows.</summary>
+    public string? ReferenceType { get; set; }
+    public long? ReferenceId { get; set; }
     public DateTime CreatedAtUtc { get; set; }
 }

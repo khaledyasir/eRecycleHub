@@ -6,7 +6,7 @@ using Microsoft.Extensions.Options;
 namespace ERecycleHub.Application.Mobile;
 
 /// <summary>Read side of the mobile API: auctions, categories and public content in the shapes of docs/API_REQUIREMENTS.md §2.</summary>
-public sealed class MobileCatalog(AppDbContext db, AuctionQueries auctions, IFileUrls urls, IOptions<MobileOptions> options, TimeProvider clock)
+public sealed class MobileCatalog(AppDbContext db, AuctionQueries auctions, IFileUrls urls, IOptions<MobileOptions> options, TimeProvider clock, WalletService walletService)
 {
     private DateTime Now => clock.GetUtcNow().UtcDateTime;
     private string Currency => options.Value.Currency;
@@ -66,7 +66,7 @@ public sealed class MobileCatalog(AppDbContext db, AuctionQueries auctions, IFil
 
         var now = Now;
         var phase = AuctionRules.Phase(a.StartsAtUtc, a.EndsAtUtc, now);
-        var wallet = await db.Users.Where(u => u.Id == viewerId).Select(u => u.WalletBalance).FirstOrDefaultAsync(ct);
+        var wallet = await walletService.ShownBalanceAsync(viewerId, ct);
         var bids = await db.Bids.AsNoTracking().Where(b => b.AuctionId == id).OrderByDescending(b => b.Id).Take(20)
             .Select(b => new LatestBidDto(b.Id, b.UserId, b.Amount, b.CreatedAtUtc)).ToListAsync(ct);
 

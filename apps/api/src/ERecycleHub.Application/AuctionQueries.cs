@@ -24,7 +24,10 @@ public sealed record AuctionFacets(IReadOnlyList<CategoryFacet> Categories, int 
 public sealed record SpecDto(int Id, string TitleEn, string TitleAr, string? ValueEn, string? ValueAr, int SortOrder);
 public sealed record ImageDto(int Id, Guid FileId, string? Title, int SortOrder);
 public sealed record PublisherSummary(int Id, string Name, Guid? LogoFileId, Guid? BackgroundFileId, string? Phone, string? SecondMobile, string? Email, string? Address, int AuctionCount);
-public sealed record ViewerState(bool IsSignedIn, bool IsOwner, bool IsFavorite, bool IsWatched, decimal? WalletBalance, bool CanBid, bool IsLeading);
+/// <param name="WalletBalance">With wallet debits on, what the viewer can spend; otherwise their plain balance.</param>
+/// <param name="DebitsWallet">True when bids take their amount from the wallet (the UI then tells the bidder what will be charged).</param>
+/// <param name="HeldByViewer">Money the viewer's bid in this auction already holds (so raising it costs only the difference).</param>
+public sealed record ViewerState(bool IsSignedIn, bool IsOwner, bool IsFavorite, bool IsWatched, decimal? WalletBalance, bool CanBid, bool IsLeading, decimal HeldByViewer = 0, bool DebitsWallet = false);
 
 public sealed record AuctionDetails(
     AuctionCard Card, string? DescEn, string? DescAr, string? VideoUrl, string CountryNameEn, string CountryNameAr,
@@ -35,7 +38,7 @@ public sealed record AuctionDetails(
 public sealed record PublicBid(long Id, decimal Amount, DateTime CreatedAtUtc, int BidderNumber, bool IsMine);
 public sealed record CalendarItem(int Id, string TitleEn, string TitleAr, DateTime StartsAtUtc, DateTime? EndsAtUtc, AuctionPhase Phase);
 
-public sealed class AuctionQueries(AppDbContext db, TimeProvider clock)
+public sealed class AuctionQueries(AppDbContext db, TimeProvider clock, WalletService walletService, IBiddingSettings bidding)
 {
     private DateTime Now => clock.GetUtcNow().UtcDateTime;
 
@@ -161,17 +164,22 @@ public sealed class AuctionQueries(AppDbContext db, TimeProvider clock)
 
         bool fav = false, watch = false, leading = false;
         decimal? wallet = null;
+        decimal held = 0m;
         var role = viewer?.Role;
         if (vid is not null)
         {
             fav = await db.Wishlist.AnyAsync(w => w.UserId == vid && w.AuctionId == id, ct);
             watch = await db.AuctionWatches.AnyAsync(w => w.UserId == vid && w.AuctionId == id, ct);
-            wallet = await db.Users.Where(u => u.Id == vid).Select(u => (decimal?)u.WalletBalance).FirstOrDefaultAsync(ct);
-            leading = await db.Bids.Where(b => b.AuctionId == id).OrderByDescending(b => b.Amount).ThenBy(b => b.Id).Select(b => (int?)b.UserId).FirstOrDefaultAsync(ct) == vid;
+            wallet = await db.Users.AnyAsync(u => u.Id == vid, ct) ? await walletService.ShownBalanceAsync(vid.Value, ct) : null;
+            var top = await db.Bids.Where(b => b.AuctionId == id).OrderByDescending(b => b.Amount).ThenBy(b => b.Id)
+                .Select(b => new { b.UserId, Held = b.ReleasedAtUtc == null && b.SettledAtUtc == null ? b.HeldAmount : 0m }).FirstOrDefaultAsync(ct);
+            leading = top?.UserId == vid;
+            held = leading ? top!.Held : 0m;
         }
 
         var phase = AuctionRules.Phase(a.StartsAtUtc, a.EndsAtUtc, now);
-        var canBid = vid is not null && publicVisible && phase == AuctionPhase.Live && !isOwner && role != UserRole.Admin && wallet >= a.InsuranceAmount;
+        var canBid = vid is not null && publicVisible && phase == AuctionPhase.Live && !isOwner && role != UserRole.Admin && (bidding.DebitWallet ? wallet + held : wallet) >= a.InsuranceAmount
+            && (!bidding.DebitWallet || wallet >= Math.Max(0m, AuctionRules.MinimumNextBid(a.CurrentPrice, a.BidIncrement) - held));
 
         var card = new AuctionCard(a.Id, a.RefNumber, a.TitleEn, a.TitleAr, a.ShortDescEn, a.ShortDescAr, a.MainImageFileId, a.StartPrice, a.CurrentPrice,
             a.BidIncrement, a.InsuranceAmount, a.StartsAtUtc, a.EndsAtUtc, phase, a.BidCount, a.CountryId, a.IsActive,
@@ -195,7 +203,7 @@ public sealed class AuctionQueries(AppDbContext db, TimeProvider clock)
             a.Publisher is null ? null : new PublisherSummary(a.Publisher.Id, a.Publisher.DisplayName, a.Publisher.LogoFileId, a.Publisher.BackgroundFileId,
                 a.Publisher.User!.Phone, a.Publisher.SecondMobile, a.Publisher.User.Email, a.Publisher.Address, publisherAuctionCount),
             AuctionRules.MinimumNextBid(a.CurrentPrice, a.BidIncrement), a.CreatedAtUtc,
-            new ViewerState(vid is not null, isOwner, fav, watch, wallet, canBid, leading),
+            new ViewerState(vid is not null, isOwner, fav, watch, wallet, canBid, leading, held, bidding.DebitWallet),
             related);
     }
 

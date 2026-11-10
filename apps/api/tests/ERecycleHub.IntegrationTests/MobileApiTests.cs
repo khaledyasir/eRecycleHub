@@ -343,7 +343,7 @@ public class MobileApiTests(ApiFactory f)
     [Fact]
     public async Task Delete_account_signs_out_and_frees_the_email()
     {
-        var (_, email) = await f.NewCustomerAsync();
+        var (_, email) = await f.NewCustomerAsync(0);   // an account with money in it cannot be deleted (see WalletSafeguardsTests)
         var c = await f.SignedInAsync(email, ApiFactory.Password);
         await c.DataAsync(c.DeleteAsync("/api/v1/profile"));
         Assert.Equal(HttpStatusCode.Unauthorized, (await c.GetAsync("/api/v1/profile")).StatusCode);

@@ -37,7 +37,11 @@ export function NotificationBell() {
       case "auction.outbid": return tn("kind.outbid", args);
       case "wallet.topup_approved": return tn("kind.topupApproved", args);
       case "wallet.topup_rejected": return tn("kind.topupRejected", args);
+      case "wallet.credit_reversed": return tn("kind.creditReversed", args);
       case "auction.won": return tn("kind.won", args);
+      case "auction.joined": return tn("kind.joined", args);
+      case "auction.ended": return tn("kind.ended", args);
+      case "auction.payment_failed": return tn("kind.paymentFailed", args);
       case "seller.approved": return tn("kind.sellerApproved", args);
       case "seller.rejected": return tn("kind.sellerRejected", args);
       default: return n.title || tn("kind.generic");

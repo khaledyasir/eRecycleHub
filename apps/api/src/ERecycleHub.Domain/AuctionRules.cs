@@ -13,6 +13,8 @@ public static class BidErrors
     public const string OwnAuction = "bid.own_auction";
     public const string InsufficientInsurance = "bid.insufficient_insurance";
     public const string BelowMinimum = "bid.below_minimum";
+    /// <summary>The wallet cannot cover what this bid would take (the bid, or the difference when raising one's own bid).</summary>
+    public const string InsufficientBalance = "bid.insufficient_balance";
 }
 
 public static class Money

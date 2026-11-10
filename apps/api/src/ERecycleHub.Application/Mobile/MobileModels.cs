@@ -54,9 +54,14 @@ public sealed record ProfileImageDto(string? Image);
 public sealed record MyAuctionsDto(IReadOnlyList<AuctionItemDto> Live, IReadOnlyList<AuctionItemDto> Won);
 
 public sealed record WalletTransactionItemDto(int Id, string Type, decimal Amount, string Status, DateTime CreatedDate);
+public sealed record LedgerItemDto(long Id, string Reason, decimal Amount, decimal? BalanceBefore, decimal BalanceAfter, string? ReferenceType, long? ReferenceId, DateTime CreatedDate);
 public sealed record WalletDto(decimal Wallet, [property: JsonPropertyName("transaction")] IReadOnlyList<WalletTransactionItemDto> Transaction);
 
-public sealed record AppNotificationDto(int Id, string Type, string TitleEn, string TitleAr, string BodyEn, string BodyAr, DateTime CreatedAt, bool Read);
+/// <param name="Type">The chip: auction | bid | wallet | system.</param>
+/// <param name="Kind">The exact event (auction.new_bid, auction.outbid, auction.joined, auction.won, auction.ended, auction.payment_failed, wallet.*, ...). Same as the push <c>type</c> with the dot turned into an underscore.</param>
+/// <param name="AuctionId">The auction to open when the notification is tapped, when it is about one.</param>
+public sealed record AppNotificationDto(int Id, string Type, string TitleEn, string TitleAr, string BodyEn, string BodyAr, DateTime CreatedAt, bool Read,
+    string? Kind = null, int? AuctionId = null, decimal? Amount = null);
 
 /// <summary>Bid accepted: the live event payload, also used to dedupe the bidder's own HTTP response.</summary>
 public sealed record BidEventDto(decimal CurrentPrice, int BidsCount, LatestBidDto Bid);

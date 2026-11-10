@@ -20,6 +20,10 @@ public static class RateLimits
     public const string Auth = "auth";
     public const string Forms = "forms";
     public const string Bids = "bids";
+    /// <summary>Wallet requests (top-up, withdrawal): per signed-in user, so people behind one carrier address do not share a limit.</summary>
+    public const string Money = "money";
+    /// <summary>Administrator money decisions (approve, reject, reverse, credit, void sale): per administrator.</summary>
+    public const string AdminMoney = "admin-money";
 }
 
 public static class Security
@@ -161,5 +165,11 @@ public static class ServiceRegistration
         .AddScoped<CmsService>()
         .AddScoped<ReportsService>()
         .AddScoped<MobileCatalog>()
+        .AddScoped<AuctionTopicService>()
+        .AddScoped<WalletConsistency>()
+        .AddScoped<NotificationPusher>()
+        .AddScoped<AuctionNotifier>()
+        .AddScoped<WalletNotifier>()
+        .AddScoped<AuctionClosing>()
         .AddScoped<MobileAccount>();
 }

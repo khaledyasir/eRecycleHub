@@ -29,7 +29,7 @@ type Props = {
   insurance: number;
   bidCount: number;
   serverNow: number;
-  viewer: { isOwner: boolean; walletBalance: number | null; isLeading: boolean };
+  viewer: { isOwner: boolean; walletBalance: number | null; isLeading: boolean; heldByViewer: number; debitsWallet: boolean };
 };
 
 /** Two-decimal arithmetic without floating-point drift (amounts are cents-precise in the API). */
@@ -55,6 +55,9 @@ export function BidPanel(p: Props) {
   const [minimum, setMinimum] = useState(p.minimumNextBid);
   const [count, setCount] = useState(p.bidCount);
   const [leading, setLeading] = useState(p.viewer.isLeading);
+  // Wallet money moves while the page is open (a bid takes it, being outbid returns it): keep the figures shown in step.
+  const [walletOverride, setWalletOverride] = useState<number | null>(null);
+  const [heldNow, setHeldNow] = useState(p.viewer.heldByViewer);
   const [amount, setAmount] = useState(String(p.minimumNextBid));
   const [accepted, setAccepted] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -71,11 +74,16 @@ export function BidPanel(p: Props) {
       setPrice(top.amount);
       setMinimum(fromCents(cents(top.amount) + cents(p.increment)));
       setCount(latest.data!.total);
+      if (leading && !top.isMine && p.viewer.debitsWallet) {
+        // Outbid: the hold on that bid was released, so the money is available again (nothing was ever taken from the balance).
+        setWalletOverride((w) => (w ?? p.viewer.walletBalance ?? 0) + heldNow);
+        setHeldNow(0);
+      }
       setLeading(top.isMine);
       setAmount((a) => (cents(Number(a)) < cents(top.amount) + cents(p.increment) ? String(fromCents(cents(top.amount) + cents(p.increment))) : a));
     }
     /* eslint-enable react-hooks/set-state-in-effect */
-  }, [latest.data, price, p.increment]);
+  }, [latest.data, price, p.increment, leading, heldNow, p.viewer.debitsWallet, p.viewer.walletBalance]);
 
   const toLive = useCallback(() => setPhase("Live"), []);
   const toEnded = useCallback(() => setPhase("Ended"), []);
@@ -89,9 +97,13 @@ export function BidPanel(p: Props) {
     setError(null);
   };
 
-  const wallet = p.viewer.walletBalance ?? 0;
-  const lacksInsurance = !!user && wallet < p.insurance;
-  const blocked = !user ? "signIn" : p.viewer.isOwner ? "own" : user.role === "Admin" ? "admin" : phase === "Upcoming" ? "upcoming" : phase === "Ended" ? "ended" : lacksInsurance ? "insurance" : null;
+  const wallet = walletOverride ?? p.viewer.walletBalance ?? 0;
+  const lacksInsurance = !!user && (p.viewer.debitsWallet ? wallet + heldNow * (leading ? 1 : 0) : wallet) < p.insurance;
+  // With wallet holds on, a bid RESERVES its amount (the balance is untouched; it is charged only if you win); raising your own bid reserves only the difference (what it already holds).
+  const held = leading ? heldNow : 0;
+  const charge = (n: number) => Math.max(0, fromCents(cents(n) - cents(held)));
+  const lacksBalance = !!user && p.viewer.debitsWallet && wallet < charge(minimum);
+  const blocked = !user ? "signIn" : p.viewer.isOwner ? "own" : user.role === "Admin" ? "admin" : phase === "Upcoming" ? "upcoming" : phase === "Ended" ? "ended" : lacksInsurance ? "insurance" : lacksBalance ? "balance" : null;
 
   const review = () => {
     if (!validNumber) return setError(t("invalid"));
@@ -109,6 +121,10 @@ export function BidPanel(p: Props) {
       setMinimum(r.minimumNextBid);
       setCount(r.bidCount);
       setLeading(true);
+      if (p.viewer.debitsWallet) {
+        setWalletOverride(r.availableAfter ?? null);
+        setHeldNow(value);
+      }
       setAmount(String(r.minimumNextBid));
       toast.success(t("success", { amount: money(r.currentPrice, locale) }));
       void qc.invalidateQueries({ queryKey: ["auction-bids", p.auctionId] });
@@ -175,7 +191,7 @@ export function BidPanel(p: Props) {
           </div>
           {user && p.viewer.walletBalance !== null && (
             <div className="col-span-2 flex items-center justify-between rounded-md bg-ground px-3 py-2">
-              <span className="text-muted">{t("wallet")}</span>
+              <span className="text-muted">{p.viewer.debitsWallet ? t("available") : t("wallet")}</span>
               <span className="tabular font-semibold">{money(wallet, locale)}</span>
             </div>
           )}
@@ -196,6 +212,15 @@ export function BidPanel(p: Props) {
         {blocked === "insurance" && phase === "Live" && (
           <Alert tone="warn">
             <p>{t("insufficient", { insurance: money(p.insurance, locale) })}</p>
+            <Link href="/account/wallet" className="mt-2 inline-block font-semibold underline">
+              {t("topUp")}
+            </Link>
+          </Alert>
+        )}
+
+        {blocked === "balance" && phase === "Live" && (
+          <Alert tone="warn">
+            <p>{t("insufficientBalance", { required: money(charge(minimum), locale), available: money(wallet, locale) })}</p>
             <Link href="/account/wallet" className="mt-2 inline-block font-semibold underline">
               {t("topUp")}
             </Link>
@@ -274,6 +299,11 @@ export function BidPanel(p: Props) {
         }
       >
         <p className="text-sm text-ink-2">{t("confirmBody", { amount: validNumber ? money(value, locale) : amount, ref: p.refNumber })}</p>
+        {p.viewer.debitsWallet && validNumber && (
+          <p className="mt-2 text-sm font-medium">
+            {t("confirmCharge", { charge: money(charge(value), locale), remaining: money(Math.max(0, fromCents(cents(wallet) - cents(charge(value)))), locale) })}
+          </p>
+        )}
       </Dialog>
     </section>
   );

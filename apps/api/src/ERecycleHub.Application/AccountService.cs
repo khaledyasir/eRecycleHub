@@ -7,7 +7,9 @@ namespace ERecycleHub.Application;
 public enum MyBidStatus { Leading, Outbid, Won, Lost }
 
 public sealed record MyBid(long Id, int AuctionId, string RefNumber, string TitleEn, string TitleAr, decimal Amount, DateTime CreatedAtUtc, decimal CurrentPrice, AuctionPhase Phase, MyBidStatus Status);
-public sealed record AccountDashboard(int AuctionsAttended, int Won, int Leading, decimal WalletBalance, int UnreadNotifications, int Favorites, int Watching);
+/// <param name="WalletBalance">With wallet debits on, the spendable balance; otherwise the plain balance.</param>
+/// <param name="HeldInBids">Money currently reserved by the user's leading bids (not debited: it is charged only if they win).</param>
+public sealed record AccountDashboard(int AuctionsAttended, int Won, int Leading, decimal WalletBalance, int UnreadNotifications, int Favorites, int Watching, decimal HeldInBids = 0);
 public sealed record ProfileDto(int Id, string FullName, string Email, string? Phone, int CountryId, UserRole Role, Guid? AvatarFileId,
     string? CompanyName, string? CrNumber, string? VatNumber, string? BankName, string? AccountNumber, string? CardNumber,
     FileRef? CrDocument, FileRef? VatCertificate, FileRef? IdDocument, decimal WalletBalance, string? AccountHolderName = null);
@@ -25,7 +27,7 @@ public sealed record SellerApplicationDto(int Id, string Name, string? Company, 
 public sealed record SellerStatus(bool IsSeller, bool CanApply, SellerApplicationDto? Application);
 
 /// <summary>Customer self-service: dashboard, bids, profile, favourites, watch list, notifications.</summary>
-public sealed class AccountService(AppDbContext db, AuctionQueries auctions, FileService files, TimeProvider clock, Audit audit)
+public sealed class AccountService(AppDbContext db, AuctionQueries auctions, FileService files, TimeProvider clock, Audit audit, WalletService walletService)
 {
     private DateTime Now => clock.GetUtcNow().UtcDateTime;
 
@@ -42,10 +44,11 @@ public sealed class AccountService(AppDbContext db, AuctionQueries auctions, Fil
             await db.Bids.Where(b => b.UserId == userId).Select(b => b.AuctionId).Distinct().CountAsync(ct),
             await db.Auctions.CountAsync(a => leading.Contains(a.Id) && (a.EndsAtUtc == null || a.EndsAtUtc <= now), ct),
             await db.Auctions.CountAsync(a => leading.Contains(a.Id) && a.EndsAtUtc > now, ct),
-            await db.Users.Where(u => u.Id == userId).Select(u => u.WalletBalance).SingleAsync(ct),
+            await walletService.ShownBalanceAsync(userId, ct),
             await db.Notifications.CountAsync(n => n.UserId == userId && !n.IsRead, ct),
             await db.Wishlist.CountAsync(w => w.UserId == userId, ct),
-            await db.AuctionWatches.CountAsync(w => w.UserId == userId, ct));
+            await db.AuctionWatches.CountAsync(w => w.UserId == userId, ct),
+            await db.Bids.Where(b => b.UserId == userId && b.ReleasedAtUtc == null && b.SettledAtUtc == null).SumAsync(b => (decimal?)b.HeldAmount, ct) ?? 0m);
     }
 
     public async Task<PagedResult<MyBid>> BidsAsync(int userId, PageQuery page, CancellationToken ct = default)

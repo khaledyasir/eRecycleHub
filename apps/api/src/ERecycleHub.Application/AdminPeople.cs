@@ -25,7 +25,7 @@ public sealed record RejectInput(string Reason);
 
 /// <summary>Administrator management of customers, publishers and publisher applications.</summary>
 public sealed class AdminPeople(AppDbContext db, PasswordService passwords, FileService files, WalletService wallet, AccountService accounts,
-    IEmailSender mailer, TimeProvider clock, Audit audit, ILogger<AdminPeople> log)
+    IEmailSender mailer, TimeProvider clock, Audit audit, ILogger<AdminPeople> log, BiddingService bidding)
 {
     private DateTime Now => clock.GetUtcNow().UtcDateTime;
 
@@ -69,31 +69,55 @@ public sealed class AdminPeople(AppDbContext db, PasswordService passwords, File
         await ApplyKycFilesAsync(user, uploads.Avatar, uploads.CrDocument, uploads.VatCertificate, uploads.IdDocument, ct);
         audit.Record(admin, "user.create", nameof(User), user.Id);
         await db.SaveChangesAsync(ct);
+        // Legacy let the admin type a starting wallet value; here it becomes an approved credit so it appears in the ledger. Same transaction as the user:
+        // either both exist or neither does.
+        if (openingCredit > 0) await wallet.CreditInTransactionAsync(admin, user.Id, openingCredit, null, null, "Opening balance", null, ct);
         await tx.CommitAsync(ct);
-        // Legacy let the admin type a starting wallet value; here it becomes an approved credit so it appears in the ledger.
-        if (openingCredit > 0) await wallet.CreateApprovedCreditAsync(admin, user.Id, openingCredit, null, null, "Opening balance", ct);
         return user.Id;
     }
 
     public async Task UpdateUserAsync(Actor admin, int id, AccountFieldsInput input, ProfileFiles uploads, CancellationToken ct = default)
     {
+        await using var tx = await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.ReadCommitted, ct);
+        var sellerAuctions = await bidding.LockSellerAuctionsAsync(id, ct);
         var u = await db.Users.FirstOrDefaultAsync(x => x.Id == id && x.Role == UserRole.Customer && !x.IsDeleted, ct) ?? throw AppException.NotFound("user");
+        var wasActive = u.IsActive;
         await ApplyAccountFieldsAsync(u, input, ct);
         await ApplyKycFilesAsync(u, uploads.Avatar, uploads.CrDocument, uploads.VatCertificate, uploads.IdDocument, ct);
         audit.Record(admin, "user.update", nameof(User), id);
         await db.SaveChangesAsync(ct);
+        await SyncSellerHoldsAsync(sellerAuctions, wasActive, u.IsActive, admin.UserId, ct);
+        await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
     }
 
+    /// <summary>A seller turning inactive/active through an edit returns/re-holds their auctions' leader money, like the toggle.</summary>
+    private async Task SyncSellerHoldsAsync(IReadOnlyList<int> auctionIds, bool wasActive, bool isActive, int actorId, CancellationToken ct)
+    {
+        if (auctionIds.Count == 0 || wasActive == isActive) return;
+        if (isActive) await bidding.RestoreHoldsAsync(auctionIds, actorId, ct);
+        else await bidding.ReleaseHoldsAsync(auctionIds, actorId, ct);
+    }
+
+    /// <summary>Deactivating a seller makes their auctions unbiddable: the leaders' held money is returned (reactivating holds it again), auctions locked before the user row.</summary>
     public async Task SetUserActiveAsync(Actor admin, int id, bool active, CancellationToken ct = default)
     {
         if (id == admin.UserId) throw new AppException("user.cannot_deactivate_self");
         var newStamp = Guid.NewGuid().ToString("N");
+        await using var tx = await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.ReadCommitted, ct);
+        var sellerAuctions = await bidding.LockSellerAuctionsAsync(id, ct);
         var rows = await db.Users.Where(u => u.Id == id && u.Role != UserRole.Admin && !u.IsDeleted).ExecuteUpdateAsync(s => s
             .SetProperty(u => u.IsActive, active)
             .SetProperty(u => u.SecurityStamp, u => active ? u.SecurityStamp : newStamp), ct);
         if (rows == 0) throw AppException.NotFound("user");
+        if (sellerAuctions.Count > 0)
+        {
+            if (active) await bidding.RestoreHoldsAsync(sellerAuctions, admin.UserId, ct);
+            else await bidding.ReleaseHoldsAsync(sellerAuctions, admin.UserId, ct);
+        }
         audit.Record(admin, active ? "user.activate" : "user.deactivate", nameof(User), id);
         await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
     }
 
     public async Task SetFeaturedAsync(Actor admin, int id, bool featured, CancellationToken ct = default)
@@ -157,7 +181,10 @@ public sealed class AdminPeople(AppDbContext db, PasswordService passwords, File
 
     public async Task UpdatePublisherAsync(Actor admin, int id, PublisherInput input, PublisherFiles uploads, CancellationToken ct = default)
     {
+        await using var tx = await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.ReadCommitted, ct);
         var p = await db.Publishers.Include(x => x.User).FirstOrDefaultAsync(x => x.Id == id, ct) ?? throw AppException.NotFound("publisher");
+        var sellerAuctions = await bidding.LockSellerAuctionsAsync(p.UserId, ct);
+        var wasActive = p.User!.IsActive;
         var first = Normalize.Text(input.FirstName) ?? throw new AppException("profile.name_required");
         p.FirstName = first;
         p.LastName = Normalize.Text(input.LastName) ?? "";
@@ -170,6 +197,9 @@ public sealed class AdminPeople(AppDbContext db, PasswordService passwords, File
         p.BackgroundFileId = await files.SaveOptionalAsync(uploads.Background, FileCategory.PublisherImage, p.UserId, p.BackgroundFileId, ct);
         audit.Record(admin, "publisher.update", nameof(Publisher), id);
         await db.SaveChangesAsync(ct);
+        await SyncSellerHoldsAsync(sellerAuctions, wasActive, p.User!.IsActive, admin.UserId, ct);
+        await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
     }
 
     /// <summary>Deactivating a publisher hides its auctions from the public (via the visibility filter); auctions themselves are untouched (legacy flipped them).</summary>

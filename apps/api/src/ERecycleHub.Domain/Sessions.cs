@@ -24,6 +24,12 @@ public class DeviceToken
     /// <summary>The session that registered it, so logout can drop exactly this device's token.</summary>
     public Guid? SessionId { get; set; }
     public required string Token { get; set; }
+    /// <summary>"android" or "ios" when the app says so.</summary>
+    public string? Platform { get; set; }
+    /// <summary>The app's stable id for this installation. A new token with the same id replaces the old one (token refresh).</summary>
+    public string? DeviceId { get; set; }
+    /// <summary>"en" or "ar": the language the app sent when it registered this token. Push texts use it (default Arabic).</summary>
+    public string? Language { get; set; }
     public DateTime CreatedAtUtc { get; set; }
     public DateTime UpdatedAtUtc { get; set; }
 }

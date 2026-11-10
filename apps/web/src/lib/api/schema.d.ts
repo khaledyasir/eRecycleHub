@@ -5502,6 +5502,8 @@ export interface components {
             favorites: number;
             /** Format: int32 */
             watching: number;
+            /** Format: double */
+            heldInBids?: number;
         };
         AccountFieldsInput: {
             fullName: string;
@@ -5921,6 +5923,12 @@ export interface components {
             minimumNextBid: number;
             /** Format: int32 */
             bidCount: number;
+            /** Format: double */
+            held?: number;
+            /** Format: double */
+            releasedFromPrevious?: number;
+            /** Format: double */
+            availableAfter?: null | number;
         };
         CalendarItem: {
             /** Format: int32 */
@@ -6937,6 +6945,9 @@ export interface components {
             walletBalance: null | number;
             canBid: boolean;
             isLeading: boolean;
+            /** Format: double */
+            heldByViewer?: number;
+            debitsWallet?: boolean;
         };
         WalletSummary: {
             /** Format: double */
