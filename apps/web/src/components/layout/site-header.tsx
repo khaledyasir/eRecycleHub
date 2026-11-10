@@ -1,7 +1,7 @@
 import { getLocale, getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { Link } from "@/i18n/navigation";
-import { getSession, loadOptional, serverApi } from "@/lib/api/server";
+import { getSession, loadPublicOptional, serverApi } from "@/lib/api/server";
 import type { Schema } from "@/lib/api/types";
 import { pick } from "@/lib/format";
 import { Logo } from "./logo";
@@ -12,7 +12,7 @@ import { NotificationBell, UserMenu } from "./user-menu";
 export async function SiteHeader() {
   const [t, locale, user, client] = await Promise.all([getTranslations("common"), getLocale(), getSession(), serverApi()]);
   // Optional announcement bar, written in Admin > Pages & settings (key "top-bar"); nothing is shown when it is empty.
-  const bar = await loadOptional<Schema<"SettingDto">>(client.GET("/api/content/settings/{key}", { params: { path: { key: "top-bar" } } }));
+  const bar = await loadPublicOptional<Schema<"SettingDto">>(client.GET("/api/content/settings/{key}", { params: { path: { key: "top-bar" } } }));
   const barText = pick(locale, bar?.valueEn, bar?.valueAr).trim();
   const links = [
     { href: "/", label: t("nav.home"), exact: true },

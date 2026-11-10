@@ -1,7 +1,7 @@
 import { Mail, MapPin, Phone } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
-import { getCountryId, loadOptional, serverApi } from "@/lib/api/server";
+import { getCountryId, loadPublicOptional, serverApi } from "@/lib/api/server";
 import type { Schema } from "@/lib/api/types";
 import { DISPLAY_TZ } from "@/lib/format";
 import { Logo } from "./logo";
@@ -10,7 +10,7 @@ export async function SiteFooter() {
   const t = await getTranslations("common");
   const client = await serverApi();
   const countryId = await getCountryId();
-  const info = await loadOptional<Schema<"ContactInfoDto">>(client.GET("/api/content/contact-info", { params: { query: { countryId } } }));
+  const info = await loadPublicOptional<Schema<"ContactInfoDto">>(client.GET("/api/content/contact-info", { params: { query: { countryId } } }));
   const columns = [
     { title: t("footer.marketplace"), links: [["/auctions", t("nav.auctions")], ["/apply", t("nav.apply")], ["/benefits", t("nav.benefits")], ["/clients", t("nav.clients")]] },
     { title: t("footer.company"), links: [["/about", t("nav.about")], ["/advertise", t("nav.advertise")], ["/terms", t("nav.terms")], ["/privacy", t("nav.privacy")]] },

@@ -1,9 +1,31 @@
 using System.Security.Claims;
-using ERecycleHub.Api.Mobile;
+using System.Text.Json;
 using ERecycleHub.Application;
 using ERecycleHub.Domain;
+using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.Http.Json;
+using Microsoft.Extensions.Options;
 
 namespace ERecycleHub.Api;
+
+public static class Claims
+{
+    public const string Stamp = "erh:stamp";
+    public const string PublisherId = "erh:pid";
+
+    public static ClaimsPrincipal Principal(SessionUser u, string scheme)
+    {
+        List<Claim> claims =
+        [
+            new(ClaimTypes.NameIdentifier, u.Id.ToString()),
+            new(ClaimTypes.Name, u.Email),
+            new(ClaimTypes.Role, u.Role.ToString()),
+            new(Stamp, u.SecurityStamp),
+        ];
+        if (u.PublisherId is int pid) claims.Add(new(PublisherId, pid.ToString()));
+        return new ClaimsPrincipal(new ClaimsIdentity(claims, scheme));
+    }
+}
 
 public static class HttpExtensions
 {
@@ -17,15 +39,87 @@ public static class HttpExtensions
         return new Actor(id, role, pid, ctx.Connection.RemoteIpAddress?.ToString());
     }
 
-    /// <summary>The signed-in caller. Endpoints using this require authentication, so null here is a bug, not a user error.</summary>
+    /// <summary>The signed-in caller. Endpoints using this are behind an authorisation policy, so null here is a bug, not a user error.</summary>
     public static Actor Actor(this HttpContext ctx) => ctx.ActorOrNull() ?? throw new AppException("auth.required", 401);
 
     public static int UserId(this HttpContext ctx) => ctx.Actor().UserId;
 
-    /// <summary>The session behind the bearer token of this request.</summary>
     public static Guid SessionId(this HttpContext ctx) =>
-        Guid.TryParse(ctx.User.FindFirstValue(Claims.SessionId), out var id) ? id : throw new AppException("auth.required", 401);
+        Guid.TryParse(ctx.User.FindFirstValue(ERecycleHub.Api.Mobile.Claims.SessionId), out var id) ? id : throw new AppException("auth.required", 401);
 
-    /// <summary>The app sends <c>lang: en|ar</c> on every request (a custom header, not Accept-Language).</summary>
-    public static bool IsArabic(this HttpRequest req) => string.Equals(req.Headers["lang"].ToString(), "ar", StringComparison.OrdinalIgnoreCase);
+    public static bool IsArabic(this HttpRequest req) => string.Equals(req.Headers[req.Path.StartsWithSegments("/api/v1") ? "lang" : "X-Locale"].ToString(), "ar", StringComparison.OrdinalIgnoreCase);
+
+    public static int? CountryCookie(this HttpRequest req) =>
+        int.TryParse(req.Cookies["erh_country"], out var id) && id > 0 ? id : null;
+
+    public static UploadInput? Upload(this IFormFileCollection files, string name)
+    {
+        var f = files.GetFile(name);
+        return f is null || f.Length == 0 ? null : new UploadInput(f.OpenReadStream(), f.FileName, f.Length);
+    }
+
+    public static List<UploadInput> Uploads(this IFormFileCollection files, string name) =>
+        files.GetFiles(name).Where(f => f.Length > 0).Select(f => new UploadInput(f.OpenReadStream(), f.FileName, f.Length)).ToList();
+
+    /// <summary>Multipart convention: structured fields as JSON in the "data" part, files as named parts.</summary>
+    public static async Task<(T data, IFormFileCollection files)> ReadMultipartAsync<T>(this HttpRequest req, CancellationToken ct)
+    {
+        if (!req.HasFormContentType) throw new AppException("request.multipart_required", 415);
+        var form = await req.ReadFormAsync(ct);
+        var json = form["data"].ToString();
+        if (string.IsNullOrWhiteSpace(json)) throw new AppException("request.data_required");
+        var options = req.HttpContext.RequestServices.GetRequiredService<IOptions<JsonOptions>>().Value.SerializerOptions;
+        try
+        {
+            var data = JsonSerializer.Deserialize<T>(json, options) ?? throw new AppException("request.data_required");
+            return (data, form.Files);
+        }
+        catch (JsonException)
+        {
+            throw new AppException("request.invalid_json");
+        }
+    }
+
+    public static DateTime? AsUtc(this DateTime? value) => value is null ? null : value.Value.Kind switch
+    {
+        DateTimeKind.Utc => value,
+        DateTimeKind.Local => value.Value.ToUniversalTime(),
+        _ => DateTime.SpecifyKind(value.Value, DateTimeKind.Utc),
+    };
+}
+
+/// <summary>Maps business errors to RFC 7807 problem details with a stable <c>code</c>; hides everything else.</summary>
+public sealed class ProblemExceptionHandler(IProblemDetailsService problems, ILogger<ProblemExceptionHandler> log) : IExceptionHandler
+{
+    public async ValueTask<bool> TryHandleAsync(HttpContext ctx, Exception ex, CancellationToken ct)
+    {
+        if (ctx.Request.Path.StartsWithSegments("/api/v1") || ctx.Request.Path.StartsWithSegments("/api/ws")) return false;
+        int status;
+        string code;
+        object? args = null;
+        switch (ex)
+        {
+            // The browser went away (navigation, closed tab): there is nobody to answer. The database driver reports this as a
+            // SqlException rather than an OperationCanceledException, so test the request token itself.
+            case not null when ctx.RequestAborted.IsCancellationRequested:
+                return true;
+            case AppException app:
+                (status, code, args) = (app.Status, app.Code, app.Args);
+                break;
+            case BadHttpRequestException bad:
+                (status, code) = (bad.StatusCode, bad.StatusCode == 413 ? "request.too_large" : "request.invalid");
+                break;
+            case OperationCanceledException when ctx.RequestAborted.IsCancellationRequested:
+                return true;
+            default:
+                log.LogError(ex, "Unhandled error on {Method} {Path}", ctx.Request.Method, ctx.Request.Path);
+                (status, code) = (500, "server.error");
+                break;
+        }
+        ctx.Response.StatusCode = status;
+        var details = new Microsoft.AspNetCore.Mvc.ProblemDetails { Status = status, Title = code };
+        details.Extensions["code"] = code;
+        if (args is not null) details.Extensions["args"] = args;
+        return await problems.TryWriteAsync(new ProblemDetailsContext { HttpContext = ctx, ProblemDetails = details });
+    }
 }

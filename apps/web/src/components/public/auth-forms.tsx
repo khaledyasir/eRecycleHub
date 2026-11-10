@@ -17,7 +17,12 @@ type Me = Schema<"MeResponse">;
 
 export const homeFor = (role: UserRole) => (role === "Admin" ? "/admin" : "/account");
 /** Only same-site relative paths are followed after sign-in (no open redirect). */
-export const safeNext = (next: string | null | undefined) => (next && next.startsWith("/") && !next.startsWith("//") && !next.startsWith("/\\") ? next : null);
+export const safeNext = (next: string | null | undefined) => {
+  if (typeof next !== "string" || !next.startsWith("/") || next.startsWith("//") || /[\\\u0000-\u001f\u007f]/.test(next)) return null;
+  const url = new URL(next, "https://local.invalid");
+  if (url.origin !== "https://local.invalid" || /^\/(?:ar\/|en\/)?login\/?$/i.test(url.pathname)) return null;
+  return next;
+};
 
 export function AuthCard({ title, description, children, footer }: { title: string; description?: string; children: ReactNode; footer?: ReactNode }) {
   return (

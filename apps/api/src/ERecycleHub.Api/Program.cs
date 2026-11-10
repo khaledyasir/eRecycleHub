@@ -2,6 +2,9 @@ using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 using ERecycleHub.Api;
 using ERecycleHub.Api.Mobile;
+using ERecycleHub.Api.Endpoints;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.BearerToken;
 using ERecycleHub.Application;
 using ERecycleHub.Application.Mobile;
 using ERecycleHub.Infrastructure;
@@ -46,7 +49,9 @@ builder.Services.ConfigureHttpJsonOptions(o =>
 });
 // Malformed JSON or a wrong field type reaches the exception handler (→ 422 VALIDATION_FAILED) instead of an empty 400.
 builder.Services.Configure<RouteHandlerOptions>(o => o.ThrowOnBadRequest = true);
+builder.Services.AddExceptionHandler<ProblemExceptionHandler>();
 builder.Services.AddExceptionHandler<EnvelopeExceptionHandler>();
+builder.Services.AddSignalR();
 builder.Services.AddProblemDetails();
 builder.Services.AddOpenApi(o => o.AddDocumentTransformer((doc, _, _) =>
 {
@@ -66,10 +71,38 @@ const long MaxUpload = 20 * 1024 * 1024;
 builder.WebHost.ConfigureKestrel(k => k.Limits.MaxRequestBodySize = MaxUpload);
 builder.Services.Configure<FormOptions>(o => o.MultipartBodyLengthLimit = MaxUpload);
 
-builder.Services.AddAuthentication(SessionAuthHandler.SchemeName)
-    .AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, SessionAuthHandler>(SessionAuthHandler.SchemeName, null);
+var secureCookies = builder.Environment.IsDevelopment() ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always;
+builder.Services.AddAuthentication("routing")
+    .AddPolicyScheme("routing", null, o => o.ForwardDefaultSelector = c =>
+        c.Request.Path.StartsWithSegments("/api/v1") || c.Request.Path.StartsWithSegments("/api/ws") || c.Request.Path.StartsWithSegments("/ws")
+            ? SessionAuthHandler.SchemeName : Security.HasBearer(c.Request) ? BearerTokenDefaults.AuthenticationScheme : CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, SessionAuthHandler>(SessionAuthHandler.SchemeName, null)
+    .AddBearerToken(o => { o.BearerTokenExpiration = TimeSpan.FromHours(1); o.RefreshTokenExpiration = TimeSpan.FromDays(30); })
+    .AddCookie(o =>
+    {
+        o.Cookie.Name = "erh.auth";
+        o.Cookie.HttpOnly = true;
+        o.Cookie.SameSite = SameSiteMode.Lax;
+        o.Cookie.SecurePolicy = secureCookies;
+        o.ExpireTimeSpan = TimeSpan.FromHours(8);
+        o.SlidingExpiration = true;
+        o.Events.OnRedirectToLogin = c => { c.Response.StatusCode = 401; return Task.CompletedTask; };
+        o.Events.OnRedirectToAccessDenied = c => { c.Response.StatusCode = 403; return Task.CompletedTask; };
+        o.Events.OnValidatePrincipal = Security.ValidateSessionAsync;
+    });
 builder.Services.AddAuthorizationBuilder()
-    .SetFallbackPolicy(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build());
+    .SetFallbackPolicy(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build())
+    .AddPolicy(Policies.Member, p => p.RequireAuthenticatedUser())
+    .AddPolicy(Policies.Admin, p => p.RequireRole(nameof(ERecycleHub.Domain.UserRole.Admin)))
+    .AddPolicy(Policies.Publisher, p => p.RequireRole(nameof(ERecycleHub.Domain.UserRole.Customer)).RequireClaim(ERecycleHub.Api.Claims.PublisherId));
+builder.Services.AddAntiforgery(o =>
+{
+    o.HeaderName = Security.CsrfHeader;
+    o.Cookie.Name = "erh.af";
+    o.Cookie.HttpOnly = true;
+    o.Cookie.SameSite = SameSiteMode.Strict;
+    o.Cookie.SecurePolicy = secureCookies;
+});
 
 builder.Services.AddRateLimiter(o =>
 {
@@ -116,7 +149,9 @@ app.UseSwaggerUI(o =>
 });
 app.UseWebSockets(new WebSocketOptions { KeepAliveInterval = TimeSpan.FromSeconds(30) });
 app.UseAuthentication();
+app.Use(Security.ValidateBearerAsync);
 app.UseAuthorization();
+app.Use(Security.CsrfAsync);
 app.UseRateLimiter();
 
 app.MapOpenApi("/api/openapi/{documentName}.json").AllowAnonymous();
@@ -124,11 +159,19 @@ app.MapGet("/api/health", async (AppDbContext db, CancellationToken ct) =>
     await db.Database.CanConnectAsync(ct) ? Results.Ok(new { status = "ok" }) : Results.Json(new { status = "db.unavailable" }, statusCode: 503))
     .AllowAnonymous().ExcludeFromDescription();
 
+var webApi = app.MapGroup("/api").DisableAntiforgery().ExcludeFromDescription();
+app.MapHub<AuctionHub>("/hubs/auctions").AllowAnonymous();
+ERecycleHub.Api.Endpoints.AuthEndpoints.MapAuthEndpoints(webApi);
+webApi.MapPublicEndpoints();
+ERecycleHub.Api.Endpoints.AccountEndpoints.MapAccountEndpoints(webApi);
+webApi.MapSellerEndpoints();
+webApi.MapAdminEndpoints();
+
 // The app's SERVER setting is https://<host>/api/v1; the live socket is at /api/ws/auctions/{id} (also /ws/auctions/{id}).
 var v1 = app.MapGroup("/api/v1").DisableAntiforgery();
-v1.MapAuthEndpoints();
+ERecycleHub.Api.Mobile.AuthEndpoints.MapAuthEndpoints(v1);
 v1.MapCatalogEndpoints();
-v1.MapAccountEndpoints();
+ERecycleHub.Api.Mobile.AccountEndpoints.MapAccountEndpoints(v1);
 v1.MapFileEndpoints();
 AuctionSockets.Map(app);
 

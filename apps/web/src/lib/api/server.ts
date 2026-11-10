@@ -49,10 +49,19 @@ export async function loadOptional<T>(request: Promise<{ data?: T; error?: unkno
   return (r.data as T) ?? null;
 }
 
+/** Public content must never turn an API authentication error into a redirect to the current login page. */
+export async function loadPublicOptional<T>(request: Promise<{ data?: T; error?: unknown; response: Response }>): Promise<T | null> {
+  const r = await request;
+  if (r.response.status === 404 || r.response.status === 204) return null;
+  if (!r.response.ok) throw await toApiError(r.response);
+  return r.data ?? null;
+}
+
 /** The signed-in user for this request (deduplicated per request), or null. */
 export const getSession = cache(async (): Promise<SessionUser | null> => {
   const client = await serverApi();
   const r = await client.GET("/api/auth/me");
+  if (!r.response.ok && r.response.status !== 401) throw await toApiError(r.response);
   return r.data?.user ?? null;
 });
 
