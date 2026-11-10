@@ -129,8 +129,8 @@ public static class Security
             h["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()";
             h["Cross-Origin-Opener-Policy"] = "same-origin";
             // File responses set their own (frameable by the same origin for PDF viewing); everything else is JSON and never framed.
-            // The Swagger UI page is an HTML app; 'none' would leave it blank. 'unsafe-eval': Swagger UI builds the request interceptor from a string.
-            if (ctx.Request.Path.StartsWithSegments("/api/swagger")) h.ContentSecurityPolicy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'";
+            // The Swagger UI page is an HTML app; 'none' would leave it blank.
+            if (ctx.Request.Path.StartsWithSegments("/api/swagger")) h.ContentSecurityPolicy = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'";
             else if (!h.ContainsKey("Content-Security-Policy"))
             {
                 h.ContentSecurityPolicy = "default-src 'none'; frame-ancestors 'none'";

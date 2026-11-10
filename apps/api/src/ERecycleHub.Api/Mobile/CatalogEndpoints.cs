@@ -3,6 +3,7 @@ using ERecycleHub.Application.Mobile;
 using ERecycleHub.Domain;
 using ERecycleHub.Infrastructure;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.SignalR;
 
 namespace ERecycleHub.Api.Mobile;
 
@@ -59,7 +60,7 @@ public static class CatalogEndpoints
     }
 
     private static async Task<IResult> PlaceBidAsync(int id, PlaceBidRequest req, HttpContext ctx, BiddingService bidding, MobileCatalog catalog,
-        AuctionSockets sockets, AppDbContext db, CancellationToken ct)
+        AuctionSockets sockets, IHubContext<AuctionHub> hub, TimeProvider clock, AppDbContext db, CancellationToken ct)
     {
         var userId = ctx.UserId();
         BidPlaced placed;
@@ -81,6 +82,7 @@ public static class CatalogEndpoints
         // The bid is committed; a failed push must not turn it into an error for the bidder (listeners reload on reconnect).
         var evt = new BidEventDto(placed.CurrentPrice, placed.BidCount, new LatestBidDto(placed.BidId, placed.UserId, placed.CurrentPrice, placed.CreatedAtUtc));
         try { await sockets.BroadcastAsync(id, "bid.placed", evt); } catch (Exception) { }
+        try { await hub.Clients.Group(AuctionHub.Room(id)).SendAsync("bid.placed", new { placed.AuctionId, placed.CurrentPrice, placed.MinimumNextBid, BidsCount = placed.BidCount, placed.BidId, ServerTime = clock.GetUtcNow().UtcDateTime }, CancellationToken.None); } catch (Exception) { }
 
         return Reply.Data(await catalog.DetailsAsync(id, userId, ct) ?? throw AppException.NotFound("auction"));
     }

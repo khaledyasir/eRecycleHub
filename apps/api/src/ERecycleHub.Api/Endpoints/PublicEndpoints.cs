@@ -1,4 +1,6 @@
 using ERecycleHub.Application;
+using ERecycleHub.Application.Mobile;
+using ERecycleHub.Api.Mobile;
 using ERecycleHub.Domain;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
@@ -38,11 +40,13 @@ public static class PublicEndpoints
 
         // --- member actions on an auction ---
         var m = api.MapGroup("/auctions/{id:int}").WithTags("Public").RequireAuthorization(Policies.Member);
-        m.MapPost("/bids", async (int id, PlaceBidRequest req, HttpContext ctx, BiddingService bidding, IHubContext<AuctionHub> hub, TimeProvider clock, CancellationToken ct) =>
+        m.MapPost("/bids", async (int id, PlaceBidRequest req, HttpContext ctx, BiddingService bidding, IHubContext<AuctionHub> hub, AuctionSockets sockets, TimeProvider clock, CancellationToken ct) =>
         {
             var placed = await bidding.PlaceBidAsync(ctx.Actor().UserId, id, req.Amount, ct);
             // The bid is committed; a failed push must not turn it into an error for the bidder (clients refetch on reconnect).
             try { await hub.Clients.Group(AuctionHub.Room(id)).SendAsync("bid.placed", new { placed.AuctionId, placed.CurrentPrice, placed.MinimumNextBid, BidsCount = placed.BidCount, placed.BidId, ServerTime = clock.GetUtcNow().UtcDateTime }, CancellationToken.None); }
+            catch (Exception) { }
+            try { await sockets.BroadcastAsync(id, "bid.placed", new BidEventDto(placed.CurrentPrice, placed.BidCount, new LatestBidDto(placed.BidId, placed.UserId, placed.CurrentPrice, placed.CreatedAtUtc))); }
             catch (Exception) { }
             return placed;
         }).RequireRateLimiting(RateLimits.Bids);
