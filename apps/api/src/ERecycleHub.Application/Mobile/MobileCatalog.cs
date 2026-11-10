@@ -1,12 +1,13 @@
 using ERecycleHub.Domain;
 using ERecycleHub.Infrastructure;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 
 namespace ERecycleHub.Application.Mobile;
 
 /// <summary>Read side of the mobile API: auctions, categories and public content in the shapes of docs/API_REQUIREMENTS.md §2.</summary>
-public sealed class MobileCatalog(AppDbContext db, AuctionQueries auctions, IFileUrls urls, IOptions<MobileOptions> options, TimeProvider clock, WalletService walletService, IBiddingSettings bidding)
+public sealed class MobileCatalog(AppDbContext db, AuctionQueries auctions, IFileUrls urls, IOptions<MobileOptions> options, TimeProvider clock, WalletService walletService, IBiddingSettings bidding, IConfiguration config)
 {
     private DateTime Now => clock.GetUtcNow().UtcDateTime;
     private string Currency => options.Value.Currency;
@@ -69,8 +70,25 @@ public sealed class MobileCatalog(AppDbContext db, AuctionQueries auctions, IFil
         var wallet = await walletService.ShownBalanceAsync(viewerId, ct);
         // Read-only: who leads, and what the viewer's leading bid holds (same rule as the website's viewer state).
         var top = await db.Bids.AsNoTracking().Where(b => b.AuctionId == id).OrderByDescending(b => b.Amount).ThenBy(b => b.Id)
-            .Select(b => new { b.UserId, Held = b.ReleasedAtUtc == null && b.SettledAtUtc == null ? b.HeldAmount : 0m }).FirstOrDefaultAsync(ct);
+            .Select(b => new { b.UserId, b.HeldAmount, b.ReleasedAtUtc, b.SettledAtUtc }).FirstOrDefaultAsync(ct);
         var leading = top?.UserId == viewerId;
+        var held = top is { ReleasedAtUtc: null, SettledAtUtc: null } ? top.HeldAmount : 0m;
+        // Sale outcome, read from the columns the end job and the administrator already write (nothing here changes any of them).
+        var ended = phase == AuctionPhase.Ended && top is not null;
+        var voided = top is { HeldAmount: > 0, ReleasedAtUtc: not null, SettledAtUtc: null };   // void-sale or a deactivation released the winner's hold
+        string? saleStatus = null;
+        if (ended)
+        {
+            var lookback = now.AddHours(-Math.Clamp(config.GetValue("AuctionEnd:LookbackHours", 6), 1, 24 * 14));
+            saleStatus = top!.SettledAtUtc is not null ? "Paid"
+                : voided ? "Voided"
+                : a.SettlementFailedAtUtc is not null ? "PaymentFailed"
+                // Not charged and nothing will charge it: the end job ran (EndProcessedAtUtc), or it is older than the job's lookback and holds nothing (ended before wallet bidding).
+                : a.EndProcessedAtUtc is not null || (held == 0 && !(a.EndsAtUtc is DateTime e && e >= lookback)) ? "NotCharged"
+                : "Pending";
+            // Only the holder of the winning bid sees that a payment failed, nothing was charged, or the sale was voided; everyone else sees Paid or Pending.
+            if (!leading && saleStatus != "Paid") saleStatus = "Pending";
+        }
         var bids = await db.Bids.AsNoTracking().Where(b => b.AuctionId == id).OrderByDescending(b => b.Id).Take(20)
             .Select(b => new LatestBidDto(b.Id, b.UserId, b.Amount, b.CreatedAtUtc)).ToListAsync(ct);
 
@@ -92,7 +110,7 @@ public sealed class MobileCatalog(AppDbContext db, AuctionQueries auctions, IFil
             phase switch { AuctionPhase.Live => "Active", AuctionPhase.Upcoming => "Upcoming", _ => "Expired" },
             urls.Of(a.TermsFileId), a.VideoUrl, urls.Of(a.ContractFileId), null, null, a.InsuranceAmount, wallet,
             a.Images.Select(i => new AuctionImageDto(i.Id, urls.Of(i.FileId))).ToList(), a.BidCount, phase == AuctionPhase.Ended,
-            Currency, bids, documents, leading, leading ? top!.Held : 0m, bidding.DebitWallet);
+            Currency, bids, documents, leading, leading ? held : 0m, bidding.DebitWallet, ended && !voided && leading, saleStatus);
     }
 
     private static string Remaining(DateTime? end, DateTime now)

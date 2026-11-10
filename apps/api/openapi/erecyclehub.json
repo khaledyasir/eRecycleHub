@@ -403,7 +403,7 @@
         "tags": [
           "Auctions"
         ],
-        "description": "isLeading: you hold the highest bid. heldByViewer: what your leading bid holds (0 if none). debitsWallet: wallet bidding is on. wallet: your available balance (when wallet bidding is on).",
+        "description": "isLeading: you hold the highest bid. heldByViewer: what your leading bid holds (0 if none). debitsWallet: wallet bidding is on. wallet: your available balance (when wallet bidding is on). isWinner: the auction ended, was not voided, and you hold the winning bid. saleStatus (ended auctions with bids, else null): Paid | PaymentFailed | Pending | Voided | NotCharged; only the holder of the winning bid sees PaymentFailed, Voided or NotCharged, everyone else sees Paid or Pending.",
         "parameters": [
           {
             "name": "id",
@@ -1344,6 +1344,16 @@
           "debitsWallet": {
             "type": "boolean",
             "default": false
+          },
+          "isWinner": {
+            "type": "boolean",
+            "default": false
+          },
+          "saleStatus": {
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "availableAfter": {
             "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",

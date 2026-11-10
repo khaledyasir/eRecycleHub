@@ -33,6 +33,8 @@ public sealed record AuctionDocumentDto(int Id, string Name, string Type, long S
 /// <param name="IsLeading">The viewer holds the highest bid right now.</param>
 /// <param name="HeldByViewer">Money the viewer's leading bid in this auction holds (0 when they are not leading or nothing is held).</param>
 /// <param name="DebitsWallet">Wallet bidding is on: a bid holds its amount and the winner is charged at close.</param>
+/// <param name="IsWinner">The auction has ended, its sale was not voided, and the viewer holds the winning bid.</param>
+/// <param name="SaleStatus">Ended auctions with bids only (null otherwise): Paid | PaymentFailed | Pending | Voided | NotCharged (viewers other than the winning bidder only ever see Paid or Pending). See docs/MOBILE-API.md.</param>
 /// <param name="AvailableAfter">Only in the response to a bid: the viewer's available balance right after it.</param>
 /// <param name="ReleasedFromPrevious">Only in the response to a bid: the hold released from the previous leader (0 when there was none or it was the bidder's own).</param>
 public sealed record AuctionDetailsDto(
@@ -44,7 +46,7 @@ public sealed record AuctionDetailsDto(
     IReadOnlyList<AuctionImageDto> Images, int BidsCount,
     [property: JsonPropertyName("isexpire")] bool IsExpire,
     string Currency, IReadOnlyList<LatestBidDto> LatestBids, IReadOnlyList<AuctionDocumentDto> Documents,
-    bool IsLeading = false, decimal HeldByViewer = 0, bool DebitsWallet = false,
+    bool IsLeading = false, decimal HeldByViewer = 0, bool DebitsWallet = false, bool IsWinner = false, string? SaleStatus = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] decimal? AvailableAfter = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] decimal? ReleasedFromPrevious = null);
 

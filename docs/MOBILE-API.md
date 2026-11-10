@@ -74,8 +74,22 @@ Viewer fields on the auction details (`GET /auctions/{id}` and the bid response)
 | `isLeading` | bool | You hold the highest bid right now. |
 | `heldByViewer` | number | What your leading bid in this auction holds; `0` when you are not leading or nothing is held (always `0` while wallet bidding is off). |
 | `debitsWallet` | bool | Wallet bidding is on: a bid holds its amount and the winner is charged at close. When `false`, only the insurance amount has to be in the wallet. |
+| `isWinner` | bool | The auction has ended, its sale was not voided, and you hold the winning bid. `false` while the auction is running. |
+| `saleStatus` | string or null | What became of the sale. `null` for running and upcoming auctions and for ended auctions without bids. Otherwise one of the values below. |
 | `availableAfter` | number | **Bid response only** (absent on `GET`). Your available balance right after the bid. |
 | `releasedFromPrevious` | number | **Bid response only** (absent on `GET`). The hold released from the previous leader because of your bid; `0` when there was no previous leader or it was you. |
+
+`saleStatus` for an ended auction with bids. **Who sees what:** the user who holds the winning bid (even if the sale was voided) sees the real value below. Every other viewer sees only `Paid` or `Pending`: `PaymentFailed`, `Voided` and `NotCharged` are shown to them as `Pending`, so one person's payment problem is not visible to others.
+
+| Value | Meaning | What the winner sees |
+|---|---|---|
+| `Paid` | The winning bid was settled: the held amount was charged to the winner's wallet. | "Paid". |
+| `PaymentFailed` | The wallet could not cover the winning amount at close. Nothing was charged and the hold is kept; topping up completes the sale by itself within seconds. | "Top up your wallet to complete the payment". |
+| `Pending` | Ended, but the server has not processed it yet (normally seconds). | "Processing". |
+| `Voided` | An administrator voided the sale or the auction was deactivated, and the winner's hold was released. `isWinner` is `false`. | "This sale was cancelled". |
+| `NotCharged` | Closed and nothing was charged: the winning bid held no money (wallet bidding was off when it was placed, or the auction ended before it existed). Payment, if any, is arranged outside the app. | "Congratulations; we will contact you". |
+
+`NotCharged` is not one of the four values in the original request; it covers sales that are finished but were never paid through the wallet, so they are not shown as `Pending` forever.
 
 Use `isLeading` and `heldByViewer` to show "You are leading, 110 JOD reserved", and `debitsWallet` to decide whether to show hold wording at all. The bid response is the same object as `GET`, so one parser handles both; the two bid-only fields are simply missing on `GET`.
 

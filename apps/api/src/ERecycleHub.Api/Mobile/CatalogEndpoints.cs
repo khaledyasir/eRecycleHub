@@ -40,7 +40,7 @@ public static class CatalogEndpoints
         a.MapGet("/{id:int}", async (int id, HttpContext ctx, MobileCatalog c, CancellationToken ct) =>
                 Reply.Data(await c.DetailsAsync(id, ctx.UserId(), ct) ?? throw AppException.NotFound("auction")))
             .Produces<Envelope<AuctionDetailsDto>>()
-            .WithDescription("isLeading: you hold the highest bid. heldByViewer: what your leading bid holds (0 if none). debitsWallet: wallet bidding is on. wallet: your available balance (when wallet bidding is on).");
+            .WithDescription("isLeading: you hold the highest bid. heldByViewer: what your leading bid holds (0 if none). debitsWallet: wallet bidding is on. wallet: your available balance (when wallet bidding is on). isWinner: the auction ended, was not voided, and you hold the winning bid. saleStatus (ended auctions with bids, else null): Paid | PaymentFailed | Pending | Voided | NotCharged; only the holder of the winning bid sees PaymentFailed, Voided or NotCharged, everyone else sees Paid or Pending.");
         a.MapPost("/{id:int}/bids", PlaceBidAsync).RequireRateLimiting(RateLimits.Bids).Produces<Envelope<AuctionDetailsDto>>()
             .WithSummary("Place a bid; returns the full auction details")
             .WithDescription("When the server runs with Bidding__DebitWallet=true a bid HOLDS its amount: the wallet balance and ledger are not touched, the previous leader's hold is released, and the money is charged only if you win when the auction ends. " +

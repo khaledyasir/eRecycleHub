@@ -45,4 +45,16 @@ public class MobileDetailsJsonTests
         Assert.False(j.GetProperty("isLeading").GetBoolean());
         Assert.False(j.GetProperty("debitsWallet").GetBoolean());
     }
+
+    [Fact]
+    public void Winner_and_sale_status_are_always_present_and_a_missing_status_is_null_not_absent()
+    {
+        var running = Json(Dto());
+        Assert.False(running.GetProperty("isWinner").GetBoolean());
+        Assert.Equal(JsonValueKind.Null, running.GetProperty("saleStatus").ValueKind);
+
+        var paid = Json(Dto() with { IsWinner = true, SaleStatus = "Paid" });
+        Assert.True(paid.GetProperty("isWinner").GetBoolean());
+        Assert.Equal("Paid", paid.GetProperty("saleStatus").GetString());
+    }
 }
