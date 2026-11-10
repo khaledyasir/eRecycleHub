@@ -203,7 +203,7 @@ IF NOT EXISTS (
     WHERE [MigrationId] = N'20261110114731_BidHoldsAndSettlement'
 )
 BEGIN
-    -- Users that went through the old model: they have ledger rows with the old bid reasons and no conversion yet.
+    EXEC(N'-- Users that went through the old model: they have ledger rows with the old bid reasons and no conversion yet.
     SELECT DISTINCT l.UserId INTO #OldModelUsers
     FROM WalletLedger l
     WHERE l.Reason IN (5, 6, 7, 8)
@@ -233,7 +233,7 @@ BEGIN
     SELECT UserId, Amount, BalanceBefore, BalanceBefore + Amount, 10, SYSUTCDATETIME() FROM #Conversion;
 
     DROP TABLE #Conversion;
-    DROP TABLE #OldModelUsers;
+    DROP TABLE #OldModelUsers;');
 END;
 
 IF NOT EXISTS (

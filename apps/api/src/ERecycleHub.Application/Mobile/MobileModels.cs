@@ -29,6 +29,12 @@ public sealed record AuctionImageDto(int Id, string? Image);
 public sealed record LatestBidDto(long Id, int UserId, decimal Amount, DateTime CreatedDate);
 public sealed record AuctionDocumentDto(int Id, string Name, string Type, long SizeKb, string? Url);
 
+/// <param name="Wallet">The viewer's available balance when wallet bidding is on, else the plain balance.</param>
+/// <param name="IsLeading">The viewer holds the highest bid right now.</param>
+/// <param name="HeldByViewer">Money the viewer's leading bid in this auction holds (0 when they are not leading or nothing is held).</param>
+/// <param name="DebitsWallet">Wallet bidding is on: a bid holds its amount and the winner is charged at close.</param>
+/// <param name="AvailableAfter">Only in the response to a bid: the viewer's available balance right after it.</param>
+/// <param name="ReleasedFromPrevious">Only in the response to a bid: the hold released from the previous leader (0 when there was none or it was the bidder's own).</param>
 public sealed record AuctionDetailsDto(
     int Id, int? CategoryId, string TitleEn, string TitleAr, string? MainImage, string? ShortDescEn, string? ShortDescAr,
     string? DescEn, string? DescAr, decimal StartPrice, decimal CurrentPrice, decimal IncreaseRange,
@@ -37,7 +43,10 @@ public sealed record AuctionDetailsDto(
     string? Video, string? Contract, string? ConditionForPayment, string? PreviewTime, decimal InsuranceAmount, decimal Wallet,
     IReadOnlyList<AuctionImageDto> Images, int BidsCount,
     [property: JsonPropertyName("isexpire")] bool IsExpire,
-    string Currency, IReadOnlyList<LatestBidDto> LatestBids, IReadOnlyList<AuctionDocumentDto> Documents);
+    string Currency, IReadOnlyList<LatestBidDto> LatestBids, IReadOnlyList<AuctionDocumentDto> Documents,
+    bool IsLeading = false, decimal HeldByViewer = 0, bool DebitsWallet = false,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] decimal? AvailableAfter = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] decimal? ReleasedFromPrevious = null);
 
 public sealed record CategoryDto(int Id, string TitleEn, string TitleAr, string? Icon, string? EndTime, int AuctionCount, IReadOnlyList<AuctionItemDto> Auctions);
 public sealed record AuctionStatusDto(int Id, string TitleEn, string TitleAr, int AuctionCount, IReadOnlyList<AuctionItemDto> Auctions);

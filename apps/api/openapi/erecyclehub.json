@@ -403,6 +403,7 @@
         "tags": [
           "Auctions"
         ],
+        "description": "isLeading: you hold the highest bid. heldByViewer: what your leading bid holds (0 if none). debitsWallet: wallet bidding is on. wallet: your available balance (when wallet bidding is on).",
         "parameters": [
           {
             "name": "id",
@@ -435,7 +436,7 @@
           "Auctions"
         ],
         "summary": "Place a bid; returns the full auction details",
-        "description": "When the server runs with Bidding__DebitWallet=true a bid HOLDS its amount: the wallet balance and ledger are not touched, the previous leader's hold is released, and the money is charged only if you win when the auction ends. The wallet field of the returned auction is then your available balance (balance minus pending withdrawals minus the money held by your leading bids). You may lead several auctions while the sum of your holds fits it. Errors: 409 AUCTION_CLOSED (auction ended, inactive or deactivated; = AUCTION_ENDED), 409 AUCTION_NOT_STARTED, 409 OUTBID (someone bid first: reload), 422 BID_TOO_LOW, 422 INSUFFICIENT_WALLET (= INSUFFICIENT_BALANCE: your available balance cannot cover the hold; the message states required and available; also returned when it is below the auction's insurance), 403 BID_NOT_ALLOWED (own auction, administrator or blocked account). Listeners of /api/ws/auctions/{id} get bid.placed with the same bid id.",
+        "description": "When the server runs with Bidding__DebitWallet=true a bid HOLDS its amount: the wallet balance and ledger are not touched, the previous leader's hold is released, and the money is charged only if you win when the auction ends. The response also carries availableAfter (your available balance right after this bid) and releasedFromPrevious (the hold released from the previous leader, 0 if none), plus isLeading, heldByViewer and debitsWallet. The wallet field of the returned auction is then your available balance (balance minus pending withdrawals minus the money held by your leading bids). You may lead several auctions while the sum of your holds fits it. Errors: 409 AUCTION_CLOSED (auction ended, inactive or deactivated; = AUCTION_ENDED), 409 AUCTION_NOT_STARTED, 409 OUTBID (someone bid first: reload), 422 BID_TOO_LOW, 422 INSUFFICIENT_WALLET (= INSUFFICIENT_BALANCE: your available balance cannot cover the hold; the message states required and available; also returned when it is below the auction's insurance), 403 BID_NOT_ALLOWED (own auction, administrator or blocked account). Listeners of /api/ws/auctions/{id} get bid.placed with the same bid id.",
         "parameters": [
           {
             "name": "id",
@@ -1326,6 +1327,41 @@
             "items": {
               "$ref": "#/components/schemas/AuctionDocumentDto"
             }
+          },
+          "isLeading": {
+            "type": "boolean",
+            "default": false
+          },
+          "heldByViewer": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double",
+            "default": 0
+          },
+          "debitsWallet": {
+            "type": "boolean",
+            "default": false
+          },
+          "availableAfter": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "releasedFromPrevious": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
           }
         }
       },

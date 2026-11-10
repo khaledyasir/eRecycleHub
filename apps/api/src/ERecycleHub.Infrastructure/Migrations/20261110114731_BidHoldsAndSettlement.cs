@@ -44,7 +44,9 @@ namespace ERecycleHub.Infrastructure.Migrations
                 nullable: true);
 
             // Bids held under the old debit-at-bid model (never turned on in production, so normally a no-op) become holds again.
-            migrationBuilder.Sql(ERecycleHub.Infrastructure.HoldModelConversion.Script);
+            // Dynamic SQL: the script reads Bids.SettledAtUtc, which this same migration adds. In a generated (idempotent) script both would sit in one
+            // batch, and SQL Server checks column names for the whole batch before the ALTER TABLE has run (error 207). EXEC defers the check.
+            migrationBuilder.Sql("EXEC(N'" + ERecycleHub.Infrastructure.HoldModelConversion.Script.Replace("'", "''") + "');");
 
             migrationBuilder.CreateIndex(
                 name: "UX_WalletLedger_AuctionPayment",

@@ -6,6 +6,7 @@ Generated from the EF Core migrations added for the hold-and-pay bidding model (
 |---|---|
 | `wallet-holds-UP.sql` | Applies the five migrations (idempotent: steps already recorded in `__EFMigrationsHistory` are skipped; one transaction per migration). |
 | `wallet-holds-DOWN.sql` | Reverts them in reverse order (idempotent, one transaction per migration, removes the history rows). |
+| `wallet-holds-CONVERSION-ONLY.sql` | Only for a database where an earlier version of `wallet-holds-UP.sql` already ran and failed on the conversion step (Msg 207 `Invalid column name 'SettledAtUtc'`). Step 1 shows whether anything needs converting (zero rows: nothing to do). |
 | `wallet-holds-UNDO-CONVERSION.sql` | Optional. Undoes only the one-time data conversion for bids held under the old debit model (a no-op if the old model was never on). Run before the DOWN script. |
 
 Regenerate after any further migration:

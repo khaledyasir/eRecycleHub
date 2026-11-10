@@ -6,7 +6,7 @@ using Microsoft.Extensions.Options;
 namespace ERecycleHub.Application.Mobile;
 
 /// <summary>Read side of the mobile API: auctions, categories and public content in the shapes of docs/API_REQUIREMENTS.md §2.</summary>
-public sealed class MobileCatalog(AppDbContext db, AuctionQueries auctions, IFileUrls urls, IOptions<MobileOptions> options, TimeProvider clock, WalletService walletService)
+public sealed class MobileCatalog(AppDbContext db, AuctionQueries auctions, IFileUrls urls, IOptions<MobileOptions> options, TimeProvider clock, WalletService walletService, IBiddingSettings bidding)
 {
     private DateTime Now => clock.GetUtcNow().UtcDateTime;
     private string Currency => options.Value.Currency;
@@ -67,6 +67,10 @@ public sealed class MobileCatalog(AppDbContext db, AuctionQueries auctions, IFil
         var now = Now;
         var phase = AuctionRules.Phase(a.StartsAtUtc, a.EndsAtUtc, now);
         var wallet = await walletService.ShownBalanceAsync(viewerId, ct);
+        // Read-only: who leads, and what the viewer's leading bid holds (same rule as the website's viewer state).
+        var top = await db.Bids.AsNoTracking().Where(b => b.AuctionId == id).OrderByDescending(b => b.Amount).ThenBy(b => b.Id)
+            .Select(b => new { b.UserId, Held = b.ReleasedAtUtc == null && b.SettledAtUtc == null ? b.HeldAmount : 0m }).FirstOrDefaultAsync(ct);
+        var leading = top?.UserId == viewerId;
         var bids = await db.Bids.AsNoTracking().Where(b => b.AuctionId == id).OrderByDescending(b => b.Id).Take(20)
             .Select(b => new LatestBidDto(b.Id, b.UserId, b.Amount, b.CreatedAtUtc)).ToListAsync(ct);
 
@@ -88,7 +92,7 @@ public sealed class MobileCatalog(AppDbContext db, AuctionQueries auctions, IFil
             phase switch { AuctionPhase.Live => "Active", AuctionPhase.Upcoming => "Upcoming", _ => "Expired" },
             urls.Of(a.TermsFileId), a.VideoUrl, urls.Of(a.ContractFileId), null, null, a.InsuranceAmount, wallet,
             a.Images.Select(i => new AuctionImageDto(i.Id, urls.Of(i.FileId))).ToList(), a.BidCount, phase == AuctionPhase.Ended,
-            Currency, bids, documents);
+            Currency, bids, documents, leading, leading ? top!.Held : 0m, bidding.DebitWallet);
     }
 
     private static string Remaining(DateTime? end, DateTime now)

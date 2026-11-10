@@ -41,8 +41,9 @@ All responses use the envelope above. "Auth" means bearer token required.
 ### Auctions and bids
 | Method | Path | Notes |
 |---|---|---|
-| GET | `/auctions`, `/auctions/statuses`, `/auctions/{id}` | Public. Details include `wallet` (your available balance when signed in), `insuranceAmount`, `latestBids`. |
-| POST | `/auctions/{id}/bids` | Auth. Body `{ "amount": 130 }`. Returns the full auction details. Rate limited. |
+| GET | `/auctions`, `/auctions/statuses` | Public lists. |
+| GET | `/auctions/{id}` | Auth. The full details, including `wallet` (your available balance when wallet bidding is on), `insuranceAmount`, `latestBids` and the viewer fields below. |
+| POST | `/auctions/{id}/bids` | Auth. Body `{ "amount": 130 }`. Returns the same details object, plus `availableAfter` and `releasedFromPrevious`. Rate limited. |
 | WS | `wss://host/api/ws/auctions/{id}` | Server-to-client only. Events: `bid.placed`, `auction.started`, `auction.extended`, `auction.ended`. (`/ws/auctions/{id}` also works.) |
 
 ### Wallet (Auth)
@@ -65,6 +66,18 @@ Both POSTs accept an optional `Idempotency-Key` header (max 100 characters; use 
 | POST | `/notifications/read-all` | |
 | DELETE | `/notifications/{id}`, POST `/notifications/{id}/restore` | Soft delete / undo (within a day). |
 | POST | `/devices/fcm-token` | Body `{ token, platform: android\|ios, deviceId }`. Send header `lang: en\|ar` here: pushes use that language (default Arabic). Re-send whenever Firebase gives a new token. |
+
+Viewer fields on the auction details (`GET /auctions/{id}` and the bid response):
+
+| Field | Type | Meaning |
+|---|---|---|
+| `isLeading` | bool | You hold the highest bid right now. |
+| `heldByViewer` | number | What your leading bid in this auction holds; `0` when you are not leading or nothing is held (always `0` while wallet bidding is off). |
+| `debitsWallet` | bool | Wallet bidding is on: a bid holds its amount and the winner is charged at close. When `false`, only the insurance amount has to be in the wallet. |
+| `availableAfter` | number | **Bid response only** (absent on `GET`). Your available balance right after the bid. |
+| `releasedFromPrevious` | number | **Bid response only** (absent on `GET`). The hold released from the previous leader because of your bid; `0` when there was no previous leader or it was you. |
+
+Use `isLeading` and `heldByViewer` to show "You are leading, 110 JOD reserved", and `debitsWallet` to decide whether to show hold wording at all. The bid response is the same object as `GET`, so one parser handles both; the two bid-only fields are simply missing on `GET`.
 
 New and changed fields: `kind` (the exact event, section 5), `auctionId` (the auction to open when the notification is tapped; absent for wallet events), `amount` on notifications; `held` and `available` on `/wallet/balance`; `wallet` on the auction details is now the available balance.
 

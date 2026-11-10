@@ -39,10 +39,12 @@ public static class CatalogEndpoints
             .Produces<Envelope<List<AuctionStatusDto>>>().WithSummary("Auctions grouped by status, in tab order: All, Active, Upcoming, Expired");
         a.MapGet("/{id:int}", async (int id, HttpContext ctx, MobileCatalog c, CancellationToken ct) =>
                 Reply.Data(await c.DetailsAsync(id, ctx.UserId(), ct) ?? throw AppException.NotFound("auction")))
-            .Produces<Envelope<AuctionDetailsDto>>();
+            .Produces<Envelope<AuctionDetailsDto>>()
+            .WithDescription("isLeading: you hold the highest bid. heldByViewer: what your leading bid holds (0 if none). debitsWallet: wallet bidding is on. wallet: your available balance (when wallet bidding is on).");
         a.MapPost("/{id:int}/bids", PlaceBidAsync).RequireRateLimiting(RateLimits.Bids).Produces<Envelope<AuctionDetailsDto>>()
             .WithSummary("Place a bid; returns the full auction details")
             .WithDescription("When the server runs with Bidding__DebitWallet=true a bid HOLDS its amount: the wallet balance and ledger are not touched, the previous leader's hold is released, and the money is charged only if you win when the auction ends. " +
+                "The response also carries availableAfter (your available balance right after this bid) and releasedFromPrevious (the hold released from the previous leader, 0 if none), plus isLeading, heldByViewer and debitsWallet. "+
                 "The wallet field of the returned auction is then your available balance (balance minus pending withdrawals minus the money held by your leading bids). You may lead several auctions while the sum of your holds fits it. " +
                 "Errors: 409 AUCTION_CLOSED (auction ended, inactive or deactivated; = AUCTION_ENDED), 409 AUCTION_NOT_STARTED, 409 OUTBID (someone bid first: reload), 422 BID_TOO_LOW, " +
                 "422 INSUFFICIENT_WALLET (= INSUFFICIENT_BALANCE: your available balance cannot cover the hold; the message states required and available; also returned when it is below the auction's insurance), " +
@@ -88,6 +90,7 @@ public static class CatalogEndpoints
         try { await sockets.BroadcastAsync(id, "bid.placed", evt); } catch (Exception) { }
         try { await hub.Clients.Group(AuctionHub.Room(id)).SendAsync("bid.placed", new { placed.AuctionId, placed.CurrentPrice, placed.MinimumNextBid, BidsCount = placed.BidCount, placed.BidId, ServerTime = clock.GetUtcNow().UtcDateTime }, CancellationToken.None); } catch (Exception) { }
 
-        return Reply.Data(await catalog.DetailsAsync(id, userId, ct) ?? throw AppException.NotFound("auction"));
+        var details = await catalog.DetailsAsync(id, userId, ct) ?? throw AppException.NotFound("auction");
+        return Reply.Data(details with { AvailableAfter = placed.AvailableAfter, ReleasedFromPrevious = placed.ReleasedFromPrevious });
     }
 }
