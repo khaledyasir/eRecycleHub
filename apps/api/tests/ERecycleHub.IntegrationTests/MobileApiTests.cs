@@ -362,4 +362,26 @@ public class MobileApiTests(ApiFactory f)
         Assert.Contains(mine.GetProperty("live").EnumerateArray(), a => a.GetProperty("id").GetInt32() == live);
         Assert.Equal(JsonValueKind.Array, mine.GetProperty("won").ValueKind);
     }
+
+    [Fact]
+    public async Task Ended_auctions_are_not_in_the_public_lists_but_stay_in_the_users_own_lists()
+    {
+        var (_, email) = await f.NewCustomerAsync();
+        var c = await f.SignedInAsync(email, ApiFactory.Password);
+        var auction = await f.NewAuctionAsync(startHours: -5, endHours: 1, start: 100, increment: 10);
+        await c.DataAsync(c.BidAsync(auction, 110));
+        await f.DbAsync(db => db.Auctions.Where(a => a.Id == auction).ExecuteUpdateAsync(s => s.SetProperty(a => a.EndsAtUtc, DateTime.UtcNow.AddHours(-1))));   // it has now ended
+
+        var all = (await c.DataAsync(c.GetAsync("/api/v1/auctions"))).EnumerateArray().Select(a => a.GetProperty("id").GetInt32()).ToList();
+        Assert.DoesNotContain(auction, all);
+
+        var statuses = (await c.DataAsync(c.GetAsync("/api/v1/auctions/statuses"))).EnumerateArray().ToList();
+        Assert.Equal([4, 1, 2, 3], statuses.Select(s => s.GetProperty("id").GetInt32()));
+        Assert.All(statuses, s => Assert.DoesNotContain(s.GetProperty("auctions").EnumerateArray(), a => a.GetProperty("id").GetInt32() == auction));
+        Assert.Equal(0, statuses[3].GetProperty("auctionCount").GetInt32());
+
+        var mine = await c.DataAsync(c.GetAsync("/api/v1/profile/auctions"));
+        Assert.Contains(mine.GetProperty("won").EnumerateArray(), a => a.GetProperty("id").GetInt32() == auction);   // the winner still sees it
+        Assert.NotEqual(HttpStatusCode.NotFound, (await c.GetAsync($"/api/v1/auctions/{auction}")).StatusCode);       // and it opens by id
+    }
 }

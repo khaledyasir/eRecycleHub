@@ -363,7 +363,7 @@
         "tags": [
           "Auctions"
         ],
-        "summary": "Every visible auction (no paging; the app filters and sorts)",
+        "summary": "Every visible auction that has not ended (no paging; the app filters and sorts). Ended auctions are only returned in /profile/auctions (won) and favourites, and by id",
         "responses": {
           "200": {
             "description": "OK",
@@ -383,7 +383,7 @@
         "tags": [
           "Auctions"
         ],
-        "summary": "Auctions grouped by status, in tab order: All, Active, Upcoming, Expired",
+        "summary": "Auctions grouped by status, in tab order: All, Active, Upcoming, Expired. Ended auctions are not returned, so Expired is always empty",
         "responses": {
           "200": {
             "description": "OK",

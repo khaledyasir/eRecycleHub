@@ -33,10 +33,10 @@ public static class CatalogEndpoints
 
         var a = v1.MapGroup("/auctions").WithTags("Auctions");
         a.MapGet("", async (MobileCatalog c, CancellationToken ct) => Reply.Data(await c.ItemsAsync(ct: ct)))
-            .Produces<Envelope<List<AuctionItemDto>>>().WithSummary("Every visible auction (no paging; the app filters and sorts)");
+            .Produces<Envelope<List<AuctionItemDto>>>().WithSummary("Every visible auction that has not ended (no paging; the app filters and sorts). Ended auctions are only returned in /profile/auctions (won) and favourites, and by id");
         // Registered as a literal segment; {id:int} below can never match "statuses".
         a.MapGet("/statuses", async (MobileCatalog c, CancellationToken ct) => Reply.Data(await c.StatusesAsync(ct)))
-            .Produces<Envelope<List<AuctionStatusDto>>>().WithSummary("Auctions grouped by status, in tab order: All, Active, Upcoming, Expired");
+            .Produces<Envelope<List<AuctionStatusDto>>>().WithSummary("Auctions grouped by status, in tab order: All, Active, Upcoming, Expired. Ended auctions are not returned, so Expired is always empty");
         a.MapGet("/{id:int}", async (int id, HttpContext ctx, MobileCatalog c, CancellationToken ct) =>
                 Reply.Data(await c.DetailsAsync(id, ctx.UserId(), ct) ?? throw AppException.NotFound("auction")))
             .Produces<Envelope<AuctionDetailsDto>>()

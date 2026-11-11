@@ -41,7 +41,7 @@ All responses use the envelope above. "Auth" means bearer token required.
 ### Auctions and bids
 | Method | Path | Notes |
 |---|---|---|
-| GET | `/auctions`, `/auctions/statuses` | Public lists. |
+| GET | `/auctions`, `/auctions/statuses` | Public lists. **Ended auctions are not returned** (live and upcoming only); the `Expired` group of `/auctions/statuses` is kept for the app layout but is always empty, and category `auctionCount` counts only live and upcoming auctions. Ended auctions stay available in `/profile/auctions` (`won`), in favourites, and by id (`GET /auctions/{id}`). |
 | GET | `/auctions/{id}` | Auth. The full details, including `wallet` (your available balance when wallet bidding is on), `insuranceAmount`, `latestBids` and the viewer fields below. |
 | POST | `/auctions/{id}/bids` | Auth. Body `{ "amount": 130 }`. Returns the same details object, plus `availableAfter` and `releasedFromPrevious`. Rate limited. |
 | WS | `wss://host/api/ws/auctions/{id}` | Server-to-client only. Events: `bid.placed`, `auction.started`, `auction.extended`, `auction.ended`. (`/ws/auctions/{id}` also works.) |

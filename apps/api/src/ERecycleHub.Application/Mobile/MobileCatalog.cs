@@ -14,10 +14,13 @@ public sealed class MobileCatalog(AppDbContext db, AuctionQueries auctions, IFil
 
     public const int StatusAll = 4, StatusActive = 1, StatusUpcoming = 2, StatusExpired = 3;
 
-    /// <summary>List items for the given auctions (defaults to every visible auction), newest first. Two queries: rows, then gallery images.</summary>
+    /// <summary>Visible auctions that have not ended (live or upcoming). The public lists use this: ended auctions only show in the user's own lists (my auctions, favourites) and by id.</summary>
+    private IQueryable<Auction> Running() => auctions.Visible().Where(a => a.StartsAtUtc > Now || a.EndsAtUtc > Now);
+
+    /// <summary>List items for the given auctions (defaults to every visible auction that has not ended), newest first. Two queries: rows, then gallery images.</summary>
     public async Task<List<AuctionItemDto>> ItemsAsync(IQueryable<Auction>? source = null, CancellationToken ct = default)
     {
-        var rows = await (source ?? auctions.Visible()).OrderByDescending(a => a.Id).Select(a => new
+        var rows = await (source ?? Running()).OrderByDescending(a => a.Id).Select(a => new
         {
             a.Id, a.CategoryId, a.TitleEn, a.TitleAr, a.MainImageFileId, a.CurrentPrice, a.BidIncrement, a.StartsAtUtc, a.EndsAtUtc, a.BidCount,
         }).ToListAsync(ct);
@@ -35,7 +38,7 @@ public sealed class MobileCatalog(AppDbContext db, AuctionQueries auctions, IFil
     public async Task<List<AuctionStatusDto>> StatusesAsync(CancellationToken ct = default)
     {
         var now = Now;
-        var phases = await auctions.Visible().Select(a => new { a.Id, a.StartsAtUtc, a.EndsAtUtc }).ToListAsync(ct);
+        var phases = await Running().Select(a => new { a.Id, a.StartsAtUtc, a.EndsAtUtc }).ToListAsync(ct);
         var phaseOf = phases.ToDictionary(a => a.Id, a => AuctionRules.Phase(a.StartsAtUtc, a.EndsAtUtc, now));
         var all = await ItemsAsync(ct: ct);
         List<AuctionItemDto> In(AuctionPhase p) => all.Where(a => phaseOf.GetValueOrDefault(a.Id, AuctionPhase.Ended) == p).ToList();
@@ -45,13 +48,13 @@ public sealed class MobileCatalog(AppDbContext db, AuctionQueries auctions, IFil
             Group(StatusAll, "All", "الكل", all),
             Group(StatusActive, "Active", "نشط", In(AuctionPhase.Live)),
             Group(StatusUpcoming, "Upcoming", "قادم", In(AuctionPhase.Upcoming)),
-            Group(StatusExpired, "Expired", "منتهي", In(AuctionPhase.Ended)),
+            Group(StatusExpired, "Expired", "منتهي", []),   // the tab stays so the app keeps its layout; ended auctions are only in the user's own lists
         ];
     }
 
     public async Task<List<CategoryDto>> CategoriesAsync(CancellationToken ct = default)
     {
-        var visible = auctions.Visible();
+        var visible = Running();
         var rows = await db.Categories.AsNoTracking().Where(c => c.IsActive).OrderBy(c => c.SortOrder).ThenBy(c => c.TitleEn)
             .Select(c => new { c.Id, c.TitleEn, c.TitleAr, c.IconFileId, Count = visible.Count(a => a.CategoryId == c.Id) })
             .ToListAsync(ct);
