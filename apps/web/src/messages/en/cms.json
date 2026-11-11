@@ -66,14 +66,6 @@
     "deleteTitle": "Delete this category?",
     "deleteBody": "Categories with auctions can't be deleted; hide them instead."
   },
-  "countries": {
-    "title": "Countries",
-    "description": "Countries visitors can filter by.",
-    "add": "Add a country",
-    "empty": "No countries yet.",
-    "deleteTitle": "Delete this country?",
-    "deleteBody": "Countries that have categories, auctions or accounts can't be deleted; hide them instead."
-  },
   "sliders": {
     "title": "Homepage slides",
     "description": "The banner images at the top of the homepage.",

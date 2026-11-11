@@ -116,16 +116,42 @@ public sealed class MobileAccount(AppDbContext db, AuctionQueries auctions, Mobi
 
     // ---------- wallet ----------
 
+    /// <summary>Most recent bids of the user shown as hold lines in the wallet history.</summary>
+    private const int MaxHoldLines = 200;
+
     public async Task<WalletDto> WalletAsync(int userId, CancellationToken ct = default)
     {
         var balance = await walletService.ShownBalanceAsync(userId, ct);
         var rows = await db.WalletTransactions.AsNoTracking().Where(t => t.UserId == userId).OrderByDescending(t => t.Id)
             .Select(t => new { t.Id, t.Type, t.Amount, t.Status, t.CreatedAtUtc }).ToListAsync(ct);
         // Enum strings the app understands: type Deposit = money in, anything else = out; status Completed / Pending / anything else = rejected.
-        return new WalletDto(balance, rows.Select(t => new WalletTransactionItemDto(t.Id,
+        var lines = rows.Select(t => (Date: t.CreatedAtUtc, Order: (long)t.Id, Item: new WalletTransactionItemDto(t.Id,
             t.Type == WalletTransactionType.Withdrawal ? "Withdraw" : "Deposit", t.Amount,
             t.Status switch { WalletTransactionStatus.Approved => "Completed", WalletTransactionStatus.Pending => "Pending", WalletTransactionStatus.Reversed => "Reversed", _ => "Rejected" },
-            t.CreatedAtUtc)).ToList());
+            t.CreatedAtUtc))).ToList();
+        lines.AddRange(await HoldLinesAsync(userId, ct));
+        return new WalletDto(balance, lines.OrderByDescending(l => l.Date).ThenByDescending(l => l.Order).Select(l => l.Item).ToList());
+    }
+
+    /// <summary>
+    /// Display-only history lines derived from the user's own bids (reads only, nothing is stored and no balance or hold changes): "Hold" when a bid reserved money
+    /// (Pending while it still holds, Completed once the auction closed and it was paid) and "HoldRelease" when that hold was let go (outbid, raised, or the sale was voided).
+    /// Ids are negative: bid id x 2 for the hold, x 2 + 1 for the release.
+    /// </summary>
+    private async Task<List<(DateTime Date, long Order, WalletTransactionItemDto Item)>> HoldLinesAsync(int userId, CancellationToken ct)
+    {
+        var bids = await db.Bids.AsNoTracking().Where(b => b.UserId == userId && b.HeldAmount > 0).OrderByDescending(b => b.Id).Take(MaxHoldLines)
+            .Select(b => new { b.Id, b.AuctionId, b.HeldAmount, b.CreatedAtUtc, b.ReleasedAtUtc, b.SettledAtUtc, TitleEn = b.Auction!.TitleEn, TitleAr = b.Auction!.TitleAr })
+            .ToListAsync(ct);
+        var lines = new List<(DateTime, long, WalletTransactionItemDto)>();
+        foreach (var b in bids)
+        {
+            var status = b.SettledAtUtc is not null ? "Completed" : "Pending";
+            lines.Add((b.CreatedAtUtc, b.Id * 2, new WalletTransactionItemDto(checked((int)(-b.Id * 2)), "Hold", b.HeldAmount, status, b.CreatedAtUtc, b.AuctionId, b.TitleEn, b.TitleAr)));
+            if (b.ReleasedAtUtc is { } released && b.SettledAtUtc is null)
+                lines.Add((released, b.Id * 2 + 1, new WalletTransactionItemDto(checked((int)(-b.Id * 2 - 1)), "HoldRelease", b.HeldAmount, "Completed", released, b.AuctionId, b.TitleEn, b.TitleAr)));
+        }
+        return lines;
     }
 
     // ---------- notifications ----------

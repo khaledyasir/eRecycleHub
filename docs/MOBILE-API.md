@@ -49,7 +49,7 @@ All responses use the envelope above. "Auth" means bearer token required.
 ### Wallet (Auth)
 | Method | Path | Notes |
 |---|---|---|
-| GET | `/wallet` | `{ wallet, transaction: [{ id, type: Deposit\|Withdraw, amount, status: Pending\|Completed\|Rejected\|Reversed, createdDate }] }`. `wallet` is the available balance when wallet bidding is on. |
+| GET | `/wallet` | `{ wallet, transaction: [{ id, type: Deposit\|Withdraw, amount, status: Pending\|Completed\|Rejected\|Reversed, createdDate }] }`. `wallet` is the available balance when wallet bidding is on. Also contains display-only hold lines built from your bids (nothing is stored and no money moves): `type: Hold` (the bid reserved `amount`; `status` Pending while it still holds, Completed once paid at close) and `type: HoldRelease` (that hold was let go: outbid, raised, or the sale was voided). They carry `auctionId`, `auctionTitle`, `auctionTitleAr` and a **negative** `id`; the list is sorted by `createdDate`, newest first, and holds the latest 200 bids' lines. Treat any `type` other than `Deposit` as not a deposit; `Hold` and `HoldRelease` are informational, not money in or out. |
 | GET | `/wallet/balance` | `{ balance, pendingWithdrawals, available, held }`. |
 | GET | `/wallet/ledger?page&pageSize` | Every balance change, newest first: `{ id, reason, amount (signed), balanceBefore, balanceAfter, referenceType, referenceId, createdDate }`. `pageSize` max 100. |
 | POST | `/wallet/increase` | Body `{ "amount": 50 }`. Creates a Pending deposit. An administrator credits it after the bank transfer arrives. |

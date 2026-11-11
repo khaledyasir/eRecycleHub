@@ -16,7 +16,8 @@ import { useErrorMessage } from "@/lib/use-error-message";
 export type CmsField = {
   name: string;
   label: string;
-  kind: "text" | "area" | "rich" | "number" | "bool" | "select" | "file" | "url";
+  kind: "text" | "area" | "rich" | "number" | "bool" | "select" | "file" | "url" | "hidden";
+  // "hidden": a numeric value (e.g. the one country) sent with the form without a field; edits keep the stored value.
   options?: { value: string | number; label: string }[];
   /** Arabic text fields are entered right-to-left. */
   rtl?: boolean;
@@ -170,7 +171,7 @@ function EditDialog({ row, path, fields, defaults, labels, multipart, heading, o
       return;
     }
     const data = Object.fromEntries(
-      fields.filter((f) => f.kind !== "file").map((f) => [f.name, f.kind === "number" || (f.kind === "select" && typeof f.options?.[0]?.value === "number") ? Number(values[f.name] || 0) : values[f.name]]),
+      fields.filter((f) => f.kind !== "file").map((f) => [f.name, f.kind === "number" || f.kind === "hidden" || (f.kind === "select" && typeof f.options?.[0]?.value === "number") ? Number(values[f.name] || 0) : values[f.name]]),
     );
     setBusy(true);
     setFormError(null);
@@ -200,7 +201,7 @@ function EditDialog({ row, path, fields, defaults, labels, multipart, heading, o
     >
       <form id="cms-form" onSubmit={submit} noValidate className="grid gap-4 sm:grid-cols-2">
         {formError && <div className="sm:col-span-2"><Alert tone="danger">{formError}</Alert></div>}
-        {fields.map((f) => {
+        {fields.filter((f) => f.kind !== "hidden").map((f) => {
           const wide = f.kind === "rich" || f.kind === "area" || f.kind === "file" || f.kind === "bool";
           const cls = wide ? "sm:col-span-2" : undefined;
           if (f.kind === "bool") {

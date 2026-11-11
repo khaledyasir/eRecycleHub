@@ -15,7 +15,6 @@ export default async function Page() {
   const rows = await load(client.GET("/api/admin/contact-info"));
   const countries = await load(client.GET("/api/admin/countries"));
   const countryNames = Object.fromEntries(countries.map((c) => [String(c.id), pick(locale, c.nameEn, c.nameAr)]));
-  const countryOptions = countries.map((c) => ({ value: c.id, label: pick(locale, c.nameEn, c.nameAr) }));
   return (
     <>
       <PageHeader title={t("title")} description={t("description")} />
@@ -24,9 +23,9 @@ export default async function Page() {
         multipart={false}
         labels={labels}
         titleKeys={["address", "email"]}
-        defaults={{}}
+        defaults={{ countryId: String(countries[0]?.id ?? "") }}
         fields={[
-          { name: "countryId", label: f("countryId"), kind: "select", required: true, options: countryOptions },
+          { name: "countryId", label: f("countryId"), kind: "hidden" },
           { name: "mobile", label: f("mobile"), kind: "text" },
           { name: "email", label: f("email"), kind: "text" },
           { name: "address", label: f("address"), kind: "area" },

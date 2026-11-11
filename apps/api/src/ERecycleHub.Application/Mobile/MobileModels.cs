@@ -64,7 +64,14 @@ public sealed record UserProfileDto(int Id, string FullName, string Email, strin
 public sealed record ProfileImageDto(string? Image);
 public sealed record MyAuctionsDto(IReadOnlyList<AuctionItemDto> Live, IReadOnlyList<AuctionItemDto> Won);
 
-public sealed record WalletTransactionItemDto(int Id, string Type, decimal Amount, string Status, DateTime CreatedDate);
+/// <summary>
+/// One line of the wallet history. Real wallet transactions have type Deposit | Withdraw. Display-only hold lines (built from the user's bids, never stored, no money moves)
+/// have type Hold | HoldRelease, a NEGATIVE id (so they never clash with a transaction id) and the auction they belong to.
+/// </summary>
+public sealed record WalletTransactionItemDto(int Id, string Type, decimal Amount, string Status, DateTime CreatedDate,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? AuctionId = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? AuctionTitle = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? AuctionTitleAr = null);
 public sealed record LedgerItemDto(long Id, string Reason, decimal Amount, decimal? BalanceBefore, decimal BalanceAfter, string? ReferenceType, long? ReferenceId, DateTime CreatedDate);
 public sealed record WalletDto(decimal Wallet, [property: JsonPropertyName("transaction")] IReadOnlyList<WalletTransactionItemDto> Transaction);
 

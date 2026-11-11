@@ -9,7 +9,7 @@ import { useAction } from "@/components/manage/manage-actions";
 import { PasswordInput } from "@/components/public/auth-forms";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/display";
-import { Checkbox, Field, FileInput, Input, PhoneInput, Select, Textarea } from "@/components/ui/form";
+import { Checkbox, Field, FileInput, Input, PhoneInput, Textarea } from "@/components/ui/form";
 import { ConfirmDialog } from "@/components/ui/overlay";
 import { Switch } from "@/components/ui/controls";
 import { useRouter } from "@/i18n/navigation";
@@ -61,7 +61,6 @@ export function AccountForm({ kind, id, initial, countries }: { kind: "user" | "
   const tp = useTranslations("admin.publishers");
   const tc = useTranslations("admin.common");
   const ts = useTranslations("account.settings");
-  const locale = useLocale();
   const v = useValidators();
   const router = useRouter();
   const editing = id !== undefined;
@@ -129,13 +128,6 @@ export function AccountForm({ kind, id, initial, countries }: { kind: "user" | "
           <Field label={tc("email")} error={f.errors.email} required>{(p) => <Input {...p} {...f.text("email")} type="email" autoComplete="off" />}</Field>
           <Field label={tc("phone")}>{(p) => <PhoneInput {...p} {...f.text("phone")} />}</Field>
           {kind === "publisher" && <Field label={tp("secondMobile")}>{(p) => <Input {...p} {...f.text("secondMobile")} type="tel" dir="ltr" />}</Field>}
-          <Field label={tc("country")} error={f.errors.countryId} required>
-            {(p) => (
-              <Select {...p} {...f.text("countryId")}>
-                {countries.map((c) => <option key={c.id} value={c.id}>{locale === "ar" ? c.nameAr : c.nameEn}</option>)}
-              </Select>
-            )}
-          </Field>
           <Field label={editing ? t("passwordNew") : t("password")} hint={editing ? t("passwordKeep") : t("passwordHint")} error={f.errors.password} required={!editing}>
             {(p) => <PasswordInput {...p} {...f.text("password")} autoComplete="new-password" />}
           </Field>
