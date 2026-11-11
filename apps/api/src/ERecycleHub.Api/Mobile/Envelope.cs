@@ -16,6 +16,9 @@ public static class Reply
 {
     public static IResult Data<T>(T data) => TypedResults.Ok(new Envelope<T>(true, null, data));
     public static IResult Done() => TypedResults.Ok(new Envelope<object>(true, null, null));
+
+    /// <summary>Sends the total number of items across all pages of a list; the body stays a plain array.</summary>
+    public static void TotalCount(this HttpContext ctx, int total) => ctx.Response.Headers["X-Total-Count"] = total.ToString(System.Globalization.CultureInfo.InvariantCulture);
 }
 
 /// <summary>Maps service error codes (AppException) to the app's errorCode values and HTTP statuses (§4.2).</summary>

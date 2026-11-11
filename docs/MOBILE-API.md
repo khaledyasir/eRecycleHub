@@ -38,6 +38,13 @@ All responses use the envelope above. "Auth" means bearer token required.
 | POST | `/auth/register`, `/auth/login`, `/auth/password/reset` | Login returns `{ token, ... }`. |
 | POST | `/auth/logout` | Auth. Ends this session and forgets this device's push token. |
 
+### Paging of the lists
+`GET /auctions`, `/auctions/statuses`, `/favorites`, `/profile/auctions` and `/notifications` take optional `page` (from 1; below 1 means 1) and `pageSize` (**default 100, maximum 100**; larger values are cut to 100). The body stays a plain array (or the same object as before); the number of items across all pages is in the **`X-Total-Count`** response header. Ordering is never changed by paging (newest first). Without parameters you get the first 100, so an app that does not page sees at most 100 items: compare `X-Total-Count` with what you received and request `page=2`, `3`, … when it is larger.
+* `/auctions/statuses`: every tab is paged with the same `page`/`pageSize`; `auctionCount` is the tab's **total**, `auctions` is the requested page; `X-Total-Count` is the All total.
+* `/profile/auctions`: `live` and `won` are each paged; totals are in `X-Total-Count-Live` and `X-Total-Count-Won` (`X-Total-Count` is their sum).
+* `/notifications`: was "at most 500", is now 100 per page like the others.
+* `/wallet/ledger` keeps its own `{ items, page, pageSize, total }` envelope. `/wallet` is not paged yet.
+
 ### Auctions and bids
 | Method | Path | Notes |
 |---|---|---|
@@ -60,7 +67,7 @@ Both POSTs accept an optional `Idempotency-Key` header (max 100 characters; use 
 ### Notifications and devices (Auth)
 | Method | Path | Notes |
 |---|---|---|
-| GET | `/notifications?unread=true&page&pageSize` | Newest first (at most 500). Item: `{ id, type, titleEn, titleAr, bodyEn, bodyAr, createdAt, read, kind, auctionId, amount }`. |
+| GET | `/notifications?unread=true&page&pageSize` | Newest first, paged (see Paging). Item: `{ id, type, titleEn, titleAr, bodyEn, bodyAr, createdAt, read, kind, auctionId, amount }`. |
 | GET | `/notifications/unread-count` | `{ count }`. |
 | POST | `/notifications/read` | Body `{ "ids": [1,2] }`. |
 | POST | `/notifications/read-all` | |

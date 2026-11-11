@@ -363,7 +363,33 @@
         "tags": [
           "Auctions"
         ],
-        "summary": "Every visible auction that has not ended (no paging; the app filters and sorts). Ended auctions are only returned in /profile/auctions (won) and favourites, and by id",
+        "summary": "Visible auctions that have not ended, newest first. Optional page (from 1) and pageSize (default and max 100); the total is in the X-Total-Count header. Ended auctions are only returned in /profile/auctions (won) and favourites, and by id",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -383,7 +409,33 @@
         "tags": [
           "Auctions"
         ],
-        "summary": "Auctions grouped by status, in tab order: All, Active, Upcoming, Expired. Ended auctions are not returned, so Expired is always empty",
+        "summary": "Auctions grouped by status, in tab order: All, Active, Upcoming, Expired. Ended auctions are not returned, so Expired is always empty. Optional page and pageSize (default and max 100) apply to every tab: auctionCount is the tab's TOTAL, auctions is the requested page. X-Total-Count = the All total",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -477,6 +529,33 @@
       "get": {
         "tags": [
           "Favorites"
+        ],
+        "description": "Newest first. Optional page (from 1) and pageSize (default and max 100); the total is in the X-Total-Count header.",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          }
         ],
         "responses": {
           "200": {
@@ -684,7 +763,33 @@
         "tags": [
           "Profile"
         ],
-        "description": "live: running auctions you bid on. won: ended auctions where your bid was highest.",
+        "description": "live: running auctions you bid on. won: ended auctions where your bid was highest. Optional page (from 1) and pageSize (default and max 100) apply to each list; totals are in X-Total-Count-Live and X-Total-Count-Won (X-Total-Count is their sum).",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -852,7 +957,7 @@
         "tags": [
           "Notifications"
         ],
-        "description": "Newest first, at most 500 (optional unread=true, page, pageSize). type: auction | bid | wallet | system. kind is the exact event (the push `type` with the same name); auctionId says which auction to open. Each push carries notification_id = id of the row here, so a push and its row are one notification.",
+        "description": "Newest first. Optional unread=true, page (from 1) and pageSize (default and max 100); the total is in the X-Total-Count header. type: auction | bid | wallet | system. kind is the exact event (the push `type` with the same name); auctionId says which auction to open. Each push carries notification_id = id of the row here, so a push and its row are one notification.",
         "parameters": [
           {
             "name": "unread",

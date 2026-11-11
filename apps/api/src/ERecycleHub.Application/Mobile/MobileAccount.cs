@@ -101,18 +101,23 @@ public sealed class MobileAccount(AppDbContext db, AuctionQueries auctions, Mobi
     // ---------- auctions ----------
 
     /// <summary>live: running auctions the user has bid on. won: ended auctions where the user holds the highest bid (ties: earliest).</summary>
-    public async Task<MyAuctionsDto> MyAuctionsAsync(int userId, CancellationToken ct = default)
+    public sealed record MyAuctionsPage(MyAuctionsDto Data, int LiveTotal, int WonTotal);
+
+    /// <summary>live: running auctions the user has bid on. won: ended auctions where the user holds the highest bid (ties: earliest). Each list is one page.</summary>
+    public async Task<MyAuctionsPage> MyAuctionsAsync(int userId, int page, int size, CancellationToken ct = default)
     {
         var now = Now;
         var mine = auctions.Visible().Where(a => db.Bids.Any(b => b.AuctionId == a.Id && b.UserId == userId));
         var live = mine.Where(a => a.StartsAtUtc <= now && a.EndsAtUtc > now);
         var won = mine.Where(a => a.StartsAtUtc <= now && (a.EndsAtUtc == null || a.EndsAtUtc <= now)
             && db.Bids.Where(b => b.AuctionId == a.Id).OrderByDescending(b => b.Amount).ThenBy(b => b.Id).Select(b => b.UserId).FirstOrDefault() == userId);
-        return new MyAuctionsDto(await catalog.ItemsAsync(live, ct), await catalog.ItemsAsync(won, ct));
+        var l = await catalog.ItemsPageAsync(live, page, size, ct);
+        var w = await catalog.ItemsPageAsync(won, page, size, ct);
+        return new MyAuctionsPage(new MyAuctionsDto(l.Items, w.Items), l.Total, w.Total);
     }
 
-    public Task<List<AuctionItemDto>> FavoritesAsync(int userId, CancellationToken ct = default) =>
-        catalog.ItemsAsync(auctions.Visible().Where(a => db.Wishlist.Any(w => w.UserId == userId && w.AuctionId == a.Id)), ct);
+    public Task<MobileList<AuctionItemDto>> FavoritesAsync(int userId, int page, int size, CancellationToken ct = default) =>
+        catalog.ItemsPageAsync(auctions.Visible().Where(a => db.Wishlist.Any(w => w.UserId == userId && w.AuctionId == a.Id)), page, size, ct);
 
     // ---------- wallet ----------
 
@@ -158,26 +163,25 @@ public sealed class MobileAccount(AppDbContext db, AuctionQueries auctions, Mobi
 
     public static readonly TimeSpan RestoreWindow = TimeSpan.FromDays(1);
 
-    /// <summary>Newest first. With no filters: at most 500, as before. <paramref name="unreadOnly"/> and <paramref name="page"/>/<paramref name="pageSize"/> narrow it.</summary>
-    public async Task<List<AppNotificationDto>> NotificationsAsync(int userId, bool unreadOnly = false, int? page = null, int? pageSize = null, CancellationToken ct = default)
+    /// <summary>Newest first, one page (default and maximum 100) with the total over all pages. <paramref name="unreadOnly"/> narrows it.</summary>
+    public async Task<MobileList<AppNotificationDto>> NotificationsAsync(int userId, bool unreadOnly, int page, int size, CancellationToken ct = default)
     {
         var q = db.Notifications.AsNoTracking().Where(n => n.UserId == userId && n.DeletedAtUtc == null);
         if (unreadOnly) q = q.Where(n => !n.IsRead);
-        q = q.OrderByDescending(n => n.Id);
-        var size = Math.Clamp(pageSize ?? 500, 1, 500);
-        if (page is int p && p > 1) q = q.Skip((p - 1) * size);
-        var rows = await q.Take(size)
+        var total = await q.CountAsync(ct);
+        var rows = await q.OrderByDescending(n => n.Id).Skip((page - 1) * size).Take(size)
             .Select(n => new
             {
                 n.Id, n.Kind, n.Amount, n.Title, n.Body, n.IsRead, n.CreatedAtUtc, n.AuctionId,
                 AuctionEn = db.Auctions.Where(a => a.Id == n.AuctionId).Select(a => a.TitleEn).FirstOrDefault(),
                 AuctionAr = db.Auctions.Where(a => a.Id == n.AuctionId).Select(a => a.TitleAr).FirstOrDefault(),
             }).ToListAsync(ct);
-        return rows.Select(n =>
+        var items = rows.Select(n =>
         {
             var t = NotificationTexts.For(n.Kind, n.AuctionEn, n.AuctionAr, n.Amount, n.Title, n.Body);
             return new AppNotificationDto(n.Id, NotificationTexts.TypeOf(n.Kind), t.TitleEn, t.TitleAr, t.BodyEn, t.BodyAr, n.CreatedAtUtc, n.IsRead, PushPayloads.TypeOf(n.Kind), n.AuctionId, n.Amount);
         }).ToList();
+        return new MobileList<AppNotificationDto>(items, total);
     }
 
     public Task<int> UnreadCountAsync(int userId, CancellationToken ct = default) =>

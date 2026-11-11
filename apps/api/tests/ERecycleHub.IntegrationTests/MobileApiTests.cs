@@ -384,4 +384,84 @@ public class MobileApiTests(ApiFactory f)
         Assert.Contains(mine.GetProperty("won").EnumerateArray(), a => a.GetProperty("id").GetInt32() == auction);   // the winner still sees it
         Assert.NotEqual(HttpStatusCode.NotFound, (await c.GetAsync($"/api/v1/auctions/{auction}")).StatusCode);       // and it opens by id
     }
+
+    // ---------- paging of the lists (optional page/pageSize, default and maximum 100, total in X-Total-Count, plain array body) ----------
+
+    private static int Total(HttpResponseMessage r, string header = "X-Total-Count") => int.Parse(r.Headers.GetValues(header).Single());
+    private static List<int> Ids(JsonElement list) => list.EnumerateArray().Select(a => a.GetProperty("id").GetInt32()).ToList();
+
+    [Fact]
+    public async Task Auction_list_pages_keep_the_order_report_the_total_and_cap_at_100()
+    {
+        var c = await CustomerAsync();
+        for (var n = 0; n < 3; n++) await f.NewAuctionAsync();
+
+        var r1 = await c.GetAsync("/api/v1/auctions?page=1&pageSize=2");
+        var total = Total(r1);
+        Assert.True(total >= 3);
+        var p1 = Ids(await c.DataAsync(Task.FromResult(r1)));
+        var p2 = Ids(await c.DataAsync(c.GetAsync("/api/v1/auctions?page=2&pageSize=2")));
+        Assert.Equal(2, p1.Count);
+        Assert.True(p1[0] > p1[1] && p1[1] > p2[0]);   // newest first, page after page, nothing repeated
+
+        var plain = await c.GetAsync("/api/v1/auctions");   // no parameters: the first 100
+        Assert.Equal(total, Total(plain));
+        Assert.True(Ids(await c.DataAsync(Task.FromResult(plain))).Count <= 100);
+        Assert.True(Ids(await c.DataAsync(c.GetAsync("/api/v1/auctions?pageSize=100000"))).Count <= 100);   // the maximum is 100
+        Assert.Equal(p1, Ids(await c.DataAsync(c.GetAsync("/api/v1/auctions?page=0&pageSize=2"))));          // page below 1 means page 1
+    }
+
+    [Fact]
+    public async Task Statuses_page_every_tab_and_auctionCount_is_the_tab_total()
+    {
+        var c = await CustomerAsync();
+        for (var n = 0; n < 3; n++) await f.NewAuctionAsync();
+        var r = await c.GetAsync("/api/v1/auctions/statuses?pageSize=2");
+        var all = Total(r);
+        var tabs = (await c.DataAsync(Task.FromResult(r))).EnumerateArray().ToList();
+        Assert.Equal([4, 1, 2, 3], tabs.Select(t => t.GetProperty("id").GetInt32()));
+        Assert.Equal(all, tabs[0].GetProperty("auctionCount").GetInt32());
+        Assert.All(tabs, t => Assert.True(t.GetProperty("auctions").GetArrayLength() <= 2));
+        Assert.True(tabs[0].GetProperty("auctionCount").GetInt32() >= 3 && tabs[0].GetProperty("auctions").GetArrayLength() == 2);
+        Assert.Equal(tabs[1].GetProperty("auctionCount").GetInt32() + tabs[2].GetProperty("auctionCount").GetInt32(), all);
+    }
+
+    [Fact]
+    public async Task Favorites_and_my_auctions_are_paged_with_their_totals()
+    {
+        var (_, email) = await f.NewCustomerAsync();
+        var c = await f.SignedInAsync(email, ApiFactory.Password);
+        var ids = new List<int>();
+        for (var n = 0; n < 3; n++)
+        {
+            var a = await f.NewAuctionAsync(start: 100, increment: 10);
+            ids.Add(a);
+            await c.DataAsync(c.PostAsync($"/api/v1/favorites/{a}"));
+            await c.DataAsync(c.BidAsync(a, 110));
+        }
+
+        var fav1 = await c.GetAsync("/api/v1/favorites?page=1&pageSize=2");
+        Assert.Equal(3, Total(fav1));
+        var f1 = Ids(await c.DataAsync(Task.FromResult(fav1)));
+        var f2 = Ids(await c.DataAsync(c.GetAsync("/api/v1/favorites?page=2&pageSize=2")));
+        Assert.Equal(2, f1.Count);
+        Assert.Single(f2);
+        Assert.Equal(ids.OrderByDescending(x => x), f1.Concat(f2));   // same newest-first order, split across the pages
+
+        var mine = await c.GetAsync("/api/v1/profile/auctions?pageSize=2");
+        Assert.Equal(3, Total(mine, "X-Total-Count-Live"));
+        Assert.Equal(0, Total(mine, "X-Total-Count-Won"));
+        Assert.Equal(3, Total(mine));
+        Assert.Equal(2, (await c.DataAsync(Task.FromResult(mine))).GetProperty("live").GetArrayLength());
+    }
+
+    [Fact]
+    public async Task Notifications_report_their_total_and_use_the_same_cap()
+    {
+        var (_, email) = await f.NewCustomerAsync();
+        var c = await f.SignedInAsync(email, ApiFactory.Password);
+        var r = await c.GetAsync("/api/v1/notifications?pageSize=1000");
+        Assert.Equal(0, Total(r));
+        Assert.Equal(JsonValueKind.Array, (await c.DataAsync(Task.FromResult(r))).ValueKind);
+    }
 }
