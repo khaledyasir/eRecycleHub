@@ -1,7 +1,10 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using ERecycleHub.Application;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace ERecycleHub.IntegrationTests;
 
@@ -35,6 +38,21 @@ public class SessionStampTests(ApiFactory f)
 
         Assert.Equal(HttpStatusCode.Unauthorized, (await app.GetAsync("/api/v1/profile")).StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, (await app.GetAsync("/api/account/profile")).StatusCode);
+    }
+
+    [Fact]
+    public async Task A_kept_session_is_not_carried_over_when_another_change_rotated_the_stamp_in_between()
+    {
+        var (id, email) = await f.NewCustomerAsync();
+        var device = await f.SignedInAsync(email, ApiFactory.Password);
+        var session = await f.DbAsync(db => db.UserSessions.Where(s => s.UserId == id).Select(s => s.Id).SingleAsync());
+
+        // This device's password change produced stamp "mine", but a reset elsewhere has already rotated it to "theirs".
+        await f.DbAsync(db => db.Users.Where(u => u.Id == id).ExecuteUpdateAsync(s => s.SetProperty(u => u.SecurityStamp, "theirs")));
+        using (var scope = f.Services.CreateScope())
+            await scope.ServiceProvider.GetRequiredService<SessionService>().RevokeAllAsync(id, keep: session, keepStamp: "mine");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, (await device.GetAsync("/api/v1/profile")).StatusCode);
     }
 
     [Fact]

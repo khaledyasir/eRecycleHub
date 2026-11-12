@@ -93,8 +93,12 @@ public sealed class SessionService(AppDbContext db, TimeProvider clock, IOptions
             await QueueUnsubscribeAsync(user.Key, user.Select(d => d.Token).ToList(), ct);
     }
 
-    /// <summary>Ends every session of the user except <paramref name="keep"/>, and their push tokens (taken off the auction topics first).</summary>
-    public async Task RevokeAllAsync(int userId, Guid? keep = null, CancellationToken ct = default)
+    /// <summary>
+    /// Ends every session of the user except <paramref name="keep"/>, and their push tokens (taken off the auction topics first). The kept session moves to
+    /// <paramref name="keepStamp"/>, the stamp the caller's own password change produced, and only while the account still has that stamp: if another change
+    /// or reset rotated it in between, the kept session is not carried over and ends too. Without a stamp the kept session keeps its old one.
+    /// </summary>
+    public async Task RevokeAllAsync(int userId, Guid? keep = null, CancellationToken ct = default, string? keepStamp = null)
     {
         var now = Now;
         var tokens = await db.DeviceTokens.Where(d => d.UserId == userId && (keep == null || d.SessionId != keep)).Select(d => d.Token).ToListAsync(ct);
@@ -102,11 +106,10 @@ public sealed class SessionService(AppDbContext db, TimeProvider clock, IOptions
         await db.UserSessions.Where(s => s.UserId == userId && s.RevokedAtUtc == null && (keep == null || s.Id != keep))
             .ExecuteUpdateAsync(s => s.SetProperty(x => x.RevokedAtUtc, now), ct);
         // The kept session (this device, after its own password change) follows the user's new security stamp so it stays signed in.
-        if (keep is not null)
-        {
-            var stamp = await db.Users.Where(u => u.Id == userId).Select(u => u.SecurityStamp).SingleAsync(ct);
-            await db.UserSessions.Where(s => s.Id == keep && s.UserId == userId).ExecuteUpdateAsync(s => s.SetProperty(x => x.SecurityStamp, stamp), ct);
-        }
+        if (keep is not null && keepStamp is not null)
+            await db.UserSessions
+                .Where(s => s.Id == keep && s.UserId == userId && s.RevokedAtUtc == null && db.Users.Any(u => u.Id == userId && u.SecurityStamp == keepStamp))
+                .ExecuteUpdateAsync(s => s.SetProperty(x => x.SecurityStamp, keepStamp), ct);
         await QueueUnsubscribeAsync(userId, tokens, ct);
     }
 

@@ -33,8 +33,8 @@ public static class AccountEndpoints
         p.MapPost("/password", async (ChangePasswordRequest req, HttpContext ctx, AuthService auth, SessionService sessions, CancellationToken ct) =>
         {
             var userId = ctx.UserId();
-            await auth.ChangePasswordAsync(userId, req.CurrentPassword ?? "", req.NewPassword ?? "", ct);
-            await sessions.RevokeAllAsync(userId, keep: ctx.SessionId(), ct);
+            var changed = await auth.ChangePasswordAsync(userId, req.CurrentPassword ?? "", req.NewPassword ?? "", ct);
+            await sessions.RevokeAllAsync(userId, keep: ctx.SessionId(), ct, keepStamp: changed.SecurityStamp);
             return Reply.Done();
         }).RequireRateLimiting(RateLimits.Auth).Produces<Envelope<object>>()
             .WithDescription("Wrong current password: 422 INVALID_CREDENTIALS (not 401). This device stays signed in; other devices are signed out.");
