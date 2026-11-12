@@ -244,19 +244,25 @@ public sealed class OtpService(AppDbContext db, TimeProvider clock, IOptions<Otp
         }
     }
 
-    /// <summary>Checks the latest code for the target. Returns the normalised target. Too many wrong tries burn the code.</summary>
+    /// <summary>
+    /// Checks the latest code for the target. Returns the normalised target. Each try first reserves one of the code's <see cref="OtpOptions.MaxAttempts"/>
+    /// with a single conditional UPDATE, so parallel guesses cannot share an attempt (a read-increment-save would let a burst count as one). The last wrong
+    /// try burns the code. With at most <see cref="OtpOptions.MaxSendsPerHour"/> new codes per target, that caps guesses per phone at sends × attempts an hour.
+    /// </summary>
     public async Task<string> VerifyAsync(string? raw, string? code, CancellationToken ct = default)
     {
         var target = NormalizeTarget(raw);
         var now = Now;
-        var row = await db.OtpCodes.Where(c => c.Target == target && c.VerifiedAtUtc == null && c.ExpiresAtUtc > now)
-            .OrderByDescending(c => c.Id).FirstOrDefaultAsync(ct) ?? throw new AppException("otp.invalid", 422);
+        var row = await db.OtpCodes.AsNoTracking().Where(c => c.Target == target && c.VerifiedAtUtc == null && c.ExpiresAtUtc > now)
+            .OrderByDescending(c => c.Id).Select(c => new { c.Id, c.CodeHash }).FirstOrDefaultAsync(ct) ?? throw new AppException("otp.invalid", 422);
+        var max = O.MaxAttempts;
+        var reserved = await db.OtpCodes.Where(c => c.Id == row.Id && c.VerifiedAtUtc == null && c.ExpiresAtUtc > now && c.FailedAttempts < max)
+            .ExecuteUpdateAsync(s => s.SetProperty(c => c.FailedAttempts, c => c.FailedAttempts + 1), ct);
+        if (reserved == 0) throw new AppException("otp.invalid", 422);
         var given = Normalize.Text(code) ?? "";
         if (!CryptographicOperations.FixedTimeEquals(System.Text.Encoding.ASCII.GetBytes(Hash(target, given)), System.Text.Encoding.ASCII.GetBytes(row.CodeHash)))
         {
-            row.FailedAttempts++;
-            if (row.FailedAttempts >= O.MaxAttempts) row.ExpiresAtUtc = now;
-            await db.SaveChangesAsync(ct);
+            await db.OtpCodes.Where(c => c.Id == row.Id && c.FailedAttempts >= max).ExecuteUpdateAsync(s => s.SetProperty(c => c.ExpiresAtUtc, now), ct);
             throw new AppException("otp.invalid", 422);
         }
         // Conditional update: a code verifies once even under concurrent requests.
