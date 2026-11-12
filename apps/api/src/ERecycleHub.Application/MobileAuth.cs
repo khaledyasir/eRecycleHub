@@ -49,9 +49,10 @@ public sealed class SessionService(AppDbContext db, TimeProvider clock, IOptions
     {
         var token = PasswordService.NewToken();
         var now = Now;
+        var stamp = await db.Users.Where(u => u.Id == userId).Select(u => u.SecurityStamp).SingleAsync(ct);
         var session = new UserSession
         {
-            Id = Guid.NewGuid(), UserId = userId, TokenHash = PasswordService.Sha256(token), CreatedAtUtc = now, LastSeenAtUtc = now,
+            Id = Guid.NewGuid(), UserId = userId, TokenHash = PasswordService.Sha256(token), CreatedAtUtc = now, LastSeenAtUtc = now, SecurityStamp = stamp,
             ExpiresAtUtc = now.AddDays(Math.Clamp(options.Value.TokenDays, 1, 365)),
         };
         db.UserSessions.Add(session);
@@ -66,7 +67,8 @@ public sealed class SessionService(AppDbContext db, TimeProvider clock, IOptions
         var hash = PasswordService.Sha256(token);
         var now = Now;
         var row = await db.UserSessions.AsNoTracking()
-            .Where(s => s.TokenHash == hash && s.RevokedAtUtc == null && s.ExpiresAtUtc > now && s.User!.IsActive && !s.User.IsDeleted)
+            .Where(s => s.TokenHash == hash && s.RevokedAtUtc == null && s.ExpiresAtUtc > now && s.User!.IsActive && !s.User.IsDeleted
+                && s.SecurityStamp == s.User.SecurityStamp)
             .Select(s => new
             {
                 s.Id, s.LastSeenAtUtc,
@@ -99,6 +101,12 @@ public sealed class SessionService(AppDbContext db, TimeProvider clock, IOptions
         await db.DeviceTokens.Where(d => d.UserId == userId && (keep == null || d.SessionId != keep)).ExecuteDeleteAsync(ct);
         await db.UserSessions.Where(s => s.UserId == userId && s.RevokedAtUtc == null && (keep == null || s.Id != keep))
             .ExecuteUpdateAsync(s => s.SetProperty(x => x.RevokedAtUtc, now), ct);
+        // The kept session (this device, after its own password change) follows the user's new security stamp so it stays signed in.
+        if (keep is not null)
+        {
+            var stamp = await db.Users.Where(u => u.Id == userId).Select(u => u.SecurityStamp).SingleAsync(ct);
+            await db.UserSessions.Where(s => s.Id == keep && s.UserId == userId).ExecuteUpdateAsync(s => s.SetProperty(x => x.SecurityStamp, stamp), ct);
+        }
         await QueueUnsubscribeAsync(userId, tokens, ct);
     }
 
