@@ -67,6 +67,13 @@ public static class Security
     /// <summary>The request carries an Authorization: Bearer token (mobile app, Swagger).</summary>
     public static bool HasBearer(HttpRequest req) => req.Headers.Authorization.ToString().StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>An app session token (<c>PasswordService.NewToken</c>: 43 base64url characters), as opposed to a /api/auth/token bearer token.</summary>
+    public static bool HasSessionToken(HttpRequest req)
+    {
+        var header = req.Headers.Authorization.ToString();
+        return header.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase) && header[7..].Trim().Length == 43;
+    }
+
     /// <summary>
     /// Token client (mobile app): sends a Bearer token or <c>X-Client: mobile</c> (for calls made before it has a token). Such requests
     /// need no CSRF token: a browser cannot add a custom header to a cross-site request without a CORS preflight, and this API allows none.

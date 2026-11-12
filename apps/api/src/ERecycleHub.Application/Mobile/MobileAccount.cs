@@ -179,7 +179,7 @@ public sealed class MobileAccount(AppDbContext db, AuctionQueries auctions, Mobi
         var items = rows.Select(n =>
         {
             var t = NotificationTexts.For(n.Kind, n.AuctionEn, n.AuctionAr, n.Amount, n.Title, n.Body);
-            return new AppNotificationDto(n.Id, NotificationTexts.TypeOf(n.Kind), t.TitleEn, t.TitleAr, t.BodyEn, t.BodyAr, n.CreatedAtUtc, n.IsRead, PushPayloads.TypeOf(n.Kind), n.AuctionId, n.Amount);
+            return new AppNotificationDto(n.Id, NotificationTexts.TypeOf(n.Kind), t.TitleEn, t.TitleAr, t.BodyEn, t.BodyAr, n.CreatedAtUtc, n.IsRead, n.Kind, n.AuctionId, n.Amount);   // kind = the exact event (auction.outbid), docs/MOBILE-API.md section 5
         }).ToList();
         return new MobileList<AppNotificationDto>(items, total);
     }

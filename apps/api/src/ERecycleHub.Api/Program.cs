@@ -78,8 +78,11 @@ builder.Services.Configure<FormOptions>(o => o.MultipartBodyLengthLimit = MaxUpl
 
 var secureCookies = builder.Environment.IsDevelopment() ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always;
 builder.Services.AddAuthentication("routing")
+    // A Bearer header on the web API is either a /api/auth/token token (data-protected, hundreds of characters) or an app session token from
+    // /api/v1/auth/login (always 43 characters: 32 random bytes, base64url). Session tokens go to the session handler, so an app sign-in is
+    // recognised on /api routes too (a customer gets 403 on admin routes, not 401) and is checked against the session table on every request.
     .AddPolicyScheme("routing", null, o => o.ForwardDefaultSelector = c =>
-        c.Request.Path.StartsWithSegments("/api/v1") || c.Request.Path.StartsWithSegments("/api/ws") || c.Request.Path.StartsWithSegments("/ws")
+        c.Request.Path.StartsWithSegments("/api/v1") || c.Request.Path.StartsWithSegments("/api/ws") || c.Request.Path.StartsWithSegments("/ws") || Security.HasSessionToken(c.Request)
             ? SessionAuthHandler.SchemeName : Security.HasBearer(c.Request) ? BearerTokenDefaults.AuthenticationScheme : CookieAuthenticationDefaults.AuthenticationScheme)
     .AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, SessionAuthHandler>(SessionAuthHandler.SchemeName, null)
     .AddBearerToken(o => { o.BearerTokenExpiration = TimeSpan.FromHours(1); o.RefreshTokenExpiration = TimeSpan.FromDays(30); })

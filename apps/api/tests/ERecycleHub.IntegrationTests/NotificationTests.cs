@@ -126,11 +126,11 @@ public class NotificationTests(ApiFactory f)
         await f.IdleAsync();
 
         var list = await clientA.DataAsync(clientA.GetAsync("/api/v1/notifications"));
-        var outbid = list.EnumerateArray().Single(n => n.GetProperty("kind").GetString() == "auction_outbid");
+        var outbid = list.EnumerateArray().Single(n => n.GetProperty("kind").GetString() == "auction.outbid"); // the app splits the kind on the dot (push_type.dart fromKind)
         Assert.Equal(auction, outbid.GetProperty("auctionId").GetInt32());
         Assert.Equal("bid", outbid.GetProperty("type").GetString());
         Assert.False(outbid.GetProperty("read").GetBoolean());
-        Assert.Contains(list.EnumerateArray(), n => n.GetProperty("kind").GetString() == "auction_joined");
+        Assert.Contains(list.EnumerateArray(), n => n.GetProperty("kind").GetString() == "auction.joined");
 
         var unread = (await clientA.DataAsync(clientA.GetAsync("/api/v1/notifications/unread-count"))).GetProperty("count").GetInt32();
         Assert.True(unread >= 2);

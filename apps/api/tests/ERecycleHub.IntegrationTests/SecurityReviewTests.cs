@@ -36,8 +36,16 @@ public class SecurityReviewTests(ApiFactory f)
     private async Task<(Actor actor, ApiClient client)> AdminAsync(WebApplicationFactory<Program>? host = null)
     {
         var id = await f.DbAsync(db => db.Users.Where(u => u.Email == DevSeed.AdminEmail).Select(u => u.Id).SingleAsync());
-        var client = new ApiClient((host ?? f).CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost"), AllowAutoRedirect = false }));
-        Assert.Equal(HttpStatusCode.OK, (await client.LoginAsync(DevSeed.AdminEmail, DevSeed.AdminPassword)).StatusCode);
+        var http = (host ?? f).CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost"), AllowAutoRedirect = false });
+        var client = new ApiClient(http);
+        // Administrators cannot use the app's /api/v1/auth/login (it answers like a wrong password); they sign in on the website's token endpoint,
+        // which, like every unsafe /api call without a Bearer token, needs the anonymous session's CSRF token.
+        var csrf = (await http.GetFromJsonAsync<System.Text.Json.JsonElement>("/api/auth/me")).GetProperty("csrfToken").GetString();
+        var login = new HttpRequestMessage(HttpMethod.Post, "/api/auth/token") { Content = JsonContent.Create(new { email = DevSeed.AdminEmail, password = DevSeed.AdminPassword, adminOnly = true }) };
+        login.Headers.Add("X-CSRF-TOKEN", csrf);
+        var r = await http.SendAsync(login);
+        Assert.True(r.IsSuccessStatusCode, await r.Content.ReadAsStringAsync());
+        client.UseToken((await r.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>()).GetProperty("accessToken").GetString());
         return (new Actor(id, UserRole.Admin), client);
     }
 
@@ -61,15 +69,18 @@ public class SecurityReviewTests(ApiFactory f)
         var anonymous = f.Client();
         var routes = f.Services.GetRequiredService<EndpointDataSource>().Endpoints.OfType<RouteEndpoint>()
             .Where(e => e.RoutePattern.RawText?.StartsWith("/api/admin", StringComparison.OrdinalIgnoreCase) == true)
-            .SelectMany(e => (e.Metadata.GetMetadata<HttpMethodMetadata>()?.HttpMethods ?? []).Select(m => (Method: m, Path: Url(e.RoutePattern.RawText!))))
+            .SelectMany(e => (e.Metadata.GetMetadata<HttpMethodMetadata>()?.HttpMethods ?? []).Select(m => (Method: m, Path: Url(e.RoutePattern.RawText!),
+                Multipart: e.Metadata.GetMetadata<Microsoft.AspNetCore.Http.Metadata.IAcceptsMetadata>()?.ContentTypes.Contains("multipart/form-data") == true)))
             .Distinct().ToList();
         Assert.True(routes.Count > 40, $"only {routes.Count} admin routes found: the scan is broken");
 
-        foreach (var (method, path) in routes)
+        foreach (var (method, path, multipart) in routes)
         {
             foreach (var (who, client, expected) in new[] { ("customer", customer, HttpStatusCode.Forbidden), ("anonymous", anonymous, HttpStatusCode.Unauthorized) })
             {
-                var r = await client.Http.SendAsync(new HttpRequestMessage(new HttpMethod(method), path) { Content = method is "GET" or "DELETE" ? null : JsonContent.Create(new { }, options: ApiClient.Json) });
+                // Upload routes only accept multipart: routing answers 415 to anything else before authorization runs.
+                HttpContent? body = method is "GET" or "DELETE" ? null : multipart ? new MultipartFormDataContent { { new StringContent("{}"), "data" } } : JsonContent.Create(new { }, options: ApiClient.Json);
+                var r = await client.Http.SendAsync(new HttpRequestMessage(new HttpMethod(method), path) { Content = body });
                 Assert.True(r.StatusCode == expected, $"{who} {method} {path} returned {(int)r.StatusCode}, expected {(int)expected}");
             }
         }
@@ -230,8 +241,8 @@ public class SecurityReviewTests(ApiFactory f)
     [Fact]
     public async Task An_administrator_cannot_approve_their_own_request_but_can_still_reject_it_and_credit_wallets()
     {
-        var (admin, adminClient) = await AdminAsync();
-        var own = await NewRequestAsync(adminClient, "increase", 12m);
+        var (admin, _) = await AdminAsync();
+        var own = (await WalletAsync(w => w.RequestTopUpAsync(admin.UserId, 12m, null, null))).Id;   // admins have no app login; their own request comes from the service
         var before = await f.DbAsync(db => db.Users.Where(u => u.Id == admin.UserId).Select(u => u.WalletBalance).SingleAsync());
 
         var ex = await Assert.ThrowsAsync<AppException>(() => WalletAsync(w => w.ApproveAsync(admin, own)));
