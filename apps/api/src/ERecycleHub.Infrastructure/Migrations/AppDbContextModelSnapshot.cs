@@ -1536,6 +1536,10 @@ namespace ERecycleHub.Infrastructure.Migrations
                     b.Property<DateTime?>("RevokedAtUtc")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("SecurityStamp")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
                     b.Property<string>("TokenHash")
                         .IsRequired()
                         .HasMaxLength(64)

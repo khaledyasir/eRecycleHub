@@ -317,6 +317,7 @@ public class BiddingWalletTests(ApiFactory f)
         var (b, clientB) = await BidderAsync(500);
         var auction = await f.NewAuctionAsync(start: 100, increment: 10);
         await clientA.DataAsync(clientA.BidAsync(auction, 110));
+        await f.IdleAsync();   // A's bid queues background notification work; let it finish so it cannot consume the injected failure meant for B's bid
 
         f.Failure.ArmedOnNotification = true;   // fails when B's bid adds A's "outbid" row, after B's bid row and A's release were written
         try { Assert.Equal(HttpStatusCode.InternalServerError, (await clientB.BidAsync(auction, 120)).StatusCode); }

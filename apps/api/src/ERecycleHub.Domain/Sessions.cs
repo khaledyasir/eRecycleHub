@@ -14,6 +14,9 @@ public class UserSession
     public DateTime ExpiresAtUtc { get; set; }
     public DateTime? RevokedAtUtc { get; set; }
     public DateTime? LastSeenAtUtc { get; set; }
+    /// <summary>The user's security stamp when the session was issued. A password change or reset, or an administrator setting a new password,
+    /// rotates the stamp, which ends every session issued before it (SessionService.ValidateAsync), whichever code path rotated it.</summary>
+    public string? SecurityStamp { get; set; }
 }
 
 /// <summary>Firebase Cloud Messaging registration token of a signed-in device. Unique per token; moves to whoever signs in last.</summary>

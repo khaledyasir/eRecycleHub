@@ -334,6 +334,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId);
             e.HasIndex(x => x.TokenHash).IsUnique();
             e.Property(x => x.TokenHash).HasMaxLength(64);
+            e.Property(x => x.SecurityStamp).HasMaxLength(64);
             e.HasIndex(x => new { x.UserId, x.RevokedAtUtc });
         });
         m.Entity<DeviceToken>(e =>
