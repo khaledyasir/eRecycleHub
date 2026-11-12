@@ -40,6 +40,7 @@ export function PortalNav({ groups, label, variant = "tabs", onNavigate }: { gro
                   <li key={item.href}>
                     <Link
                       href={item.href}
+                      prefetch={false}
                       aria-current={on ? "page" : undefined}
                       className={cn(
                         "group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold transition",
@@ -70,6 +71,7 @@ export function PortalNav({ groups, label, variant = "tabs", onNavigate }: { gro
             <Link
               key={item.href}
               href={item.href}
+              prefetch={false}
               aria-current={on ? "page" : undefined}
               className={cn(
                 "inline-flex shrink-0 items-center gap-2 rounded-lg px-3.5 py-2.5 text-sm font-bold transition",
@@ -97,6 +99,7 @@ export function PortalNav({ groups, label, variant = "tabs", onNavigate }: { gro
                 <li key={item.href}>
                   <Link
                     href={item.href}
+                    prefetch={false}
                     onClick={onNavigate}
                     aria-current={on ? "page" : undefined}
                     className={cn("flex items-center gap-3 rounded-md px-4 py-3 text-sm font-bold transition", on ? "bg-patina-50 text-patina" : "text-ink-2 hover:bg-sunken")}

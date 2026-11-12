@@ -139,6 +139,9 @@ public sealed class ReportsService(AppDbContext db, AuctionManagement auctionsAd
             W = db.Bids.Where(b => b.AuctionId == a.Id).OrderByDescending(b => b.Amount).ThenBy(b => b.Id)
                 .Select(b => new { b.UserId, b.Amount, b.User!.FullName, b.User.Email, b.User.Phone }).FirstOrDefault(),
         });
+        // BidCount is a denormalised counter; an auction whose counter says "has bids" but has no Bid rows (imported/legacy or purged data) has no winner.
+        // Without this the winner columns materialise NULL into non-nullable members, the query throws and the whole page returns 500.
+        rows = rows.Where(x => x.W != null);
         if (term is not null) rows = rows.Where(x => x.W!.FullName.Contains(term) || x.TitleEn.Contains(term) || x.TitleAr.Contains(term) || x.RefNumber == term);
         return rows.OrderByDescending(x => x.EndsAtUtc).ThenByDescending(x => x.Id)
             .Select(x => new WinnerRow(x.Id, x.RefNumber, x.TitleEn, x.TitleAr, x.EndsAtUtc, x.W!.Amount, x.W.UserId, x.W.FullName, x.W.Email, x.W.Phone, x.WinnerNotifiedAtUtc));
