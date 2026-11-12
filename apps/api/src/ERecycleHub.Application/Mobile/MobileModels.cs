@@ -64,7 +64,14 @@ public sealed record UserProfileDto(int Id, string FullName, string Email, strin
 public sealed record ProfileImageDto(string? Image);
 public sealed record MyAuctionsDto(IReadOnlyList<AuctionItemDto> Live, IReadOnlyList<AuctionItemDto> Won);
 
-public sealed record WalletTransactionItemDto(int Id, string Type, decimal Amount, string Status, DateTime CreatedDate);
+/// <summary>
+/// One line of the wallet history. Real wallet transactions have type Deposit | Withdraw. Display-only hold lines (built from the user's bids, never stored, no money moves)
+/// have type Hold | HoldRelease, a NEGATIVE id (so they never clash with a transaction id) and the auction they belong to.
+/// </summary>
+public sealed record WalletTransactionItemDto(int Id, string Type, decimal Amount, string Status, DateTime CreatedDate,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? AuctionId = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? AuctionTitle = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? AuctionTitleAr = null);
 public sealed record LedgerItemDto(long Id, string Reason, decimal Amount, decimal? BalanceBefore, decimal BalanceAfter, string? ReferenceType, long? ReferenceId, DateTime CreatedDate);
 public sealed record WalletDto(decimal Wallet, [property: JsonPropertyName("transaction")] IReadOnlyList<WalletTransactionItemDto> Transaction);
 
@@ -76,3 +83,13 @@ public sealed record AppNotificationDto(int Id, string Type, string TitleEn, str
 
 /// <summary>Bid accepted: the live event payload, also used to dedupe the bidder's own HTTP response.</summary>
 public sealed record BidEventDto(decimal CurrentPrice, int BidsCount, LatestBidDto Bid);
+
+/// <summary>A page of a mobile list: the items (a plain JSON array in the response) and the total across all pages (sent in the X-Total-Count header).</summary>
+public sealed record MobileList<T>(List<T> Items, int Total);
+
+/// <summary>Optional paging for the mobile lists: <c>page</c> (from 1) and <c>pageSize</c> (default and maximum 100). Ordering is never changed by paging.</summary>
+public static class MobilePaging
+{
+    public const int DefaultSize = 100, MaxSize = 100;
+    public static (int Page, int Size) Of(int? page, int? pageSize) => (Math.Max(page ?? 1, 1), Math.Clamp(pageSize ?? DefaultSize, 1, MaxSize));
+}

@@ -32,11 +32,23 @@ public static class CatalogEndpoints
             .WithTags("Home").Produces<Envelope<List<CategoryDto>>>();
 
         var a = v1.MapGroup("/auctions").WithTags("Auctions");
-        a.MapGet("", async (MobileCatalog c, CancellationToken ct) => Reply.Data(await c.ItemsAsync(ct: ct)))
-            .Produces<Envelope<List<AuctionItemDto>>>().WithSummary("Every visible auction (no paging; the app filters and sorts)");
+        a.MapGet("", async (HttpContext ctx, MobileCatalog c, CancellationToken ct, int? page = null, int? pageSize = null) =>
+            {
+                var (p, size) = MobilePaging.Of(page, pageSize);
+                var l = await c.ItemsPageAsync(null, p, size, ct);
+                ctx.TotalCount(l.Total);
+                return Reply.Data(l.Items);
+            })
+            .Produces<Envelope<List<AuctionItemDto>>>().WithSummary("Visible auctions that have not ended, newest first. Optional page (from 1) and pageSize (default and max 100); the total is in the X-Total-Count header. Ended auctions are only returned in /profile/auctions (won) and favourites, and by id");
         // Registered as a literal segment; {id:int} below can never match "statuses".
-        a.MapGet("/statuses", async (MobileCatalog c, CancellationToken ct) => Reply.Data(await c.StatusesAsync(ct)))
-            .Produces<Envelope<List<AuctionStatusDto>>>().WithSummary("Auctions grouped by status, in tab order: All, Active, Upcoming, Expired");
+        a.MapGet("/statuses", async (HttpContext ctx, MobileCatalog c, CancellationToken ct, int? page = null, int? pageSize = null) =>
+            {
+                var (p, size) = MobilePaging.Of(page, pageSize);
+                var r = await c.StatusesAsync(p, size, ct);
+                ctx.TotalCount(r.Total);
+                return Reply.Data(r.Tabs);
+            })
+            .Produces<Envelope<List<AuctionStatusDto>>>().WithSummary("Auctions grouped by status, in tab order: All, Active, Upcoming, Expired. Ended auctions are not returned, so Expired is always empty. Optional page and pageSize (default and max 100) apply to every tab: auctionCount is the tab's TOTAL, auctions is the requested page. X-Total-Count = the All total");
         a.MapGet("/{id:int}", async (int id, HttpContext ctx, MobileCatalog c, CancellationToken ct) =>
                 Reply.Data(await c.DetailsAsync(id, ctx.UserId(), ct) ?? throw AppException.NotFound("auction")))
             .Produces<Envelope<AuctionDetailsDto>>()
@@ -51,8 +63,13 @@ public static class CatalogEndpoints
                 "403 BID_NOT_ALLOWED (own auction, administrator or blocked account). Listeners of /api/ws/auctions/{id} get bid.placed with the same bid id.");
 
         var f = v1.MapGroup("/favorites").WithTags("Favorites");
-        f.MapGet("", async (HttpContext ctx, MobileAccount m, CancellationToken ct) => Reply.Data(await m.FavoritesAsync(ctx.UserId(), ct)))
-            .Produces<Envelope<List<AuctionItemDto>>>();
+        f.MapGet("", async (HttpContext ctx, MobileAccount m, CancellationToken ct, int? page = null, int? pageSize = null) =>
+            {
+                var (p, size) = MobilePaging.Of(page, pageSize);
+                var l = await m.FavoritesAsync(ctx.UserId(), p, size, ct);
+                ctx.TotalCount(l.Total);
+                return Reply.Data(l.Items);
+            }).Produces<Envelope<List<AuctionItemDto>>>().WithDescription("Newest first. Optional page (from 1) and pageSize (default and max 100); the total is in the X-Total-Count header.");
         f.MapPost("/{auctionId:int}", async (int auctionId, HttpContext ctx, AccountService acc, CancellationToken ct) =>
         {
             await acc.SetFavoriteAsync(ctx.UserId(), auctionId, true, ct);

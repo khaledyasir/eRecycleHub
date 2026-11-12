@@ -63,7 +63,7 @@ export async function SiteFooter() {
             <ul className="space-y-2 text-sm">
               {c.links.map(([href, label]) => (
                 <li key={href}>
-                  <Link href={href} className="hover:text-white hover:underline">
+                  <Link href={href} prefetch={false} className="hover:text-white hover:underline">
                     {label}
                   </Link>
                 </li>

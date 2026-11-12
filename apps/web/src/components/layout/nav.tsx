@@ -21,6 +21,7 @@ export function NavLinks({ links, label }: { links: NavLink[]; label: string }) 
           <li key={l.href}>
             <Link
               href={l.href}
+              prefetch={false}
               aria-current={isActive(pathname, l) ? "page" : undefined}
               className={cn(
                 "inline-flex h-10 items-center rounded-md px-3 text-sm font-bold text-ink-2 hover:bg-patina-50 hover:text-patina",
@@ -68,6 +69,7 @@ export function MobileNav({ links, signedIn }: { links: NavLink[]; signedIn: boo
               <Link
                 key={l.href}
                 href={l.href}
+                prefetch={false}
                 onClick={() => setOpen(false)}
                 aria-current={pathname === l.href ? "page" : undefined}
                 className="flex h-11 items-center rounded-md px-3 font-bold hover:bg-sunken aria-[current=page]:bg-patina-50 aria-[current=page]:text-patina-700"

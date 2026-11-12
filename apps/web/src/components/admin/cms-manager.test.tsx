@@ -124,4 +124,26 @@ describe("CmsManager", () => {
     await user.click(within(dlg).getByRole("button", { name: "Delete" }));
     await waitFor(() => expect(sendJson).toHaveBeenCalledWith("DELETE", "/api/admin/how-to/7"));
   });
+
+  describe("hidden country", () => {
+    const withCountry = [{ name: "countryId", label: "Country", kind: "hidden" as const }, ...fields];
+    it("shows no country field and sends the default one as a number on create", async () => {
+      const user = userEvent.setup();
+      setup({ fields: withCountry, defaults: { countryId: "5", sortOrder: "0", isActive: true } });
+      await user.click(screen.getByRole("button", { name: "Add a step" }));
+      const dlg = screen.getByRole("dialog");
+      expect(within(dlg).queryByLabelText(/Country/)).not.toBeInTheDocument();
+      await user.type(within(dlg).getByLabelText(/Title \(English\)/), "Bid");
+      await user.type(within(dlg).getByLabelText(/Title \(Arabic\)/), "زايد");
+      await user.click(within(dlg).getByRole("button", { name: "Create" }));
+      await waitFor(() => expect(sendJson).toHaveBeenCalledWith("POST", "/api/admin/how-to", { countryId: 5, titleEn: "Bid", titleAr: "زايد", sortOrder: 0, isActive: true }));
+    });
+    it("keeps the stored country of a record on edit", async () => {
+      const user = userEvent.setup();
+      setup({ fields: withCountry, rows: [{ ...rows[0], countryId: 9 }], defaults: { countryId: "5" } });
+      await user.click(screen.getByRole("button", { name: "Edit: Register" }));
+      await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Save changes" }));
+      await waitFor(() => expect(sendJson).toHaveBeenCalledWith("PUT", "/api/admin/how-to/7", expect.objectContaining({ countryId: 9 })));
+    });
+  });
 });

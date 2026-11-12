@@ -14,10 +14,21 @@ public sealed class MobileCatalog(AppDbContext db, AuctionQueries auctions, IFil
 
     public const int StatusAll = 4, StatusActive = 1, StatusUpcoming = 2, StatusExpired = 3;
 
-    /// <summary>List items for the given auctions (defaults to every visible auction), newest first. Two queries: rows, then gallery images.</summary>
-    public async Task<List<AuctionItemDto>> ItemsAsync(IQueryable<Auction>? source = null, CancellationToken ct = default)
+    /// <summary>Visible auctions that have not ended (live or upcoming). The public lists use this: ended auctions only show in the user's own lists (my auctions, favourites) and by id.</summary>
+    private IQueryable<Auction> Running() => auctions.Visible().Where(a => a.StartsAtUtc > Now || a.EndsAtUtc > Now);
+
+    /// <summary>One page of the given auctions (default: every visible auction that has not ended), newest first, with the total over all pages.</summary>
+    public async Task<MobileList<AuctionItemDto>> ItemsPageAsync(IQueryable<Auction>? source, int page, int size, CancellationToken ct = default)
     {
-        var rows = await (source ?? auctions.Visible()).OrderByDescending(a => a.Id).Select(a => new
+        var q = source ?? Running();
+        var total = await q.CountAsync(ct);
+        return new MobileList<AuctionItemDto>(await ItemsOfAsync(q.OrderByDescending(a => a.Id).Skip((page - 1) * size).Take(size), ct), total);
+    }
+
+    /// <summary>List items for the given (already ordered and limited) auctions. Two queries: rows, then gallery images.</summary>
+    private async Task<List<AuctionItemDto>> ItemsOfAsync(IQueryable<Auction> ordered, CancellationToken ct)
+    {
+        var rows = await ordered.Select(a => new
         {
             a.Id, a.CategoryId, a.TitleEn, a.TitleAr, a.MainImageFileId, a.CurrentPrice, a.BidIncrement, a.StartsAtUtc, a.EndsAtUtc, a.BidCount,
         }).ToListAsync(ct);
@@ -31,27 +42,29 @@ public sealed class MobileCatalog(AppDbContext db, AuctionQueries auctions, IFil
             AuctionRules.Phase(r.StartsAtUtc, r.EndsAtUtc, now) == AuctionPhase.Ended)).ToList();
     }
 
-    /// <summary>Tabs in display order; the first ("All") means "no status filter".</summary>
-    public async Task<List<AuctionStatusDto>> StatusesAsync(CancellationToken ct = default)
+    /// <summary>
+    /// Tabs in display order; the first ("All") means "no status filter". Each tab holds one page of its own list and <c>auctionCount</c> is that tab's TOTAL
+    /// (not the page size). Ended auctions are not listed, so Expired is always empty. The returned total is the "All" total.
+    /// </summary>
+    public async Task<(List<AuctionStatusDto> Tabs, int Total)> StatusesAsync(int page, int size, CancellationToken ct = default)
     {
         var now = Now;
-        var phases = await auctions.Visible().Select(a => new { a.Id, a.StartsAtUtc, a.EndsAtUtc }).ToListAsync(ct);
-        var phaseOf = phases.ToDictionary(a => a.Id, a => AuctionRules.Phase(a.StartsAtUtc, a.EndsAtUtc, now));
-        var all = await ItemsAsync(ct: ct);
-        List<AuctionItemDto> In(AuctionPhase p) => all.Where(a => phaseOf.GetValueOrDefault(a.Id, AuctionPhase.Ended) == p).ToList();
-        AuctionStatusDto Group(int id, string en, string ar, List<AuctionItemDto> list) => new(id, en, ar, list.Count, list);
-        return
-        [
-            Group(StatusAll, "All", "الكل", all),
-            Group(StatusActive, "Active", "نشط", In(AuctionPhase.Live)),
-            Group(StatusUpcoming, "Upcoming", "قادم", In(AuctionPhase.Upcoming)),
-            Group(StatusExpired, "Expired", "منتهي", In(AuctionPhase.Ended)),
-        ];
+        var running = Running();
+        async Task<AuctionStatusDto> Tab(int id, string en, string ar, IQueryable<Auction> q)
+        {
+            var l = await ItemsPageAsync(q, page, size, ct);
+            return new AuctionStatusDto(id, en, ar, l.Total, l.Items);
+        }
+        var all = await Tab(StatusAll, "All", "الكل", running);
+        var live = await Tab(StatusActive, "Active", "نشط", AuctionQueries.InPhase(running, "live", now));
+        var upcoming = await Tab(StatusUpcoming, "Upcoming", "قادم", AuctionQueries.InPhase(running, "upcoming", now));
+        var expired = new AuctionStatusDto(StatusExpired, "Expired", "منتهي", 0, []);   // the tab stays so the app keeps its layout; ended auctions are only in the user's own lists
+        return ([all, live, upcoming, expired], all.AuctionCount);
     }
 
     public async Task<List<CategoryDto>> CategoriesAsync(CancellationToken ct = default)
     {
-        var visible = auctions.Visible();
+        var visible = Running();
         var rows = await db.Categories.AsNoTracking().Where(c => c.IsActive).OrderBy(c => c.SortOrder).ThenBy(c => c.TitleEn)
             .Select(c => new { c.Id, c.TitleEn, c.TitleAr, c.IconFileId, Count = visible.Count(a => a.CategoryId == c.Id) })
             .ToListAsync(ct);

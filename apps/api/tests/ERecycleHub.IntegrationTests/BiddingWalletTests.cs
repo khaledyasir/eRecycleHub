@@ -559,4 +559,50 @@ public class BiddingWalletTests(ApiFactory f)
         Assert.Equal(500m, await BalanceAsync(id));
         Assert.Single(await LedgerAsync(id));
     }
+
+    // ---------- display-only hold lines in the wallet history ----------
+
+    [Fact]
+    public async Task Wallet_history_shows_hold_and_release_lines_built_from_the_bids_without_touching_money()
+    {
+        using var _ = HoldsOn();
+        var (aId, a) = await BidderAsync(500);
+        var (_, b) = await BidderAsync(500);
+        var auction = await f.NewAuctionAsync(start: 100, increment: 10);
+        var ledgerBefore = (await LedgerAsync(aId)).Count;
+
+        await a.DataAsync(a.BidAsync(auction, 110));
+        await a.DataAsync(a.BidAsync(auction, 130));   // raise: the 110 hold is released, 130 is held
+        await b.DataAsync(b.BidAsync(auction, 150));   // outbid: A's 130 is released
+
+        var w = await a.DataAsync(a.GetAsync("/api/v1/wallet"));
+        var lines = w.GetProperty("transaction").EnumerateArray().ToList();
+        string Type(System.Text.Json.JsonElement t) => t.GetProperty("type").GetString()!;
+        Assert.Equal(2, lines.Count(t => Type(t) == "Hold" && t.GetProperty("amount").GetDecimal() is 110 or 130));
+        Assert.Equal(2, lines.Count(t => Type(t) == "HoldRelease"));
+        Assert.All(lines.Where(t => Type(t) is "Hold" or "HoldRelease"), t =>
+        {
+            Assert.True(t.GetProperty("id").GetInt32() < 0);
+            Assert.Equal(auction, t.GetProperty("auctionId").GetInt32());
+            Assert.False(string.IsNullOrEmpty(t.GetProperty("auctionTitle").GetString()));
+        });
+        Assert.Equal(lines.Count, lines.Select(t => t.GetProperty("id").GetInt32()).Distinct().Count());   // ids never clash
+
+        // Display only: balance, ledger and holds are exactly what the hold model says.
+        Assert.Equal(500m, w.GetProperty("wallet").GetDecimal());
+        Assert.Equal(ledgerBefore, (await LedgerAsync(aId)).Count);
+        Assert.Equal(500m, await BalanceAsync(aId));
+        Assert.Equal(0m, await HeldAsync(aId));
+    }
+
+    [Fact]
+    public async Task Wallet_history_has_no_hold_lines_when_the_flag_was_off()
+    {
+        using var _ = HoldsOn(false);
+        var (_, a) = await BidderAsync(500);
+        var auction = await f.NewAuctionAsync(start: 100, increment: 10);
+        await a.DataAsync(a.BidAsync(auction, 110));
+        var w = await a.DataAsync(a.GetAsync("/api/v1/wallet"));
+        Assert.DoesNotContain(w.GetProperty("transaction").EnumerateArray(), t => t.GetProperty("type").GetString() is "Hold" or "HoldRelease");
+    }
 }

@@ -38,10 +38,17 @@ All responses use the envelope above. "Auth" means bearer token required.
 | POST | `/auth/register`, `/auth/login`, `/auth/password/reset` | Login returns `{ token, ... }`. |
 | POST | `/auth/logout` | Auth. Ends this session and forgets this device's push token. |
 
+### Paging of the lists
+`GET /auctions`, `/auctions/statuses`, `/favorites`, `/profile/auctions` and `/notifications` take optional `page` (from 1; below 1 means 1) and `pageSize` (**default 100, maximum 100**; larger values are cut to 100). The body stays a plain array (or the same object as before); the number of items across all pages is in the **`X-Total-Count`** response header. Ordering is never changed by paging (newest first). Without parameters you get the first 100, so an app that does not page sees at most 100 items: compare `X-Total-Count` with what you received and request `page=2`, `3`, … when it is larger.
+* `/auctions/statuses`: every tab is paged with the same `page`/`pageSize`; `auctionCount` is the tab's **total**, `auctions` is the requested page; `X-Total-Count` is the All total.
+* `/profile/auctions`: `live` and `won` are each paged; totals are in `X-Total-Count-Live` and `X-Total-Count-Won` (`X-Total-Count` is their sum).
+* `/notifications`: was "at most 500", is now 100 per page like the others.
+* `/wallet/ledger` keeps its own `{ items, page, pageSize, total }` envelope. `/wallet` is not paged yet.
+
 ### Auctions and bids
 | Method | Path | Notes |
 |---|---|---|
-| GET | `/auctions`, `/auctions/statuses` | Public lists. |
+| GET | `/auctions`, `/auctions/statuses` | Public lists. **Ended auctions are not returned** (live and upcoming only); the `Expired` group of `/auctions/statuses` is kept for the app layout but is always empty, and category `auctionCount` counts only live and upcoming auctions. Ended auctions stay available in `/profile/auctions` (`won`), in favourites, and by id (`GET /auctions/{id}`). |
 | GET | `/auctions/{id}` | Auth. The full details, including `wallet` (your available balance when wallet bidding is on), `insuranceAmount`, `latestBids` and the viewer fields below. |
 | POST | `/auctions/{id}/bids` | Auth. Body `{ "amount": 130 }`. Returns the same details object, plus `availableAfter` and `releasedFromPrevious`. Rate limited. |
 | WS | `wss://host/api/ws/auctions/{id}` | Server-to-client only. Events: `bid.placed`, `auction.started`, `auction.extended`, `auction.ended`. (`/ws/auctions/{id}` also works.) |
@@ -49,7 +56,7 @@ All responses use the envelope above. "Auth" means bearer token required.
 ### Wallet (Auth)
 | Method | Path | Notes |
 |---|---|---|
-| GET | `/wallet` | `{ wallet, transaction: [{ id, type: Deposit\|Withdraw, amount, status: Pending\|Completed\|Rejected\|Reversed, createdDate }] }`. `wallet` is the available balance when wallet bidding is on. |
+| GET | `/wallet` | `{ wallet, transaction: [{ id, type: Deposit\|Withdraw, amount, status: Pending\|Completed\|Rejected\|Reversed, createdDate }] }`. `wallet` is the available balance when wallet bidding is on. Also contains display-only hold lines built from your bids (nothing is stored and no money moves): `type: Hold` (the bid reserved `amount`; `status` Pending while it still holds, Completed once paid at close) and `type: HoldRelease` (that hold was let go: outbid, raised, or the sale was voided). They carry `auctionId`, `auctionTitle`, `auctionTitleAr` and a **negative** `id`; the list is sorted by `createdDate`, newest first, and holds the latest 200 bids' lines. Treat any `type` other than `Deposit` as not a deposit; `Hold` and `HoldRelease` are informational, not money in or out. |
 | GET | `/wallet/balance` | `{ balance, pendingWithdrawals, available, held }`. |
 | GET | `/wallet/ledger?page&pageSize` | Every balance change, newest first: `{ id, reason, amount (signed), balanceBefore, balanceAfter, referenceType, referenceId, createdDate }`. `pageSize` max 100. |
 | POST | `/wallet/increase` | Body `{ "amount": 50 }`. Creates a Pending deposit. An administrator credits it after the bank transfer arrives. |
@@ -60,7 +67,7 @@ Both POSTs accept an optional `Idempotency-Key` header (max 100 characters; use 
 ### Notifications and devices (Auth)
 | Method | Path | Notes |
 |---|---|---|
-| GET | `/notifications?unread=true&page&pageSize` | Newest first (at most 500). Item: `{ id, type, titleEn, titleAr, bodyEn, bodyAr, createdAt, read, kind, auctionId, amount }`. |
+| GET | `/notifications?unread=true&page&pageSize` | Newest first, paged (see Paging). Item: `{ id, type, titleEn, titleAr, bodyEn, bodyAr, createdAt, read, kind, auctionId, amount }`. |
 | GET | `/notifications/unread-count` | `{ count }`. |
 | POST | `/notifications/read` | Body `{ "ids": [1,2] }`. |
 | POST | `/notifications/read-all` | |

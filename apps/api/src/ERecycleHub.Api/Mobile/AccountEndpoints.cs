@@ -43,8 +43,15 @@ public static class AccountEndpoints
             await m.DeleteAccountAsync(ctx.UserId(), ct);
             return Reply.Done();
         }).Produces<Envelope<object>>().WithDescription("Removes personal data, ends every session and push token. 409 ACCOUNT_DELETE_BLOCKED while the account has a wallet balance, a pending withdrawal or money held by a leading bid (the message and arguments say how much): withdraw or use the money first.");
-        p.MapGet("/auctions", async (HttpContext ctx, MobileAccount m, CancellationToken ct) => Reply.Data(await m.MyAuctionsAsync(ctx.UserId(), ct)))
-            .Produces<Envelope<MyAuctionsDto>>().WithDescription("live: running auctions you bid on. won: ended auctions where your bid was highest.");
+        p.MapGet("/auctions", async (HttpContext ctx, MobileAccount m, CancellationToken ct, int? page = null, int? pageSize = null) =>
+            {
+                var (pg, size) = MobilePaging.Of(page, pageSize);
+                var r = await m.MyAuctionsAsync(ctx.UserId(), pg, size, ct);
+                ctx.Response.Headers["X-Total-Count-Live"] = r.LiveTotal.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                ctx.Response.Headers["X-Total-Count-Won"] = r.WonTotal.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                ctx.TotalCount(r.LiveTotal + r.WonTotal);
+                return Reply.Data(r.Data);
+            }).Produces<Envelope<MyAuctionsDto>>().WithDescription("live: running auctions you bid on. won: ended auctions where your bid was highest. Optional page (from 1) and pageSize (default and max 100) apply to each list; totals are in X-Total-Count-Live and X-Total-Count-Won (X-Total-Count is their sum).");
 
         var w = v1.MapGroup("/wallet").WithTags("Wallet");
         w.MapGet("", async (HttpContext ctx, MobileAccount m, CancellationToken ct) => Reply.Data(await m.WalletAsync(ctx.UserId(), ct)))
@@ -75,9 +82,14 @@ public static class AccountEndpoints
 
         var n = v1.MapGroup("/notifications").WithTags("Notifications");
         n.MapGet("", async (HttpContext ctx, MobileAccount m, CancellationToken ct, bool? unread = null, int? page = null, int? pageSize = null) =>
-                Reply.Data(await m.NotificationsAsync(ctx.UserId(), unread == true, page, pageSize, ct)))
+            {
+                var (pg, size) = MobilePaging.Of(page, pageSize);
+                var l = await m.NotificationsAsync(ctx.UserId(), unread == true, pg, size, ct);
+                ctx.TotalCount(l.Total);
+                return Reply.Data(l.Items);
+            })
             .Produces<Envelope<List<AppNotificationDto>>>()
-            .WithDescription("Newest first, at most 500 (optional unread=true, page, pageSize). type: auction | bid | wallet | system. kind is the exact event (the push `type` with the same name); auctionId says which auction to open. Each push carries notification_id = id of the row here, so a push and its row are one notification.");
+            .WithDescription("Newest first. Optional unread=true, page (from 1) and pageSize (default and max 100); the total is in the X-Total-Count header. type: auction | bid | wallet | system. kind is the exact event (the push `type` with the same name); auctionId says which auction to open. Each push carries notification_id = id of the row here, so a push and its row are one notification.");
         n.MapGet("/unread-count", async (HttpContext ctx, MobileAccount m, CancellationToken ct) => Reply.Data(new { count = await m.UnreadCountAsync(ctx.UserId(), ct) }))
             .Produces<Envelope<object>>();
         n.MapPost("/read-all", async (HttpContext ctx, MobileAccount m, CancellationToken ct) =>

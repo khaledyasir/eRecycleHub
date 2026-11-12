@@ -101,20 +101,28 @@ public sealed class MobileAccount(AppDbContext db, AuctionQueries auctions, Mobi
     // ---------- auctions ----------
 
     /// <summary>live: running auctions the user has bid on. won: ended auctions where the user holds the highest bid (ties: earliest).</summary>
-    public async Task<MyAuctionsDto> MyAuctionsAsync(int userId, CancellationToken ct = default)
+    public sealed record MyAuctionsPage(MyAuctionsDto Data, int LiveTotal, int WonTotal);
+
+    /// <summary>live: running auctions the user has bid on. won: ended auctions where the user holds the highest bid (ties: earliest). Each list is one page.</summary>
+    public async Task<MyAuctionsPage> MyAuctionsAsync(int userId, int page, int size, CancellationToken ct = default)
     {
         var now = Now;
         var mine = auctions.Visible().Where(a => db.Bids.Any(b => b.AuctionId == a.Id && b.UserId == userId));
         var live = mine.Where(a => a.StartsAtUtc <= now && a.EndsAtUtc > now);
         var won = mine.Where(a => a.StartsAtUtc <= now && (a.EndsAtUtc == null || a.EndsAtUtc <= now)
             && db.Bids.Where(b => b.AuctionId == a.Id).OrderByDescending(b => b.Amount).ThenBy(b => b.Id).Select(b => b.UserId).FirstOrDefault() == userId);
-        return new MyAuctionsDto(await catalog.ItemsAsync(live, ct), await catalog.ItemsAsync(won, ct));
+        var l = await catalog.ItemsPageAsync(live, page, size, ct);
+        var w = await catalog.ItemsPageAsync(won, page, size, ct);
+        return new MyAuctionsPage(new MyAuctionsDto(l.Items, w.Items), l.Total, w.Total);
     }
 
-    public Task<List<AuctionItemDto>> FavoritesAsync(int userId, CancellationToken ct = default) =>
-        catalog.ItemsAsync(auctions.Visible().Where(a => db.Wishlist.Any(w => w.UserId == userId && w.AuctionId == a.Id)), ct);
+    public Task<MobileList<AuctionItemDto>> FavoritesAsync(int userId, int page, int size, CancellationToken ct = default) =>
+        catalog.ItemsPageAsync(auctions.Visible().Where(a => db.Wishlist.Any(w => w.UserId == userId && w.AuctionId == a.Id)), page, size, ct);
 
     // ---------- wallet ----------
+
+    /// <summary>Most recent bids of the user shown as hold lines in the wallet history.</summary>
+    private const int MaxHoldLines = 200;
 
     public async Task<WalletDto> WalletAsync(int userId, CancellationToken ct = default)
     {
@@ -122,36 +130,58 @@ public sealed class MobileAccount(AppDbContext db, AuctionQueries auctions, Mobi
         var rows = await db.WalletTransactions.AsNoTracking().Where(t => t.UserId == userId).OrderByDescending(t => t.Id)
             .Select(t => new { t.Id, t.Type, t.Amount, t.Status, t.CreatedAtUtc }).ToListAsync(ct);
         // Enum strings the app understands: type Deposit = money in, anything else = out; status Completed / Pending / anything else = rejected.
-        return new WalletDto(balance, rows.Select(t => new WalletTransactionItemDto(t.Id,
+        var lines = rows.Select(t => (Date: t.CreatedAtUtc, Order: (long)t.Id, Item: new WalletTransactionItemDto(t.Id,
             t.Type == WalletTransactionType.Withdrawal ? "Withdraw" : "Deposit", t.Amount,
             t.Status switch { WalletTransactionStatus.Approved => "Completed", WalletTransactionStatus.Pending => "Pending", WalletTransactionStatus.Reversed => "Reversed", _ => "Rejected" },
-            t.CreatedAtUtc)).ToList());
+            t.CreatedAtUtc))).ToList();
+        lines.AddRange(await HoldLinesAsync(userId, ct));
+        return new WalletDto(balance, lines.OrderByDescending(l => l.Date).ThenByDescending(l => l.Order).Select(l => l.Item).ToList());
+    }
+
+    /// <summary>
+    /// Display-only history lines derived from the user's own bids (reads only, nothing is stored and no balance or hold changes): "Hold" when a bid reserved money
+    /// (Pending while it still holds, Completed once the auction closed and it was paid) and "HoldRelease" when that hold was let go (outbid, raised, or the sale was voided).
+    /// Ids are negative: bid id x 2 for the hold, x 2 + 1 for the release.
+    /// </summary>
+    private async Task<List<(DateTime Date, long Order, WalletTransactionItemDto Item)>> HoldLinesAsync(int userId, CancellationToken ct)
+    {
+        var bids = await db.Bids.AsNoTracking().Where(b => b.UserId == userId && b.HeldAmount > 0).OrderByDescending(b => b.Id).Take(MaxHoldLines)
+            .Select(b => new { b.Id, b.AuctionId, b.HeldAmount, b.CreatedAtUtc, b.ReleasedAtUtc, b.SettledAtUtc, TitleEn = b.Auction!.TitleEn, TitleAr = b.Auction!.TitleAr })
+            .ToListAsync(ct);
+        var lines = new List<(DateTime, long, WalletTransactionItemDto)>();
+        foreach (var b in bids)
+        {
+            var status = b.SettledAtUtc is not null ? "Completed" : "Pending";
+            lines.Add((b.CreatedAtUtc, b.Id * 2, new WalletTransactionItemDto(checked((int)(-b.Id * 2)), "Hold", b.HeldAmount, status, b.CreatedAtUtc, b.AuctionId, b.TitleEn, b.TitleAr)));
+            if (b.ReleasedAtUtc is { } released && b.SettledAtUtc is null)
+                lines.Add((released, b.Id * 2 + 1, new WalletTransactionItemDto(checked((int)(-b.Id * 2 - 1)), "HoldRelease", b.HeldAmount, "Completed", released, b.AuctionId, b.TitleEn, b.TitleAr)));
+        }
+        return lines;
     }
 
     // ---------- notifications ----------
 
     public static readonly TimeSpan RestoreWindow = TimeSpan.FromDays(1);
 
-    /// <summary>Newest first. With no filters: at most 500, as before. <paramref name="unreadOnly"/> and <paramref name="page"/>/<paramref name="pageSize"/> narrow it.</summary>
-    public async Task<List<AppNotificationDto>> NotificationsAsync(int userId, bool unreadOnly = false, int? page = null, int? pageSize = null, CancellationToken ct = default)
+    /// <summary>Newest first, one page (default and maximum 100) with the total over all pages. <paramref name="unreadOnly"/> narrows it.</summary>
+    public async Task<MobileList<AppNotificationDto>> NotificationsAsync(int userId, bool unreadOnly, int page, int size, CancellationToken ct = default)
     {
         var q = db.Notifications.AsNoTracking().Where(n => n.UserId == userId && n.DeletedAtUtc == null);
         if (unreadOnly) q = q.Where(n => !n.IsRead);
-        q = q.OrderByDescending(n => n.Id);
-        var size = Math.Clamp(pageSize ?? 500, 1, 500);
-        if (page is int p && p > 1) q = q.Skip((p - 1) * size);
-        var rows = await q.Take(size)
+        var total = await q.CountAsync(ct);
+        var rows = await q.OrderByDescending(n => n.Id).Skip((page - 1) * size).Take(size)
             .Select(n => new
             {
                 n.Id, n.Kind, n.Amount, n.Title, n.Body, n.IsRead, n.CreatedAtUtc, n.AuctionId,
                 AuctionEn = db.Auctions.Where(a => a.Id == n.AuctionId).Select(a => a.TitleEn).FirstOrDefault(),
                 AuctionAr = db.Auctions.Where(a => a.Id == n.AuctionId).Select(a => a.TitleAr).FirstOrDefault(),
             }).ToListAsync(ct);
-        return rows.Select(n =>
+        var items = rows.Select(n =>
         {
             var t = NotificationTexts.For(n.Kind, n.AuctionEn, n.AuctionAr, n.Amount, n.Title, n.Body);
             return new AppNotificationDto(n.Id, NotificationTexts.TypeOf(n.Kind), t.TitleEn, t.TitleAr, t.BodyEn, t.BodyAr, n.CreatedAtUtc, n.IsRead, PushPayloads.TypeOf(n.Kind), n.AuctionId, n.Amount);
         }).ToList();
+        return new MobileList<AppNotificationDto>(items, total);
     }
 
     public Task<int> UnreadCountAsync(int userId, CancellationToken ct = default) =>
