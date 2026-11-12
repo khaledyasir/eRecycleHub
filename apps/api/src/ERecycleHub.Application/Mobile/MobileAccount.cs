@@ -101,19 +101,21 @@ public sealed class MobileAccount(AppDbContext db, AuctionQueries auctions, Mobi
     // ---------- auctions ----------
 
     /// <summary>live: running auctions the user has bid on. won: ended auctions where the user holds the highest bid (ties: earliest).</summary>
-    public sealed record MyAuctionsPage(MyAuctionsDto Data, int LiveTotal, int WonTotal);
+    public sealed record MyAuctionsPage(MyAuctionsDto Data, int LiveTotal, int WonTotal, int ExpiredTotal);
 
-    /// <summary>live: running auctions the user has bid on. won: ended auctions where the user holds the highest bid (ties: earliest). Each list is one page.</summary>
+    /// <summary>live: running auctions the user has bid on. won: ended auctions where the user holds the highest bid (ties: earliest). expired: ended auctions the user bid on and did not win. Ended auctions stay here forever. Each list is one page.</summary>
     public async Task<MyAuctionsPage> MyAuctionsAsync(int userId, int page, int size, CancellationToken ct = default)
     {
         var now = Now;
         var mine = auctions.Visible().Where(a => db.Bids.Any(b => b.AuctionId == a.Id && b.UserId == userId));
         var live = mine.Where(a => a.StartsAtUtc <= now && a.EndsAtUtc > now);
-        var won = mine.Where(a => a.StartsAtUtc <= now && (a.EndsAtUtc == null || a.EndsAtUtc <= now)
-            && db.Bids.Where(b => b.AuctionId == a.Id).OrderByDescending(b => b.Amount).ThenBy(b => b.Id).Select(b => b.UserId).FirstOrDefault() == userId);
+        var endedMine = mine.Where(a => a.StartsAtUtc <= now && (a.EndsAtUtc == null || a.EndsAtUtc <= now));
+        var won = endedMine.Where(a => db.Bids.Where(b => b.AuctionId == a.Id).OrderByDescending(b => b.Amount).ThenBy(b => b.Id).Select(b => b.UserId).FirstOrDefault() == userId);
+        var expired = endedMine.Where(a => db.Bids.Where(b => b.AuctionId == a.Id).OrderByDescending(b => b.Amount).ThenBy(b => b.Id).Select(b => b.UserId).FirstOrDefault() != userId);
         var l = await catalog.ItemsPageAsync(live, page, size, ct);
         var w = await catalog.ItemsPageAsync(won, page, size, ct);
-        return new MyAuctionsPage(new MyAuctionsDto(l.Items, w.Items), l.Total, w.Total);
+        var x = await catalog.ItemsPageAsync(expired, page, size, ct);
+        return new MyAuctionsPage(new MyAuctionsDto(l.Items, w.Items, x.Items), l.Total, w.Total, x.Total);
     }
 
     public Task<MobileList<AuctionItemDto>> FavoritesAsync(int userId, int page, int size, CancellationToken ct = default) =>

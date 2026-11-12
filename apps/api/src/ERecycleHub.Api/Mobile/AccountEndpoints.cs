@@ -49,9 +49,10 @@ public static class AccountEndpoints
                 var r = await m.MyAuctionsAsync(ctx.UserId(), pg, size, ct);
                 ctx.Response.Headers["X-Total-Count-Live"] = r.LiveTotal.ToString(System.Globalization.CultureInfo.InvariantCulture);
                 ctx.Response.Headers["X-Total-Count-Won"] = r.WonTotal.ToString(System.Globalization.CultureInfo.InvariantCulture);
-                ctx.TotalCount(r.LiveTotal + r.WonTotal);
+                ctx.Response.Headers["X-Total-Count-Expired"] = r.ExpiredTotal.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                ctx.TotalCount(r.LiveTotal + r.WonTotal + r.ExpiredTotal);
                 return Reply.Data(r.Data);
-            }).Produces<Envelope<MyAuctionsDto>>().WithDescription("live: running auctions you bid on. won: ended auctions where your bid was highest. Optional page (from 1) and pageSize (default and max 100) apply to each list; totals are in X-Total-Count-Live and X-Total-Count-Won (X-Total-Count is their sum).");
+            }).Produces<Envelope<MyAuctionsDto>>().WithDescription("live: running auctions you bid on. won: ended auctions where your bid was highest. expired: ended auctions you bid on and did not win. Ended auctions stay in these lists forever. Optional page (from 1) and pageSize (default and max 100) apply to each list; totals are in X-Total-Count-Live, X-Total-Count-Won and X-Total-Count-Expired (X-Total-Count is their sum).");
 
         var w = v1.MapGroup("/wallet").WithTags("Wallet");
         w.MapGet("", async (HttpContext ctx, MobileAccount m, CancellationToken ct) => Reply.Data(await m.WalletAsync(ctx.UserId(), ct)))

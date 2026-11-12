@@ -41,7 +41,7 @@ All responses use the envelope above. "Auth" means bearer token required.
 ### Paging of the lists
 `GET /auctions`, `/auctions/statuses`, `/favorites`, `/profile/auctions` and `/notifications` take optional `page` (from 1; below 1 means 1) and `pageSize` (**default 100, maximum 100**; larger values are cut to 100). The body stays a plain array (or the same object as before); the number of items across all pages is in the **`X-Total-Count`** response header. Ordering is never changed by paging (newest first). Without parameters you get the first 100, so an app that does not page sees at most 100 items: compare `X-Total-Count` with what you received and request `page=2`, `3`, … when it is larger.
 * `/auctions/statuses`: every tab is paged with the same `page`/`pageSize`; `auctionCount` is the tab's **total**, `auctions` is the requested page; `X-Total-Count` is the All total.
-* `/profile/auctions`: `live` and `won` are each paged; totals are in `X-Total-Count-Live` and `X-Total-Count-Won` (`X-Total-Count` is their sum).
+* `/profile/auctions`: `live`, `won` and `expired` (ended, bid on, not won) are each paged; totals are in `X-Total-Count-Live`, `X-Total-Count-Won` and `X-Total-Count-Expired` (`X-Total-Count` is their sum).
 * `/notifications`: was "at most 500", is now 100 per page like the others.
 * `/wallet/ledger` keeps its own `{ items, page, pageSize, total }` envelope. `/wallet` is not paged yet.
 
@@ -103,7 +103,7 @@ Use `isLeading` and `heldByViewer` to show "You are leading, 110 JOD reserved", 
 New and changed fields: `kind` (the exact event, section 5), `auctionId` (the auction to open when the notification is tapped; absent for wallet events), `amount` on notifications; `held` and `available` on `/wallet/balance`; `wallet` on the auction details is now the available balance.
 
 ### Account, favorites, content
-`GET/PUT/DELETE /profile` (delete is refused with `ACCOUNT_DELETE_BLOCKED` while money is in the wallet, pending or held), `POST /profile/image`, `POST /profile/password`, `GET /profile/auctions` (live and won), `GET/POST/DELETE /favorites`, `GET /categories`, `/countries`, `/contents`, `/faqs`, `/contact-us`, `/home/slides`, `GET /files/{id}`. Unchanged; see the OpenAPI file.
+`GET/PUT/DELETE /profile` (delete is refused with `ACCOUNT_DELETE_BLOCKED` while money is in the wallet, pending or held), `POST /profile/image`, `POST /profile/password`, `GET /profile/auctions` (live, won and expired), `GET/POST/DELETE /favorites`, `GET /categories`, `/countries`, `/contents`, `/faqs`, `/contact-us`, `/home/slides`, `GET /files/{id}`. Unchanged; see the OpenAPI file.
 
 ## 4. Error codes
 

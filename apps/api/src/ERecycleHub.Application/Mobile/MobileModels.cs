@@ -62,7 +62,7 @@ public sealed record ContactUsDto(string? Mobile, string? Email, string? Address
 
 public sealed record UserProfileDto(int Id, string FullName, string Email, string? Phone, string? Image);
 public sealed record ProfileImageDto(string? Image);
-public sealed record MyAuctionsDto(IReadOnlyList<AuctionItemDto> Live, IReadOnlyList<AuctionItemDto> Won);
+public sealed record MyAuctionsDto(IReadOnlyList<AuctionItemDto> Live, IReadOnlyList<AuctionItemDto> Won, IReadOnlyList<AuctionItemDto> Expired);
 
 /// <summary>
 /// One line of the wallet history. Real wallet transactions have type Deposit | Withdraw. Display-only hold lines (built from the user's bids, never stored, no money moves)
