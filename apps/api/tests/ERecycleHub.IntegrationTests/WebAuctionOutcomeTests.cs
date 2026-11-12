@@ -3,6 +3,7 @@ using System.Text.Json;
 using ERecycleHub.Application;
 using Microsoft.AspNetCore.Http.Connections;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -61,6 +62,31 @@ public class WebAuctionOutcomeTests(ApiFactory f)
             Assert.Equal((false, (string?)null), await SaleAsync(f.Client().Http, auction));   // anonymous: nothing about the sale
         }
         finally { f.Flags.On = false; }
+    }
+
+    [Fact]
+    public async Task The_hub_only_lets_a_connection_watch_visible_auctions_and_a_limited_number()
+    {
+        var hidden = await f.NewAuctionAsync(active: false);
+        var visible = await f.NewAuctionAsync();
+        await using var conn = new HubConnectionBuilder()
+            .WithUrl("https://localhost/hubs/auctions", o =>
+            {
+                o.HttpMessageHandlerFactory = _ => f.Server.CreateHandler();
+                o.Transports = HttpTransportType.LongPolling;
+            })
+            .Build();
+        await conn.StartAsync();
+        await Assert.ThrowsAsync<HubException>(() => conn.InvokeAsync("Watch", hidden));
+        await Assert.ThrowsAsync<HubException>(() => conn.InvokeAsync("Watch", int.MaxValue));
+        await conn.InvokeAsync("Watch", visible);
+        await conn.InvokeAsync("Watch", visible); // watching the same auction again is fine
+
+        var more = new List<int>();
+        for (var i = 1; i < ERecycleHub.Api.AuctionHub.MaxPerConnection; i++) more.Add(await f.NewAuctionAsync());
+        foreach (var id in more) await conn.InvokeAsync("Watch", id);
+        var oneTooMany = await f.NewAuctionAsync();
+        await Assert.ThrowsAsync<HubException>(() => conn.InvokeAsync("Watch", oneTooMany));
     }
 
     [Fact]
