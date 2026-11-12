@@ -84,12 +84,16 @@ export function Countdown({
   }
 
   if (size === "lg") {
+    // Days : hours : minutes : seconds, one box each (follows the page direction, so days come first in both languages).
+    const boxes = [["d", p.days], ["h", p.hours], ["m", p.minutes], ["s", p.seconds]] as const;
     return (
-      <div role="timer" aria-label={label} className={cn("flex", className)} dir="ltr">
-        <div className={cn("flex min-w-24 flex-col items-center rounded-md px-4 py-2", soon ? "bg-rust text-white" : "bg-patina text-white")}>
-          <span className="tabular text-3xl font-semibold leading-none">{n}</span>
-          <span className="mt-1 text-xs text-white/80">{t(`unit.${unit}`, { n })}</span>
-        </div>
+      <div role="timer" aria-label={label} className={cn("flex gap-1.5", className)}>
+        {boxes.map(([u, v]) => (
+          <div key={u} aria-hidden className={cn("flex min-w-0 flex-1 flex-col items-center rounded-md px-1 py-2 text-white", soon ? "bg-rust" : "bg-patina")}>
+            <span className="tabular text-2xl font-semibold leading-none">{String(v).padStart(2, "0")}</span>
+            <span className="mt-1 text-xs text-white/80">{t(`unit.${u}`, { n: v })}</span>
+          </div>
+        ))}
       </div>
     );
   }

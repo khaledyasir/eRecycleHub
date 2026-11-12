@@ -15,7 +15,7 @@ export default async function Publisher({ params }: { params: Promise<{ id: stri
   const id = Number((await params).id);
   if (!Number.isInteger(id) || id <= 0) notFound();
   const [t, tu, ts, locale, client] = await Promise.all([getTranslations("admin.publishers"), getTranslations("admin.users"), getTranslations("account.settings"), getLocale(), serverApi()]);
-  const [d, countries] = await Promise.all([load(client.GET("/api/admin/publishers/{id}", { params: { path: { id } } })), load(client.GET("/api/countries"))]);
+  const d = await load(client.GET("/api/admin/publishers/{id}", { params: { path: { id } } }));
   const p = d.profile;
   const docs = [["crDocument", p.crDocument], ["vatCertificate", p.vatCertificate], ["idDocument", p.idDocument]] as const;
   return (
@@ -51,8 +51,7 @@ export default async function Publisher({ params }: { params: Promise<{ id: stri
         <AccountForm
           kind="publisher"
           id={id}
-          countries={countries}
-          initial={{ firstName: p.firstName, lastName: p.lastName, address: p.address, secondMobile: p.secondMobile, email: p.email, phone: p.phone, countryId: p.countryId, isActive: d.publisher.isActive, companyName: p.companyName, crNumber: p.crNumber, vatNumber: p.vatNumber, bankName: p.bankName, accountNumber: p.accountNumber, cardNumber: p.cardNumber, crDocument: p.crDocument, vatCertificate: p.vatCertificate, idDocument: p.idDocument }}
+          initial={{ firstName: p.firstName, lastName: p.lastName, address: p.address, secondMobile: p.secondMobile, email: p.email, phone: p.phone, isActive: d.publisher.isActive, companyName: p.companyName, crNumber: p.crNumber, vatNumber: p.vatNumber, bankName: p.bankName, accountNumber: p.accountNumber, cardNumber: p.cardNumber, crDocument: p.crDocument, vatCertificate: p.vatCertificate, idDocument: p.idDocument }}
         />
       </div>
     </>

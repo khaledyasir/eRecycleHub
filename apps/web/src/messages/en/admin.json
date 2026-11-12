@@ -239,7 +239,7 @@
   },
   "transactions": {
     "title": "Wallet transactions",
-    "description": "Top-up requests from customers and credits added by administrators. Approving credits the wallet exactly once.",
+    "description": "Top-ups, credits and withdrawal requests. Approving a top-up credits the wallet once; approving a withdrawal debits it once, so pay the customer's bank account first.",
     "new": "Add credit",
     "status": "Status",
     "statusAny": "Any status",
@@ -291,7 +291,15 @@
     "auctionId": "Related auction number",
     "proofFile": "Proof of payment",
     "submit": "Add credit",
-    "created": "Credit added."
+    "created": "Credit added.",
+    "kind": "Type",
+    "kindLabel": {
+      "Credit": "Top-up",
+      "Withdrawal": "Withdrawal"
+    },
+    "approveWithdrawalTitle": "Pay out {amount} to {user}?",
+    "approveWithdrawalBody": "Transfer the amount to the customer's bank account first. Approving debits the wallet once.",
+    "approvedWithdrawal": "Withdrawal approved, wallet debited."
   },
   "audit": {
     "title": "Audit log",

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { getLocale, getTranslations } from "next-intl/server";
+import { Alert } from "@/components/ui/display";
 import { AuthCard, homeFor, LoginForm, safeNext } from "@/components/public/auth-forms";
 import { Link, redirect } from "@/i18n/navigation";
 import { getSession } from "@/lib/api/server";
@@ -9,8 +10,8 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: t("title"), robots: { index: false } };
 }
 
-export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string }> }) {
-  const [{ next }, user, locale, t] = await Promise.all([searchParams, getSession(), getLocale(), getTranslations("auth.login")]);
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string; reset?: string }> }) {
+  const [{ next, reset }, user, locale, t, tr] = await Promise.all([searchParams, getSession(), getLocale(), getTranslations("auth.login"), getTranslations("auth.reset")]);
   if (user) return redirect({ href: safeNext(next) ?? homeFor(user.role), locale });
   return (
     <AuthCard
@@ -33,6 +34,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
         </>
       }
     >
+      {reset && <div className="mb-4"><Alert tone="ok">{tr("done")}</Alert></div>}
       <LoginForm next={next} />
     </AuthCard>
   );

@@ -1,6 +1,7 @@
 using ERecycleHub.Domain;
 using ERecycleHub.Infrastructure;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 
 namespace ERecycleHub.Application;
 
@@ -27,7 +28,10 @@ public sealed record PublisherSummary(int Id, string Name, Guid? LogoFileId, Gui
 /// <param name="WalletBalance">With wallet debits on, what the viewer can spend; otherwise their plain balance.</param>
 /// <param name="DebitsWallet">True when bids take their amount from the wallet (the UI then tells the bidder what will be charged).</param>
 /// <param name="HeldByViewer">Money the viewer's bid in this auction already holds (so raising it costs only the difference).</param>
-public sealed record ViewerState(bool IsSignedIn, bool IsOwner, bool IsFavorite, bool IsWatched, decimal? WalletBalance, bool CanBid, bool IsLeading, decimal HeldByViewer = 0, bool DebitsWallet = false);
+/// <param name="IsWinner">The auction has ended and the viewer holds the winning bid (and the sale was not voided).</param>
+/// <param name="SaleStatus">After the end, for a signed-in viewer: Paid, Pending, PaymentFailed, Voided or NotCharged (the last three only for the winning bidder). Null otherwise.</param>
+public sealed record ViewerState(bool IsSignedIn, bool IsOwner, bool IsFavorite, bool IsWatched, decimal? WalletBalance, bool CanBid, bool IsLeading, decimal HeldByViewer = 0, bool DebitsWallet = false,
+    bool IsWinner = false, string? SaleStatus = null);
 
 public sealed record AuctionDetails(
     AuctionCard Card, string? DescEn, string? DescAr, string? VideoUrl, string CountryNameEn, string CountryNameAr,
@@ -38,7 +42,7 @@ public sealed record AuctionDetails(
 public sealed record PublicBid(long Id, decimal Amount, DateTime CreatedAtUtc, int BidderNumber, bool IsMine);
 public sealed record CalendarItem(int Id, string TitleEn, string TitleAr, DateTime StartsAtUtc, DateTime? EndsAtUtc, AuctionPhase Phase);
 
-public sealed class AuctionQueries(AppDbContext db, TimeProvider clock, WalletService walletService, IBiddingSettings bidding)
+public sealed class AuctionQueries(AppDbContext db, TimeProvider clock, WalletService walletService, IBiddingSettings bidding, IConfiguration config)
 {
     private DateTime Now => clock.GetUtcNow().UtcDateTime;
 
@@ -162,22 +166,39 @@ public sealed class AuctionQueries(AppDbContext db, TimeProvider clock, WalletSe
 
         var publisherAuctionCount = a.PublisherId is null ? 0 : await Visible().CountAsync(x => x.PublisherId == a.PublisherId, ct);
 
-        bool fav = false, watch = false, leading = false;
+        bool fav = false, watch = false, leading = false, isWinner = false;
         decimal? wallet = null;
         decimal held = 0m;
+        string? saleStatus = null;
         var role = viewer?.Role;
+        var phase = AuctionRules.Phase(a.StartsAtUtc, a.EndsAtUtc, now);
         if (vid is not null)
         {
             fav = await db.Wishlist.AnyAsync(w => w.UserId == vid && w.AuctionId == id, ct);
             watch = await db.AuctionWatches.AnyAsync(w => w.UserId == vid && w.AuctionId == id, ct);
             wallet = await db.Users.AnyAsync(u => u.Id == vid, ct) ? await walletService.ShownBalanceAsync(vid.Value, ct) : null;
             var top = await db.Bids.Where(b => b.AuctionId == id).OrderByDescending(b => b.Amount).ThenBy(b => b.Id)
-                .Select(b => new { b.UserId, Held = b.ReleasedAtUtc == null && b.SettledAtUtc == null ? b.HeldAmount : 0m }).FirstOrDefaultAsync(ct);
+                .Select(b => new { b.UserId, b.HeldAmount, b.ReleasedAtUtc, b.SettledAtUtc }).FirstOrDefaultAsync(ct);
             leading = top?.UserId == vid;
-            held = leading ? top!.Held : 0m;
+            var topHeld = top is { ReleasedAtUtc: null, SettledAtUtc: null } ? top.HeldAmount : 0m;
+            held = leading ? topHeld : 0m;
+            // Sale outcome: the same rule as the app's details (MobileCatalog.DetailsAsync) — keep the two in step.
+            if (phase == AuctionPhase.Ended && top is not null)
+            {
+                var voided = top is { HeldAmount: > 0, ReleasedAtUtc: not null, SettledAtUtc: null };   // void-sale or a deactivation released the winner's hold
+                var lookback = now.AddHours(-Math.Clamp(config.GetValue("AuctionEnd:LookbackHours", 6), 1, 24 * 14));
+                saleStatus = top.SettledAtUtc is not null ? "Paid"
+                    : voided ? "Voided"
+                    : a.SettlementFailedAtUtc is not null ? "PaymentFailed"
+                    // Not charged and nothing will charge it: the end job ran (EndProcessedAtUtc), or it is older than the job's lookback and holds nothing (ended before wallet bidding).
+                    : a.EndProcessedAtUtc is not null || (topHeld == 0 && !(a.EndsAtUtc is DateTime e && e >= lookback)) ? "NotCharged"
+                    : "Pending";
+                // Only the holder of the winning bid sees that a payment failed, nothing was charged, or the sale was voided; everyone else sees Paid or Pending.
+                if (!leading && saleStatus != "Paid") saleStatus = "Pending";
+                isWinner = !voided && leading;
+            }
         }
 
-        var phase = AuctionRules.Phase(a.StartsAtUtc, a.EndsAtUtc, now);
         var canBid = vid is not null && publicVisible && phase == AuctionPhase.Live && !isOwner && role != UserRole.Admin && (bidding.DebitWallet ? wallet + held : wallet) >= a.InsuranceAmount
             && (!bidding.DebitWallet || wallet >= Math.Max(0m, AuctionRules.MinimumNextBid(a.CurrentPrice, a.BidIncrement) - held));
 
@@ -203,7 +224,7 @@ public sealed class AuctionQueries(AppDbContext db, TimeProvider clock, WalletSe
             a.Publisher is null ? null : new PublisherSummary(a.Publisher.Id, a.Publisher.DisplayName, a.Publisher.LogoFileId, a.Publisher.BackgroundFileId,
                 a.Publisher.User!.Phone, a.Publisher.SecondMobile, a.Publisher.User.Email, a.Publisher.Address, publisherAuctionCount),
             AuctionRules.MinimumNextBid(a.CurrentPrice, a.BidIncrement), a.CreatedAtUtc,
-            new ViewerState(vid is not null, isOwner, fav, watch, wallet, canBid, leading, held, bidding.DebitWallet),
+            new ViewerState(vid is not null, isOwner, fav, watch, wallet, canBid, leading, held, bidding.DebitWallet, isWinner, saleStatus),
             related);
     }
 

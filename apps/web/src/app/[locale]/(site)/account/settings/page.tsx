@@ -1,17 +1,17 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
-import { ProfileForm } from "@/components/account/account-forms";
+import { DeleteAccount, ProfileForm } from "@/components/account/account-forms";
 import { KeyRound } from "lucide-react";
 import { PageHeader } from "@/components/ui/display";
 import { Link } from "@/i18n/navigation";
-import { load, serverApi } from "@/lib/api/server";
+import { getSession, load, serverApi } from "@/lib/api/server";
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getTranslations("account.settings"))("title") };
 }
 
 export default async function Settings() {
-  const [t, client] = await Promise.all([getTranslations("account.settings"), serverApi()]);
+  const [t, client, user] = await Promise.all([getTranslations("account.settings"), serverApi(), getSession()]);
   const profile = await load(client.GET("/api/account/profile"));
   return (
     <>
@@ -27,6 +27,7 @@ export default async function Settings() {
       <div className="max-w-3xl rounded-lg border border-line bg-surface p-5 sm:p-7">
         <ProfileForm profile={profile} />
       </div>
+      {user?.role !== "Admin" && <DeleteAccount />}
     </>
   );
 }

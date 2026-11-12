@@ -4,13 +4,14 @@ import { BellOff, Check, ExternalLink, Trash2 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
-import { PasswordInput } from "@/components/public/auth-forms";
+import { PasswordChecklist, PasswordInput } from "@/components/public/auth-forms";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/display";
 import { Field, FileInput, Input, PhoneInput } from "@/components/ui/form";
+import { ConfirmDialog } from "@/components/ui/overlay";
 import { Link, useRouter } from "@/i18n/navigation";
 import { api, call, sendForm, setCsrfToken } from "@/lib/api/client";
-import type { Schema } from "@/lib/api/types";
+import { ApiError, type Schema } from "@/lib/api/types";
 import { fileUrl, money } from "@/lib/format";
 import { useErrorMessage } from "@/lib/use-error-message";
 import { useForm, useValidators } from "@/lib/use-form";
@@ -56,6 +57,53 @@ export function TopUpForm({ max }: { max: number }) {
   );
 }
 
+/** Withdrawal request. The API checks the amount against the available balance under a lock; `max` only helps the user enter it. */
+export function WithdrawForm({ max, bank }: { max: number; bank: { name: string; account: string } | null }) {
+  const t = useTranslations("account.wallet");
+  const locale = useLocale();
+  const v = useValidators();
+  const router = useRouter();
+  const [key, setKey] = useState(() => crypto.randomUUID());
+  const f = useForm({ amount: "" });
+  if (!bank)
+    return (
+      <Alert tone="info">
+        <p>{t("bankMissing")}</p>
+        <Link href="/account/settings" className="mt-2 inline-block font-semibold underline">{t("bankMissingLink")}</Link>
+      </Alert>
+    );
+  return (
+    <form
+      noValidate
+      className="space-y-4"
+      onSubmit={f.submit(
+        (x) => ({ amount: v.amount(x.amount) ?? (Number(x.amount) > max ? t("withdrawAmountHint", { max: money(max, locale) }) : undefined) }),
+        async (x) => {
+          await call(() => api.POST("/api/account/wallet/withdrawals", { body: { amount: Number(x.amount), idempotencyKey: key } }));
+          setKey(crypto.randomUUID());
+          f.set("amount", "");
+          toast.success(t("withdrawSubmitted"));
+          router.refresh();
+        },
+      )}
+    >
+      {f.formError && <Alert tone="danger">{f.formError}</Alert>}
+      <Field label={t("withdrawAmount")} hint={t("withdrawAmountHint", { max: money(max, locale) })} error={f.errors.amount} required>
+        {(p) => (
+          <div className="flex items-center gap-2">
+            <Input {...p} {...f.text("amount")} inputMode="decimal" dir="ltr" className="tabular max-w-48" />
+            <Button type="button" variant="secondary" size="sm" onClick={() => f.set("amount", String(max))} disabled={max <= 0}>{t("max")}</Button>
+          </div>
+        )}
+      </Field>
+      <p className="text-xs text-muted">{t("withdrawTo", { bank: bank.name, account: bank.account })}</p>
+      <Button type="submit" variant="secondary" loading={f.busy} disabled={max <= 0}>
+        {t("withdrawSubmit")}
+      </Button>
+    </form>
+  );
+}
+
 export function PasswordForm({ ns = "account.password" }: { ns?: string }) {
   const t = useTranslations(ns);
   const v = useValidators();
@@ -66,7 +114,7 @@ export function PasswordForm({ ns = "account.password" }: { ns?: string }) {
       noValidate
       className="max-w-md space-y-4"
       onSubmit={f.submit(
-        (x) => ({ current: v.required(x.current), next: v.min(x.next, 8), confirm: v.match(x.next, x.confirm) }),
+        (x) => ({ current: v.required(x.current), next: v.strongPassword(x.next), confirm: v.match(x.next, x.confirm) }),
         async (x) => {
           const me = await call(() => api.POST("/api/auth/change-password", { body: { currentPassword: x.current, newPassword: x.next } }));
           setCsrfToken(me.csrfToken);
@@ -83,8 +131,13 @@ export function PasswordForm({ ns = "account.password" }: { ns?: string }) {
       <Field label={t("current")} error={f.errors.current} required>
         {(p) => <PasswordInput {...p} {...f.text("current")} autoComplete="current-password" />}
       </Field>
-      <Field label={t("new")} hint={t("newHint")} error={f.errors.next} required>
-        {(p) => <PasswordInput {...p} {...f.text("next")} autoComplete="new-password" />}
+      <Field label={t("new")} error={f.errors.next} required>
+        {(p) => (
+          <>
+            <PasswordInput {...p} {...f.text("next")} autoComplete="new-password" />
+            <PasswordChecklist value={f.values.next} />
+          </>
+        )}
       </Field>
       <Field label={t("confirm")} error={f.errors.confirm} required>
         {(p) => <PasswordInput {...p} {...f.text("confirm")} autoComplete="new-password" />}
@@ -110,10 +163,9 @@ export function ProfileForm({ profile }: { profile: Schema<"ProfileDto"> }) {
   const t = useTranslations("account.settings");
   const v = useValidators();
   const router = useRouter();
-  // Jordan is the only country, so the profile keeps the stored one without showing a picker.
   const f = useForm(
     {
-      fullName: profile.fullName, phone: profile.phone ?? "", countryId: String(profile.countryId), companyName: profile.companyName ?? "",
+      fullName: profile.fullName, phone: profile.phone ?? "", companyName: profile.companyName ?? "",
       crNumber: profile.crNumber ?? "", vatNumber: profile.vatNumber ?? "", bankName: profile.bankName ?? "", accountHolderName: profile.accountHolderName ?? "", accountNumber: profile.accountNumber ?? "",
     },
     (x) => ({ phone: v.phoneOptional(x.phone) }),
@@ -128,7 +180,7 @@ export function ProfileForm({ profile }: { profile: Schema<"ProfileDto"> }) {
       onSubmit={f.submit(
         (x) => ({ fullName: v.required(x.fullName), phone: v.phoneOptional(x.phone) }),
         async (x) => {
-          await sendForm("PUT", "/api/account/profile", { ...x, countryId: Number(x.countryId) }, files);
+          await sendForm("PUT", "/api/account/profile", x, files);
           setFiles({});
           toast.success(t("saved"));
           router.refresh();
@@ -199,6 +251,53 @@ export function ProfileForm({ profile }: { profile: Schema<"ProfileDto"> }) {
         {t("save")}
       </Button>
     </form>
+  );
+}
+
+/** Danger zone on the settings page: the app's "delete account". Refused by the API while money is unsettled. */
+export function DeleteAccount() {
+  const t = useTranslations("account.settings.delete");
+  const router = useRouter();
+  const message = useErrorMessage();
+  const [blocked, setBlocked] = useState(false);
+  return (
+    <section className="mt-8 max-w-3xl space-y-4 rounded-lg border border-rust/30 bg-surface p-5 sm:p-7">
+      <div>
+        <h2 className="text-lg font-semibold">{t("title")}</h2>
+        <p className="mt-1 text-sm text-muted">{t("description")}</p>
+      </div>
+      {blocked && (
+        <Alert tone="danger" title={t("blockedTitle")}>
+          <p>{t("blockedHelp")}</p>
+          <Link href="/account/wallet" className="mt-2 inline-block font-semibold underline">{t("openWallet")}</Link>
+        </Alert>
+      )}
+      <ConfirmDialog
+        trigger={
+          <Button variant="danger">
+            <Trash2 className="h-4 w-4" aria-hidden /> {t("title")}
+          </Button>
+        }
+        title={t("confirmTitle")}
+        body={t("confirmBody")}
+        confirmLabel={t("title")}
+        onConfirm={async () => {
+          setBlocked(false);
+          try {
+            const me = await call(() => api.DELETE("/api/account/profile"));
+            setCsrfToken(me.csrfToken);
+            toast.success(t("done"));
+            router.push("/");
+            router.refresh();
+          } catch (e) {
+            // Blocked: close the dialog and explain what to do first. Anything else: keep it open for a retry.
+            if (e instanceof ApiError && e.code === "account.delete_blocked") return setBlocked(true);
+            toast.error(message(e));
+            throw e;
+          }
+        }}
+      />
+    </section>
   );
 }
 

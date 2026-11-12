@@ -16,11 +16,10 @@ export default async function Customer({ params }: { params: Promise<{ id: strin
   const id = Number((await params).id);
   if (!Number.isInteger(id) || id <= 0) notFound();
   const [t, tw, tb, locale, client] = await Promise.all([getTranslations("admin.users"), getTranslations("account.wallet"), getTranslations("account.dashboard"), getLocale(), serverApi()]);
-  const [u, txs, ledger, countries] = await Promise.all([
+  const [u, txs, ledger] = await Promise.all([
     load(client.GET("/api/admin/users/{id}", { params: { path: { id } } })),
     load(client.GET("/api/admin/users/{id}/transactions", { params: { path: { id } } })),
     load(client.GET("/api/admin/users/{id}/ledger", { params: { path: { id } } })),
-    load(client.GET("/api/countries")),
   ]);
   const p = u.profile;
   const docs = [["crDocument", p.crDocument], ["vatCertificate", p.vatCertificate], ["idDocument", p.idDocument]] as const;
@@ -49,7 +48,7 @@ export default async function Customer({ params }: { params: Promise<{ id: strin
       <div className="mt-6">
         <Tabs
           items={[
-            { value: "edit", label: t("edit"), content: <div className="max-w-3xl rounded-lg border border-line bg-surface p-5 sm:p-7"><AccountForm kind="user" id={p.id} countries={countries} initial={{ ...p, isActive: u.isActive }} /></div> },
+            { value: "edit", label: t("edit"), content: <div className="max-w-3xl rounded-lg border border-line bg-surface p-5 sm:p-7"><AccountForm kind="user" id={p.id} initial={{ ...p, isActive: u.isActive }} /></div> },
             { value: "bids", label: t("recentBids"), content: (
               <Table>
                 <tbody>

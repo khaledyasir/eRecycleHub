@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { ApiError } from "@/lib/api/types";
 import { Intl } from "@/test/intl";
-import { useForm, useValidators } from "./use-form";
+import { passwordCriteria, useForm, useValidators } from "./use-form";
 
 const wrapper = ({ children }: { children: ReactNode }) => <Intl>{children}</Intl>;
 
@@ -28,6 +28,16 @@ describe("useValidators", () => {
     expect(x.url("")).toBeUndefined(); // optional
     expect(x.url("https://example.com")).toBeUndefined();
     expect(x.url("javascript:alert(1)")).toBeTruthy();
+  });
+});
+
+describe("strongPassword", () => {
+  it("needs 8+ characters with upper case, lower case, a digit and a symbol, and no spaces", () => {
+    const { strongPassword } = renderHook(() => useValidators(), { wrapper }).result.current;
+    for (const ok of ["TestPass#2026", "aB3$efgh", "Pass_word1"]) expect(strongPassword(ok), ok).toBeUndefined();
+    for (const bad of ["", "aB3$efg", "ab3$efgh", "AB3$EFGH", "aBc$efgh", "aB3defgh", "aB3$ efgh", "aB3 efgh"]) expect(strongPassword(bad), bad).toBeTruthy();
+    expect(passwordCriteria("abc")).toEqual({ length: false, case: false, number: false, symbol: false });
+    expect(passwordCriteria("Abcdefg1")).toEqual({ length: true, case: true, number: true, symbol: false });
   });
 });
 

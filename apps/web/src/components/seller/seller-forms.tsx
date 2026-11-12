@@ -1,28 +1,27 @@
 "use client";
 
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
 import { CurrentFile } from "@/components/account/account-forms";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/display";
-import { Field, FileInput, Input, PhoneInput, Select } from "@/components/ui/form";
+import { Field, FileInput, Input, PhoneInput } from "@/components/ui/form";
 import { useRouter } from "@/i18n/navigation";
 import { sendForm } from "@/lib/api/client";
 import type { Schema } from "@/lib/api/types";
 import { fileUrl } from "@/lib/format";
 import { useForm, useValidators } from "@/lib/use-form";
 
-export function StoreProfileForm({ profile, countries }: { profile: Schema<"StoreProfileDto">; countries: { id: number; nameEn: string; nameAr: string }[] }) {
+export function StoreProfileForm({ profile }: { profile: Schema<"StoreProfileDto"> }) {
   const t = useTranslations("seller.profile");
   const ts = useTranslations("account.settings");
   const tc = useTranslations("common");
-  const locale = useLocale();
   const v = useValidators();
   const router = useRouter();
   const f = useForm({
     firstName: profile.firstName, lastName: profile.lastName ?? "", address: profile.address ?? "", secondMobile: profile.secondMobile ?? "",
-    countryId: String(profile.countryId), phone: profile.phone ?? "", companyName: profile.companyName ?? "", crNumber: profile.crNumber ?? "",
+    phone: profile.phone ?? "", companyName: profile.companyName ?? "", crNumber: profile.crNumber ?? "",
     vatNumber: profile.vatNumber ?? "", bankName: profile.bankName ?? "", accountNumber: profile.accountNumber ?? "", cardNumber: profile.cardNumber ?? "",
   });
   const [files, setFiles] = useState<Record<string, File | null>>({});
@@ -34,9 +33,9 @@ export function StoreProfileForm({ profile, countries }: { profile: Schema<"Stor
       noValidate
       className="space-y-8"
       onSubmit={f.submit(
-        (x) => ({ firstName: v.required(x.firstName), countryId: v.required(x.countryId) }),
+        (x) => ({ firstName: v.required(x.firstName) }),
         async (x) => {
-          await sendForm("PUT", "/api/seller/profile", { ...x, countryId: Number(x.countryId) }, files);
+          await sendForm("PUT", "/api/seller/profile", x, files);
           setFiles({});
           toast.success(t("saved"));
           router.refresh();
@@ -50,13 +49,6 @@ export function StoreProfileForm({ profile, countries }: { profile: Schema<"Stor
           <Field label={t("firstName")} error={f.errors.firstName} required>{(p) => <Input {...p} {...f.text("firstName")} />}</Field>
           <Field label={t("lastName")}>{(p) => <Input {...p} {...f.text("lastName")} />}</Field>
           <Field label={t("address")} className="sm:col-span-2">{(p) => <Input {...p} {...f.text("address")} />}</Field>
-          <Field label={t("country")} error={f.errors.countryId} required>
-            {(p) => (
-              <Select {...p} {...f.text("countryId")}>
-                {countries.map((c) => <option key={c.id} value={c.id}>{locale === "ar" ? c.nameAr : c.nameEn}</option>)}
-              </Select>
-            )}
-          </Field>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           {(

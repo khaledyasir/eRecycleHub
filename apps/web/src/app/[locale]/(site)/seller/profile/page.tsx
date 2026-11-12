@@ -10,12 +10,12 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function SellerProfile() {
   const [t, client] = await Promise.all([getTranslations("seller.profile"), serverApi()]);
-  const [profile, countries] = await Promise.all([load(client.GET("/api/seller/profile")), load(client.GET("/api/countries"))]);
+  const profile = await load(client.GET("/api/seller/profile"));
   return (
     <>
       <PageHeader title={t("title")} description={t("description")} />
       <div className="max-w-3xl rounded-lg border border-line bg-surface p-5 sm:p-7">
-        <StoreProfileForm profile={profile} countries={countries} />
+        <StoreProfileForm profile={profile} />
       </div>
     </>
   );

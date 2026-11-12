@@ -13,7 +13,7 @@ public sealed record BidderDetails(BidderRow Bidder, string? CompanyName, IReadO
 public sealed record StoreProfileDto(int PublisherId, string FirstName, string LastName, string? Address, string? SecondMobile, int CountryId,
     Guid? LogoFileId, Guid? BackgroundFileId, string Email, string? Phone, string? CompanyName, string? CrNumber, string? VatNumber,
     string? BankName, string? AccountNumber, string? CardNumber, FileRef? CrDocument, FileRef? VatCertificate, FileRef? IdDocument);
-public sealed record StoreProfileInput(string FirstName, string? LastName, string? Address, string? SecondMobile, int CountryId, string? Phone,
+public sealed record StoreProfileInput(string FirstName, string? LastName, string? Address, string? SecondMobile, string? Phone,
     string? CompanyName, string? CrNumber, string? VatNumber, string? BankName, string? AccountNumber, string? CardNumber);
 public sealed record StoreProfileFiles(UploadInput? Logo, UploadInput? Background, UploadInput? CrDocument, UploadInput? VatCertificate, UploadInput? IdDocument);
 
@@ -100,14 +100,14 @@ public sealed class SellerService(AppDbContext db, FileService files, TimeProvid
         var pid = Pid(actor);
         var first = Normalize.Text(input.FirstName);
         if (first is null || first.Length > 200) throw new AppException("profile.name_required");
-        if (!await db.Countries.Allowed().AnyAsync(c => c.Id == input.CountryId, ct)) throw new AppException("country.invalid");
+        var countryId = await db.JordanIdAsync(ct);
         var p = await db.Publishers.Include(x => x.User).SingleAsync(x => x.Id == pid, ct);
         var u = p.User!;
         p.FirstName = first;
         p.LastName = Normalize.Text(input.LastName) ?? "";
         p.Address = Normalize.Text(input.Address);
         p.SecondMobile = Normalize.Text(input.SecondMobile);
-        p.CountryId = input.CountryId;
+        p.CountryId = countryId;
         u.FullName = p.DisplayName;
         u.Phone = JordanPhone.Optional(input.Phone);
         u.CompanyName = Normalize.Text(input.CompanyName);

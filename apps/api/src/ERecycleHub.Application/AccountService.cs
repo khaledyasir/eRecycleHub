@@ -13,7 +13,7 @@ public sealed record AccountDashboard(int AuctionsAttended, int Won, int Leading
 public sealed record ProfileDto(int Id, string FullName, string Email, string? Phone, int CountryId, UserRole Role, Guid? AvatarFileId,
     string? CompanyName, string? CrNumber, string? VatNumber, string? BankName, string? AccountNumber, string? CardNumber,
     FileRef? CrDocument, FileRef? VatCertificate, FileRef? IdDocument, decimal WalletBalance, string? AccountHolderName = null);
-public sealed record ProfileInput(string FullName, string? Phone, int CountryId, string? CompanyName, string? CrNumber, string? VatNumber,
+public sealed record ProfileInput(string FullName, string? Phone, string? CompanyName, string? CrNumber, string? VatNumber,
     string? BankName, string? AccountNumber, string? CardNumber, string? AccountHolderName = null);
 public sealed record ProfileFiles(UploadInput? Avatar, UploadInput? CrDocument, UploadInput? VatCertificate, UploadInput? IdDocument);
 public sealed record NotificationDto(int Id, string Kind, int? AuctionId, string? AuctionTitleEn, string? AuctionTitleAr, decimal? Amount, string? Title, string? Body, string? Url, bool IsRead, DateTime CreatedAtUtc);
@@ -100,11 +100,11 @@ public sealed class AccountService(AppDbContext db, AuctionQueries auctions, Fil
     {
         var name = Normalize.Text(input.FullName);
         if (name is null || name.Length > 200) throw new AppException("profile.name_required");
-        if (!await db.Countries.Allowed().AnyAsync(c => c.Id == input.CountryId, ct)) throw new AppException("country.invalid");
+        var countryId = await db.JordanIdAsync(ct);
         var u = await db.Users.SingleAsync(x => x.Id == userId, ct);
         u.FullName = name;
         u.Phone = JordanPhone.Optional(input.Phone);
-        u.CountryId = input.CountryId;
+        u.CountryId = countryId;
         u.CompanyName = Normalize.Text(input.CompanyName);
         u.CrNumber = Normalize.Text(input.CrNumber);
         u.VatNumber = Normalize.Text(input.VatNumber);

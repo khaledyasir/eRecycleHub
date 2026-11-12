@@ -2,7 +2,7 @@
 
 import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { CurrentFile } from "@/components/account/account-forms";
 import { Button } from "@/components/ui/button";
@@ -11,13 +11,12 @@ import { Checkbox, Field, FileInput, Input, Select, Textarea } from "@/component
 import { Switch } from "@/components/ui/controls";
 import { RichTextEditor } from "@/components/ui/rich-text";
 import { useRouter } from "@/i18n/navigation";
-import { api, call, sendForm } from "@/lib/api/client";
+import { sendForm } from "@/lib/api/client";
 import type { Schema } from "@/lib/api/types";
 import { DISPLAY_TZ, fileUrl, fromLocalInput, toLocalInput } from "@/lib/format";
 import { useForm, useValidators } from "@/lib/use-form";
 
 export type ManageBase = "/api/seller" | "/api/admin";
-type Country = { id: number; nameEn: string; nameAr: string };
 type Spec = { titleEn: string; titleAr: string; valueEn: string; valueAr: string };
 
 const inDays = (d: number) => new Date(Date.now() + d * 86_400_000).toISOString();
@@ -26,13 +25,12 @@ const inDays = (d: number) => new Date(Date.now() + d * 86_400_000).toISOString(
  * Create/edit form shared by the seller portal and the admin panel. The API enforces every rule (ownership, frozen terms once bids exist,
  * dates, amounts); this form mirrors them so mistakes are caught before submitting.
  */
-export function AuctionForm({ base, admin, countries, publishers, auction, defaultCountryId, routeBase }: {
+export function AuctionForm({ base, admin, categories, publishers, auction, routeBase }: {
   base: ManageBase;
   admin: boolean;
-  countries: Country[];
+  categories: Schema<"CategoryRef">[];
   publishers?: { id: number; titleEn: string }[];
   auction?: Schema<"ManagedAuction">;
-  defaultCountryId?: number;
   routeBase: "/seller/auctions" | "/admin/auctions";
 }) {
   const t = useTranslations("seller.manage.form");
@@ -46,7 +44,6 @@ export function AuctionForm({ base, admin, countries, publishers, auction, defau
   const frozen = (auction?.bidCount ?? 0) > 0;
 
   const f = useForm({
-    countryId: String(auction?.countryId ?? defaultCountryId ?? countries[0]?.id ?? ""),
     categoryId: auction?.categoryId ? String(auction.categoryId) : "",
     publisherId: auction?.publisherId ? String(auction.publisherId) : "",
     titleEn: auction?.titleEn ?? "",
@@ -68,19 +65,6 @@ export function AuctionForm({ base, admin, countries, publishers, auction, defau
   );
   const [files, setFiles] = useState<Record<string, File | File[] | null>>({});
   const [remove, setRemove] = useState({ terms: false, paymentConditions: false, contract: false });
-  const [categories, setCategories] = useState<Schema<"CategoryRef">[]>([]);
-
-  useEffect(() => {
-    const id = Number(f.values.countryId);
-    if (!id) return;
-    let cancelled = false;
-    call(() => api.GET("/api/categories", { params: { query: { countryId: id } } }))
-      .then((list) => !cancelled && setCategories(list))
-      .catch(() => !cancelled && setCategories([]));
-    return () => {
-      cancelled = true;
-    };
-  }, [f.values.countryId]);
 
   const setSpec = (i: number, key: keyof Spec, value: string) => setSpecs((s) => s.map((x, n) => (n === i ? { ...x, [key]: value } : x)));
   const move = (i: number, d: -1 | 1) => setSpecs((s) => {
@@ -94,7 +78,6 @@ export function AuctionForm({ base, admin, countries, publishers, auction, defau
   const validate = (x: typeof f.values) => {
     const errs: Partial<Record<keyof typeof x, string>> = {
       titleEn: !x.titleEn.trim() && !x.titleAr.trim() ? te("required") : undefined,
-      countryId: v.required(x.countryId),
       startPrice: v.amount(x.startPrice),
       bidIncrement: v.amount(x.bidIncrement),
       insuranceAmount: v.amount(x.insuranceAmount, { positive: false }),
@@ -115,7 +98,6 @@ export function AuctionForm({ base, admin, countries, publishers, auction, defau
           return;
         }
         const data = {
-          countryId: Number(x.countryId),
           categoryId: x.categoryId ? Number(x.categoryId) : null,
           publisherId: admin ? (x.publisherId ? Number(x.publisherId) : null) : null,
           titleEn: x.titleEn, titleAr: x.titleAr, shortDescEn: x.shortDescEn, shortDescAr: x.shortDescAr, descEn: x.descEn, descAr: x.descAr,
@@ -143,20 +125,11 @@ export function AuctionForm({ base, admin, countries, publishers, auction, defau
       <fieldset className="space-y-4">
         <legend className="mb-2 text-lg font-semibold">{t("basics")}</legend>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label={t("country")} error={f.errors.countryId} required>
-            {(p) => (
-              <Select {...p} value={f.values.countryId} disabled={frozen} onChange={(e) => { f.set("countryId", e.target.value); f.set("categoryId", ""); }}>
-                {countries.map((c) => (
-                  <option key={c.id} value={c.id}>{locale === "ar" ? c.nameAr : c.nameEn}</option>
-                ))}
-              </Select>
-            )}
-          </Field>
           <Field label={t("category")}>
             {(p) => (
               <Select {...p} {...f.text("categoryId")}>
                 <option value="">{t("noCategory")}</option>
-                {(Number(f.values.countryId) ? categories : []).map((c) => (
+                {categories.map((c) => (
                   <option key={c.id} value={c.id}>{locale === "ar" ? c.titleAr : c.titleEn}</option>
                 ))}
                 {auction?.categoryId && !categories.some((c) => c.id === auction.categoryId) && <option value={auction.categoryId}>#{auction.categoryId}</option>}

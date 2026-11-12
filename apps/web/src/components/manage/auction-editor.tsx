@@ -4,7 +4,7 @@ import { PhaseBadge } from "@/components/auction/auction-card";
 import { PageHeader } from "@/components/ui/display";
 import { Tabs } from "@/components/ui/controls";
 import { Link } from "@/i18n/navigation";
-import { getCountryId, load, serverApi } from "@/lib/api/server";
+import { load, serverApi } from "@/lib/api/server";
 import { pick } from "@/lib/format";
 import { AuctionForm } from "./auction-form";
 import { BidsTable } from "./auction-list";
@@ -12,17 +12,17 @@ import { ImageManager, NotifyWinnerButton } from "./manage-actions";
 
 /** New/edit page body for an auction, used by /seller/auctions/* and /admin/auctions/*. A foreign id is a 404 from the API. */
 export async function AuctionEditor({ admin, id }: { admin: boolean; id?: number }) {
-  const [t, locale, client, countryId] = await Promise.all([getTranslations("seller.manage"), getLocale(), serverApi(), getCountryId()]);
+  const [t, locale, client] = await Promise.all([getTranslations("seller.manage"), getLocale(), serverApi()]);
   const base = admin ? ("/api/admin" as const) : ("/api/seller" as const);
   const routeBase = admin ? ("/admin/auctions" as const) : ("/seller/auctions" as const);
-  const [countries, publishers, auction] = await Promise.all([
-    load(client.GET("/api/countries")),
+  const [categories, publishers, auction] = await Promise.all([
+    load(client.GET("/api/categories")),
     admin ? load(client.GET("/api/admin/publishers/options")) : Promise.resolve(undefined),
     id === undefined ? Promise.resolve(undefined) : load(admin ? client.GET("/api/admin/auctions/{id}", { params: { path: { id } } }) : client.GET("/api/seller/auctions/{id}", { params: { path: { id } } })),
   ]);
   const form = (
     <div className="rounded-lg border border-line bg-surface p-5 sm:p-7">
-      <AuctionForm base={base} admin={admin} countries={countries} publishers={publishers} auction={auction} defaultCountryId={countryId} routeBase={routeBase} />
+      <AuctionForm base={base} admin={admin} categories={categories} publishers={publishers} auction={auction} routeBase={routeBase} />
     </div>
   );
   if (!auction) return (<><PageHeader title={t("newTitle")} />{form}</>);

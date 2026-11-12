@@ -19,11 +19,10 @@ export default async function Reports({ searchParams }: { searchParams: Promise<
   const query = {
     from: sp.from ? fromLocalInput(`${sp.from}T00:00`) : undefined,
     to: sp.to ? fromLocalInput(`${sp.to}T23:59`) : undefined,
-    countryId: sp.countryId ? Number(sp.countryId) : undefined,
     page: Math.max(1, Number(sp.page) || 1),
   };
-  const [r, countries] = await Promise.all([load(client.GET("/api/admin/reports/auctions", { params: { query } })), load(client.GET("/api/countries"))]);
-  const csv = new URLSearchParams({ format: "csv", ...(query.from ? { from: query.from } : {}), ...(query.to ? { to: query.to } : {}), ...(query.countryId ? { countryId: String(query.countryId) } : {}) });
+  const r = await load(client.GET("/api/admin/reports/auctions", { params: { query } }));
+  const csv = new URLSearchParams({ format: "csv", ...(query.from ? { from: query.from } : {}), ...(query.to ? { to: query.to } : {}) });
   const input = "h-9 rounded-md border border-line-strong bg-surface px-2 text-sm";
   return (
     <>
@@ -35,12 +34,6 @@ export default async function Reports({ searchParams }: { searchParams: Promise<
       <form className="mb-5 flex flex-wrap items-end gap-2">
         <label className="flex flex-col gap-1 text-xs text-muted">{t("from")}<input type="date" name="from" defaultValue={sp.from} className={input} /></label>
         <label className="flex flex-col gap-1 text-xs text-muted">{t("to")}<input type="date" name="to" defaultValue={sp.to} className={input} /></label>
-        <label className="flex flex-col gap-1 text-xs text-muted">{t("country")}
-          <select name="countryId" defaultValue={sp.countryId ?? ""} className={input}>
-            <option value="">{t("allCountries")}</option>
-            {countries.map((c) => <option key={c.id} value={c.id}>{pick(locale, c.nameEn, c.nameAr)}</option>)}
-          </select>
-        </label>
         <button className="h-9 rounded-md bg-patina px-4 text-sm font-bold text-white hover:bg-patina-700">{t("apply")}</button>
       </form>
       <div className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">

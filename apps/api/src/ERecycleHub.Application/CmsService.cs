@@ -5,11 +5,11 @@ using Microsoft.EntityFrameworkCore;
 namespace ERecycleHub.Application;
 
 public sealed record AdminCategory(int Id, int CountryId, string? CountryNameEn, string TitleEn, string TitleAr, int SortOrder, bool IsActive, Guid? IconFileId, Guid? ImageFileId, int AuctionCount);
-public sealed record CategoryInput(int CountryId, string? TitleEn, string? TitleAr, int SortOrder, bool IsActive);
+public sealed record CategoryInput(string? TitleEn, string? TitleAr, int SortOrder, bool IsActive);
 public sealed record AdminCountry(int Id, string NameEn, string NameAr, string? Code, bool IsActive, Guid? FlagFileId);
 public sealed record CountryInput(string? NameEn, string? NameAr, string? Code, bool IsActive);
 public sealed record AdminAnnouncement(int Id, int CountryId, string? CountryNameEn, Guid? ImageFileId, int SortOrder, bool IsActive);
-public sealed record AnnouncementInput(int CountryId, int SortOrder, bool IsActive);
+public sealed record AnnouncementInput(int SortOrder, bool IsActive);
 public sealed record AdminSlider(int Id, string? Title, string? Link, string Type, Guid? ImageFileId, int SortOrder, bool IsActive);
 public sealed record SliderInput(string? Title, string? Link, string? Type, int SortOrder, bool IsActive);
 public sealed record AboutInput(string? TitleEn, string? TitleAr, string? DescEn, string? DescAr, int? TotalBidders, string? GuidelinesVideoUrl);
@@ -24,7 +24,7 @@ public sealed record AdminFaqCategory(int Id, string TitleEn, string TitleAr, in
 public sealed record FaqCategoryInput(string? TitleEn, string? TitleAr, int SortOrder, bool IsActive);
 public sealed record AdminFaq(int Id, int CategoryId, string QuestionEn, string QuestionAr, string? AnswerEn, string? AnswerAr, int SortOrder, bool IsActive);
 public sealed record FaqInput(int CategoryId, string? QuestionEn, string? QuestionAr, string? AnswerEn, string? AnswerAr, int SortOrder, bool IsActive);
-public sealed record ContactInfoInput(int CountryId, string? Mobile, string? Address, string? Email, string? MapUrl, string? Facebook, string? Instagram, string? Twitter, string? Linkedin);
+public sealed record ContactInfoInput(string? Mobile, string? Address, string? Email, string? MapUrl, string? Facebook, string? Instagram, string? Twitter, string? Linkedin);
 public sealed record AdminSetting(int Id, string Key, string? TitleEn, string? TitleAr, string? ValueEn, string? ValueAr);
 public sealed record SettingInput(string? Key, string? TitleEn, string? TitleAr, string? ValueEn, string? ValueAr);
 public sealed record MessageDto(int Id, string Name, string Email, string? Mobile, string Message, bool IsRead, DateTime CreatedAtUtc);
@@ -70,10 +70,9 @@ public sealed class CmsService(AppDbContext db, FileService files, TimeProvider 
     public async Task<int> SaveCategoryAsync(Actor admin, int? id, CategoryInput i, UploadInput? icon, UploadInput? image, CancellationToken ct = default)
     {
         var (en, ar) = Pair(i.TitleEn, i.TitleAr, "category.title_required");
-        if (!await db.Countries.Allowed().AnyAsync(c => c.Id == i.CountryId, ct)) throw new AppException("country.invalid");
+        var countryId = await db.JordanIdAsync(ct);
         var c = id is null ? db.Categories.Add(new Category { TitleEn = en, TitleAr = ar }).Entity : await FindAsync(db.Categories, id.Value, ct);
-        if (id is not null && c.CountryId != i.CountryId && await db.Auctions.AnyAsync(a => a.CategoryId == c.Id, ct)) throw AppException.Conflict("category.in_use");
-        c.TitleEn = en; c.TitleAr = ar; c.CountryId = i.CountryId; c.SortOrder = i.SortOrder; c.IsActive = i.IsActive;
+                c.TitleEn = en; c.TitleAr = ar; c.CountryId = countryId; c.SortOrder = i.SortOrder; c.IsActive = i.IsActive;
         c.IconFileId = await files.SaveOptionalAsync(icon, FileCategory.Cms, admin.UserId, c.IconFileId, ct);
         c.ImageFileId = await files.SaveOptionalAsync(image, FileCategory.Cms, admin.UserId, c.ImageFileId, ct);
         await SaveAsync(admin, id is null ? "category.create" : "category.update", nameof(Category), () => c.Id, ct);
@@ -126,10 +125,10 @@ public sealed class CmsService(AppDbContext db, FileService files, TimeProvider 
 
     public async Task<int> SaveAnnouncementAsync(Actor admin, int? id, AnnouncementInput i, UploadInput? image, CancellationToken ct = default)
     {
-        if (!await db.Countries.Allowed().AnyAsync(c => c.Id == i.CountryId, ct)) throw new AppException("country.invalid");
+        var countryId = await db.JordanIdAsync(ct);
         var a = id is null ? db.Announcements.Add(new Announcement()).Entity : await FindAsync(db.Announcements, id.Value, ct);
         if (id is null && image is null) throw new AppException("cms.image_required");
-        a.CountryId = i.CountryId; a.SortOrder = i.SortOrder; a.IsActive = i.IsActive;
+        a.CountryId = countryId; a.SortOrder = i.SortOrder; a.IsActive = i.IsActive;
         a.ImageFileId = await files.SaveOptionalAsync(image, FileCategory.Cms, admin.UserId, a.ImageFileId, ct);
         await SaveAsync(admin, id is null ? "announcement.create" : "announcement.update", nameof(Announcement), () => a.Id, ct);
         return a.Id;
@@ -310,9 +309,9 @@ public sealed class CmsService(AppDbContext db, FileService files, TimeProvider 
 
     public async Task<int> SaveContactInfoAsync(Actor admin, int? id, ContactInfoInput i, CancellationToken ct = default)
     {
-        if (!await db.Countries.Allowed().AnyAsync(c => c.Id == i.CountryId, ct)) throw new AppException("country.invalid");
+        var countryId = await db.JordanIdAsync(ct);
         var c = id is null ? db.ContactInfos.Add(new ContactInfo()).Entity : await FindAsync(db.ContactInfos, id.Value, ct);
-        c.CountryId = i.CountryId; c.Mobile = Normalize.Text(i.Mobile); c.Address = Normalize.Text(i.Address); c.Email = Normalize.Text(i.Email);
+        c.CountryId = countryId; c.Mobile = Normalize.Text(i.Mobile); c.Address = Normalize.Text(i.Address); c.Email = Normalize.Text(i.Email);
         c.MapUrl = Url(i.MapUrl, "cms.invalid_link"); c.Facebook = Url(i.Facebook, "cms.invalid_link"); c.Instagram = Url(i.Instagram, "cms.invalid_link");
         c.Twitter = Url(i.Twitter, "cms.invalid_link"); c.Linkedin = Url(i.Linkedin, "cms.invalid_link");
         await SaveAsync(admin, id is null ? "contactinfo.create" : "contactinfo.update", nameof(ContactInfo), () => c.Id, ct);

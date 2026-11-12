@@ -4,6 +4,7 @@ using System.Text.Json;
 using ERecycleHub.Domain;
 using ERecycleHub.Infrastructure;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 
 namespace ERecycleHub.Application;
 
@@ -35,6 +36,13 @@ public sealed record PageQuery(int Page = 1, int PageSize = 20)
 public sealed record Actor(int UserId, UserRole Role, int? PublisherId = null, string? Ip = null)
 {
     public bool IsAdmin => Role == UserRole.Admin;
+}
+
+public static class CountryLookup
+{
+    /// <summary>The platform's only country (Jordan). Forms no longer send a country: every record the API saves gets this one.</summary>
+    public static async Task<int> JordanIdAsync(this AppDbContext db, CancellationToken ct) =>
+        await db.Countries.Allowed().OrderBy(c => c.Id).Select(c => (int?)c.Id).FirstOrDefaultAsync(ct) ?? throw new AppException("country.invalid");
 }
 
 /// <summary>Jordanian mobile numbers: exactly 10 digits, starting with 07, digits only (no spaces or symbols).</summary>

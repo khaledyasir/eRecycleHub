@@ -1,15 +1,15 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
-import { Lock, Minus, Plus, ShieldCheck, Trophy } from "lucide-react";
+import { Ban, Lock, Minus, Plus, ShieldCheck, Trophy } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { useCallback, useEffect, useId, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/display";
 import { Dialog } from "@/components/ui/overlay";
 import { useSession } from "@/components/providers";
-import { Link } from "@/i18n/navigation";
+import { Link, useRouter } from "@/i18n/navigation";
 import { ApiError, api, call } from "@/lib/api/client";
 import type { AuctionPhase } from "@/lib/api/types";
 import { cn, money } from "@/lib/format";
@@ -29,7 +29,17 @@ type Props = {
   insurance: number;
   bidCount: number;
   serverNow: number;
-  viewer: { isOwner: boolean; walletBalance: number | null; isLeading: boolean; heldByViewer: number; debitsWallet: boolean };
+  viewer: {
+    isOwner: boolean;
+    walletBalance: number | null;
+    isLeading: boolean;
+    heldByViewer: number;
+    debitsWallet: boolean;
+    /** After the end: the viewer holds the winning bid (and the sale was not cancelled). */
+    isWinner: boolean;
+    /** After the end: Paid | Pending | PaymentFailed | Voided | NotCharged, as the server states it. */
+    saleStatus: string | null;
+  };
 };
 
 /** Two-decimal arithmetic without floating-point drift (amounts are cents-precise in the API). */
@@ -48,9 +58,19 @@ export function BidPanel(p: Props) {
   const user = useSession();
   const message = useErrorMessage();
   const qc = useQueryClient();
+  const router = useRouter();
   const inputId = useId();
 
   const [phase, setPhase] = useState<AuctionPhase>(p.phase);
+  const [endsAt, setEndsAt] = useState(p.endsAtUtc);
+  // router.refresh() brings the server's view of the auction (phase, end date): it replaces what this page worked out from live events.
+  const fromServer = `${p.phase}|${p.endsAtUtc}`;
+  const [seenServer, setSeenServer] = useState(fromServer);
+  if (seenServer !== fromServer) {
+    setSeenServer(fromServer);
+    setPhase(p.phase);
+    setEndsAt(p.endsAtUtc);
+  }
   const [price, setPrice] = useState(p.currentPrice);
   const [minimum, setMinimum] = useState(p.minimumNextBid);
   const [count, setCount] = useState(p.bidCount);
@@ -63,9 +83,18 @@ export function BidPanel(p: Props) {
   const [error, setError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [slow, setSlow] = useState(false);
 
-  // Notice bids from other people while the page is open.
-  const latest = useAuctionBids(p.auctionId, 1, phase === "Live");
+  // Notice bids from other people, and the auction starting, being extended or ending, while the page is open.
+  const latest = useAuctionBids(p.auctionId, 1, phase !== "Ended", {
+    onStarted: () => setPhase("Live"),
+    onExtended: setEndsAt,
+    onEnded: () => {
+      setPhase("Ended");
+      router.refresh(); // the outcome (winner, sale status) comes with the details
+    },
+    onResync: () => router.refresh(),
+  });
   useEffect(() => {
     // Syncing polled server data into local state the bidder can also edit (the amount field), so it can't be purely derived.
     /* eslint-disable react-hooks/set-state-in-effect */
@@ -85,8 +114,16 @@ export function BidPanel(p: Props) {
     /* eslint-enable react-hooks/set-state-in-effect */
   }, [latest.data, price, p.increment, leading, heldNow, p.viewer.debitsWallet, p.viewer.walletBalance]);
 
-  const toLive = useCallback(() => setPhase("Live"), []);
-  const toEnded = useCallback(() => setPhase("Ended"), []);
+  // The countdown reached zero: the server says whether the auction has started / is over (a late bid may have extended it); the page
+  // never decides that from the browser clock.
+  // ponytail: one refetch a second later (so the server's clock has passed the instant too); if that still misses, the hub's
+  // auction.started / auction.ended event (sent within a few seconds) refetches again.
+  const zeroTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const atZero = useCallback(() => {
+    clearTimeout(zeroTimer.current);
+    zeroTimer.current = setTimeout(() => router.refresh(), 1000);
+  }, [router]);
+  useEffect(() => () => clearTimeout(zeroTimer.current), []);
 
   const value = Number(amount);
   const validNumber = amount.trim() !== "" && Number.isFinite(value) && /^\d+(\.\d{1,2})?$/.test(amount.trim());
@@ -102,8 +139,13 @@ export function BidPanel(p: Props) {
   // With wallet holds on, a bid RESERVES its amount (the balance is untouched; it is charged only if you win); raising your own bid reserves only the difference (what it already holds).
   const held = leading ? heldNow : 0;
   const charge = (n: number) => Math.max(0, fromCents(cents(n) - cents(held)));
-  const lacksBalance = !!user && p.viewer.debitsWallet && wallet < charge(minimum);
-  const blocked = !user ? "signIn" : p.viewer.isOwner ? "own" : user.role === "Admin" ? "admin" : phase === "Upcoming" ? "upcoming" : phase === "Ended" ? "ended" : lacksInsurance ? "insurance" : lacksBalance ? "balance" : null;
+  // A low balance only warns: the form stays usable and the server's answer (bid.insufficient_balance) decides.
+  const lowBalance = !!user && p.viewer.debitsWallet && wallet < charge(minimum);
+  const blocked = !user ? "signIn" : p.viewer.isOwner ? "own" : user.role === "Admin" ? "admin" : phase === "Upcoming" ? "upcoming" : phase === "Ended" ? "ended" : lacksInsurance ? "insurance" : null;
+  // The sale, as the server states it. A cancelled sale makes no claim that the viewer won (the server tells only the winning bidder about it).
+  const won = phase === "Ended" && p.viewer.isWinner;
+  const cancelled = phase === "Ended" && p.viewer.saleStatus === "Voided";
+  const saleLine = won ? { Paid: t("salePaid"), Pending: t("salePending"), PaymentFailed: t("salePaymentFailed") }[p.viewer.saleStatus ?? ""] : undefined;
 
   const review = () => {
     if (!validNumber) return setError(t("invalid"));
@@ -115,8 +157,25 @@ export function BidPanel(p: Props) {
 
   const place = async () => {
     setBusy(true);
+    const slowTimer = setTimeout(() => setSlow(true), 10_000);
     try {
-      const r = await call(() => api.POST("/api/auctions/{id}/bids", { params: { path: { id: p.auctionId } }, body: { amount: value } }));
+      let r: { currentPrice: number; minimumNextBid: number; bidCount: number; availableAfter?: number | null };
+      try {
+        r = await call(() => api.POST("/api/auctions/{id}/bids", { params: { path: { id: p.auctionId } }, body: { amount: value }, signal: AbortSignal.timeout(30_000) }));
+      } catch (e) {
+        if (e instanceof ApiError) throw e;
+        // No answer (network error or timeout): the bid may still have been placed, and a bid is never sent twice. Look at the auction:
+        // if the newest bid is mine at this amount, it was.
+        const bids = await call(() => api.GET("/api/auctions/{id}/bids", { params: { path: { id: p.auctionId }, query: { page: 1 } } })).catch(() => null);
+        const top = bids?.items[0];
+        if (!bids || !top?.isMine || cents(top.amount) !== cents(value)) {
+          setError(t("unconfirmed"));
+          toast.error(t("unconfirmed"));
+          void qc.invalidateQueries({ queryKey: ["auction-bids", p.auctionId] });
+          return;
+        }
+        r = { currentPrice: top.amount, minimumNextBid: fromCents(cents(top.amount) + cents(p.increment)), bidCount: bids.total, availableAfter: Math.max(0, fromCents(cents(wallet) - cents(charge(value)))) };
+      }
       setPrice(r.currentPrice);
       setMinimum(r.minimumNextBid);
       setCount(r.bidCount);
@@ -139,6 +198,8 @@ export function BidPanel(p: Props) {
       setError(message(e));
       toast.error(message(e));
     } finally {
+      clearTimeout(slowTimer);
+      setSlow(false);
       setBusy(false);
       setConfirming(false);
     }
@@ -156,20 +217,41 @@ export function BidPanel(p: Props) {
           {phase === "Upcoming" && (
             <>
               <p className="mb-1.5 text-sm font-medium">{t("notStarted")}</p>
-              <Countdown target={p.startsAtUtc} serverNow={p.serverNow} mode="start" size="lg" onDone={toLive} />
+              <Countdown target={p.startsAtUtc} serverNow={p.serverNow} mode="start" size="lg" onDone={atZero} />
             </>
           )}
-          {phase === "Live" && <Countdown target={p.endsAtUtc} serverNow={p.serverNow} size="lg" onDone={toEnded} />}
+          {phase === "Live" && <Countdown target={endsAt} serverNow={p.serverNow} size="lg" onDone={atZero} />}
           {phase === "Ended" && <p className="font-semibold text-ink-2">{t("ended")}</p>}
         </div>
       </div>
 
       <div className="space-y-4 px-5 py-5">
-        {leading && phase !== "Upcoming" && (
+        {won && (
+          <Alert tone={p.viewer.saleStatus === "PaymentFailed" ? "warn" : "ok"}>
+            <span className="inline-flex items-center gap-2 font-medium">
+              <Trophy className="h-4 w-4" aria-hidden /> {t("won")}
+            </span>
+            {saleLine && <p className="mt-1">{saleLine}</p>}
+            {p.viewer.saleStatus === "PaymentFailed" && (
+              <Link href="/account/wallet" className="mt-2 inline-block font-semibold underline">
+                {t("topUp")}
+              </Link>
+            )}
+          </Alert>
+        )}
+        {cancelled && (
+          <Alert tone="danger">
+            <span className="inline-flex items-center gap-2 font-medium">
+              <Ban className="h-4 w-4" aria-hidden /> {t("saleVoided")}
+            </span>
+          </Alert>
+        )}
+        {leading && phase !== "Upcoming" && !won && !cancelled && (
           <Alert tone="ok">
             <span className="inline-flex items-center gap-2 font-medium">
               <Trophy className="h-4 w-4" aria-hidden /> {t("leading")}
             </span>
+            {held > 0 && <p className="tabular mt-1">{t("held", { amount: money(held, locale) })}</p>}
           </Alert>
         )}
 
@@ -218,15 +300,6 @@ export function BidPanel(p: Props) {
           </Alert>
         )}
 
-        {blocked === "balance" && phase === "Live" && (
-          <Alert tone="warn">
-            <p>{t("insufficientBalance", { required: money(charge(minimum), locale), available: money(wallet, locale) })}</p>
-            <Link href="/account/wallet" className="mt-2 inline-block font-semibold underline">
-              {t("topUp")}
-            </Link>
-          </Alert>
-        )}
-
         {blocked === null && (
           <form
             noValidate
@@ -236,6 +309,14 @@ export function BidPanel(p: Props) {
             }}
             className="space-y-3"
           >
+            {lowBalance && (
+              <p className="text-sm font-medium text-orange-ink">
+                {t("lowBalance")}{" "}
+                <Link href="/account/wallet" className="font-semibold underline">
+                  {t("topUp")}
+                </Link>
+              </p>
+            )}
             <label htmlFor={inputId} className="block text-sm font-medium">
               {t("yourBid")}
             </label>
@@ -302,6 +383,11 @@ export function BidPanel(p: Props) {
         {p.viewer.debitsWallet && validNumber && (
           <p className="mt-2 text-sm font-medium">
             {t("confirmCharge", { charge: money(charge(value), locale), remaining: money(Math.max(0, fromCents(cents(wallet) - cents(charge(value)))), locale) })}
+          </p>
+        )}
+        {slow && (
+          <p role="status" className="mt-2 text-sm font-medium text-orange-ink">
+            {t("slow")}
           </p>
         )}
       </Dialog>

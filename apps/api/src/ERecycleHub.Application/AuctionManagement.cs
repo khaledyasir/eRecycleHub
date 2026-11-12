@@ -9,7 +9,7 @@ namespace ERecycleHub.Application;
 public sealed record SpecInput(string TitleEn, string? TitleAr, string? ValueEn, string? ValueAr);
 
 public sealed record AuctionInput(
-    int CountryId, int? CategoryId, string? TitleEn, string? TitleAr, string? ShortDescEn, string? ShortDescAr, string? DescEn, string? DescAr,
+    int? CategoryId, string? TitleEn, string? TitleAr, string? ShortDescEn, string? ShortDescAr, string? DescEn, string? DescAr,
     decimal StartPrice, decimal BidIncrement, decimal InsuranceAmount, DateTime StartsAtUtc, DateTime EndsAtUtc, bool IsActive,
     string? VideoUrl, IReadOnlyList<SpecInput>? Specs, int? PublisherId,
     bool RemoveTerms = false, bool RemovePaymentConditions = false, bool RemoveContract = false);
@@ -104,7 +104,7 @@ public sealed class AuctionManagement(AppDbContext db, FileService files, TimePr
         var a = new Auction
         {
             RefNumber = await NewRefNumberAsync(ct),
-            CountryId = input.CountryId,
+            CountryId = await db.JordanIdAsync(ct),
             CategoryId = input.CategoryId,
             PublisherId = publisherId,
             TitleEn = "",
@@ -147,7 +147,7 @@ public sealed class AuctionManagement(AppDbContext db, FileService files, TimePr
         if (hasBids)
         {
             if (input.StartPrice != a.StartPrice || input.BidIncrement != a.BidIncrement || input.InsuranceAmount != a.InsuranceAmount
-                || input.StartsAtUtc != a.StartsAtUtc || input.CountryId != a.CountryId)
+                || input.StartsAtUtc != a.StartsAtUtc)
                 throw AppException.Conflict("auction.terms_frozen");
             if (input.EndsAtUtc != a.EndsAtUtc && input.EndsAtUtc <= now) throw new AppException("auction.end_in_past");
         }
@@ -158,7 +158,6 @@ public sealed class AuctionManagement(AppDbContext db, FileService files, TimePr
             a.BidIncrement = input.BidIncrement;
             a.InsuranceAmount = input.InsuranceAmount;
             a.StartsAtUtc = input.StartsAtUtc;
-            a.CountryId = input.CountryId;
         }
         a.EndsAtUtc = input.EndsAtUtc;
         a.CategoryId = input.CategoryId;
@@ -285,8 +284,7 @@ public sealed class AuctionManagement(AppDbContext db, FileService files, TimePr
             throw new AppException("auction.invalid_video_url");
         if (i.Specs is { Count: > MaxSpecs }) throw new AppException("auction.too_many_specs", 400, new { max = MaxSpecs });
         if (i.Specs?.Any(s => Normalize.Text(s.TitleEn) is null && Normalize.Text(s.TitleAr) is null) == true) throw new AppException("auction.spec_title_required");
-        if (!await db.Countries.Allowed().AnyAsync(c => c.Id == i.CountryId, ct)) throw new AppException("country.invalid");
-        if (i.CategoryId is not null && !await db.Categories.AnyAsync(c => c.Id == i.CategoryId && c.CountryId == i.CountryId, ct))
+        if (i.CategoryId is not null && !await db.Categories.AnyAsync(c => c.Id == i.CategoryId, ct))
             throw new AppException("category.invalid");
     }
 

@@ -7,7 +7,7 @@ namespace ERecycleHub.Application;
 
 public sealed record SessionUser(int Id, string FullName, string Email, UserRole Role, string SecurityStamp, Guid? AvatarFileId, int? PublisherId);
 
-public sealed record RegisterInput(string FullName, string Email, string Password, string? Phone, int CountryId,
+public sealed record RegisterInput(string FullName, string Email, string Password, string? Phone,
     string? CompanyName, string? CrNumber, string? VatNumber, string? BankName, string? AccountNumber, string? CardNumber);
 
 public sealed record RegisterFiles(UploadInput? Avatar, UploadInput? CrDocument, UploadInput? VatCertificate, UploadInput? IdDocument);
@@ -37,7 +37,7 @@ public sealed class AuthService(AppDbContext db, PasswordService passwords, File
         ValidatePassword(input.Password);
         var emailNorm = Normalize.Email(input.Email);
         if (await db.Users.AnyAsync(u => u.Email == emailNorm, ct)) throw AppException.Conflict("auth.email_taken");
-        if (!await db.Countries.Allowed().AnyAsync(c => c.Id == input.CountryId && c.IsActive, ct)) throw new AppException("country.invalid");
+        var countryId = await db.JordanIdAsync(ct);
 
         await using var tx = await db.Database.BeginTransactionAsync(ct);
         var user = new User
@@ -45,7 +45,7 @@ public sealed class AuthService(AppDbContext db, PasswordService passwords, File
             FullName = input.FullName.Trim(),
             Email = emailNorm,
             Phone = JordanPhone.Require(input.Phone),
-            CountryId = input.CountryId,
+            CountryId = countryId,
             PasswordHash = passwords.Hash(input.Password),
             Role = UserRole.Customer,
             CompanyName = Normalize.Text(input.CompanyName),

@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
-import { Banknote, Clock, Info, Landmark } from "lucide-react";
+import { Banknote, Clock, Info, Landmark, Lock } from "lucide-react";
 import { getLocale, getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 import { CopyButton } from "@/components/account/copy-button";
-import { TopUpForm } from "@/components/account/account-forms";
+import { TopUpForm, WithdrawForm } from "@/components/account/account-forms";
 import { Badge, PageHeader, Panel, type Tone } from "@/components/ui/display";
 import { Table, Tabs } from "@/components/ui/controls";
 import { Pagination } from "@/components/ui/pagination";
@@ -40,13 +40,18 @@ function DataTable({ head, empty, children, count }: { head: string[]; empty: st
   );
 }
 
+/**
+ * The wallet as the mobile app shows it: what is available (balance − held − pending withdrawals) is the headline, because it is the only
+ * figure that can be bid or withdrawn. The API states every figure; the page never adds or subtracts them.
+ */
 export default async function Wallet({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const sp = await searchParams;
   const [t, locale, client] = await Promise.all([getTranslations("account.wallet"), getLocale(), serverApi()]);
-  const [w, txs, ledger, ...settings] = await Promise.all([
+  const [w, txs, ledger, profile, ...settings] = await Promise.all([
     load(client.GET("/api/account/wallet")),
     load(client.GET("/api/account/wallet/transactions", { params: { query: { page: Math.max(1, Number(sp.tpage) || 1) } } })),
     load(client.GET("/api/account/wallet/ledger", { params: { query: { page: Math.max(1, Number(sp.lpage) || 1) } } })),
+    load(client.GET("/api/account/profile")),
     ...PAYMENT_KEYS.map((key) => loadOptional<Schema<"SettingDto">>(client.GET("/api/content/settings/{key}", { params: { path: { key: `payment-${key}` } } }))),
   ]);
   const pay = Object.fromEntries(PAYMENT_KEYS.map((k, i) => [k, pick(locale, settings[i]?.valueEn, settings[i]?.valueAr).trim()])) as Record<(typeof PAYMENT_KEYS)[number], string>;
@@ -58,29 +63,42 @@ export default async function Wallet({ searchParams }: { searchParams: Promise<R
     [t("cliq"), pay.cliq, true],
   ] as const;
   const shown = details.filter(([, value]) => value);
+  const bank = profile.bankName && profile.accountNumber ? { name: profile.bankName, account: profile.accountNumber } : null;
+  // Held only exists while the server holds bids (Bidding__DebitWallet); otherwise available is the balance minus pending withdrawals.
+  const breakdown = [
+    [t("balanceTotal"), w.balance],
+    ...(w.debitsWallet || w.held > 0 ? [[t("held"), w.held] as const] : []),
+    [t("pendingWithdrawals"), w.pendingWithdrawals],
+  ] as const;
 
   return (
     <>
       <PageHeader title={t("title")} />
       <div className="grid items-start gap-4 lg:grid-cols-[1fr_1.2fr]">
         <div className="space-y-4">
-        <section className="rounded-xl border border-line bg-surface p-5">
-          <p className="text-sm text-muted">{t("balance")}</p>
-          <p className="tabular mt-1 text-4xl font-black text-patina">{money(w.balance, locale)}</p>
-          <div className="mt-5 flex items-center gap-3 rounded-lg bg-sunken p-3">
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-orange/10 text-orange">
-              <Clock className="h-4 w-4" aria-hidden />
-            </span>
-            <div className="min-w-0 text-sm">
-              <p className="text-xs text-muted">{t("pendingTitle")}</p>
-              <p className="tabular font-bold">{money(w.pendingAmount, locale)} <span className="text-xs font-normal text-muted">· {t("pendingCount", { count: w.pendingRequests })}</span></p>
+          <section className="rounded-xl border border-line bg-surface p-5">
+            <p className="text-sm text-muted">{t("available")}</p>
+            <p className={cn("tabular mt-1 text-4xl font-black", w.available < 0 ? "text-rust" : "text-patina")}>{money(w.available, locale)}</p>
+            <p className="mt-1 text-xs text-muted">{t("availableHint")}</p>
+            <dl className="mt-5 divide-y divide-line rounded-lg bg-sunken px-3">
+              {breakdown.map(([label, value], i) => (
+                <div key={label} className="flex items-center justify-between gap-3 py-2.5 text-sm">
+                  <dt className="flex items-center gap-2 text-ink-2">{i > 0 && <Lock className="h-3.5 w-3.5 text-muted" aria-hidden />}{label}</dt>
+                  <dd className="tabular font-bold">{i > 0 && value > 0 ? "−" : ""}{money(value, locale)}</dd>
+                </div>
+              ))}
+            </dl>
+            {w.pendingRequests > 0 && (
+              <p className="mt-3 flex items-center gap-2 text-xs text-muted">
+                <Clock className="h-3.5 w-3.5 text-orange" aria-hidden />
+                {t("pendingTitle")}: <span className="tabular font-semibold text-ink">{money(w.pendingAmount, locale)}</span> · {t("pendingCount", { count: w.pendingRequests })}
+              </p>
+            )}
+            <div className="mt-5 flex items-start gap-2.5 rounded-lg border border-patina-100 bg-patina-50 p-3 text-sm text-ink-2">
+              <Info className="mt-0.5 h-4 w-4 shrink-0 text-patina" aria-hidden />
+              <p>{t(w.debitsWallet ? "explainHold" : "explain")}</p>
             </div>
-          </div>
-          <div className="mt-5 flex items-start gap-2.5 rounded-lg border border-patina-100 bg-patina-50 p-3 text-sm text-ink-2">
-            <Info className="mt-0.5 h-4 w-4 shrink-0 text-patina" aria-hidden />
-            <p>{t("explain")}</p>
-          </div>
-        </section>
+          </section>
           {shown.length > 0 && (
             <div className="overflow-hidden rounded-xl border border-line bg-surface">
               <p className="flex items-center gap-2 border-b border-line bg-sunken/60 px-4 py-2.5 text-sm font-bold">
@@ -101,14 +119,20 @@ export default async function Wallet({ searchParams }: { searchParams: Promise<R
           )}
         </div>
 
-        <Panel title={t("topUpTitle")}>
-          <p className="mb-3 text-sm text-muted">{t("topUpBody")}</p>
-          <p className="mb-4 flex items-start gap-2 rounded-lg bg-sunken p-3 text-xs text-ink-2">
-            <Banknote className="mt-0.5 h-4 w-4 shrink-0 text-patina" aria-hidden />
-            <span>{pay["processing-time"] ? t("processing", { time: pay["processing-time"] }) : t("processingDefault")}</span>
-          </p>
-          <TopUpForm max={w.maxTopUp} />
-        </Panel>
+        <div className="space-y-4">
+          <Panel title={t("topUpTitle")}>
+            <p className="mb-3 text-sm text-muted">{t("topUpBody")}</p>
+            <p className="mb-4 flex items-start gap-2 rounded-lg bg-sunken p-3 text-xs text-ink-2">
+              <Banknote className="mt-0.5 h-4 w-4 shrink-0 text-patina" aria-hidden />
+              <span>{pay["processing-time"] ? t("processing", { time: pay["processing-time"] }) : t("processingDefault")}</span>
+            </p>
+            <TopUpForm max={w.maxTopUp} />
+          </Panel>
+          <Panel title={t("withdrawTitle")}>
+            <p className="mb-4 text-sm text-muted">{t("withdrawBody")}</p>
+            <WithdrawForm max={w.available} bank={bank} />
+          </Panel>
+        </div>
       </div>
 
       <div className="mt-8">
@@ -124,7 +148,9 @@ export default async function Wallet({ searchParams }: { searchParams: Promise<R
                     {ledger.items.map((l) => (
                       <tr key={l.id}>
                         <td className="text-muted">{date(l.createdAtUtc, locale)}</td>
-                        <td className="tabular text-muted" dir="ltr">#{l.id}</td>
+                        <td className="tabular text-muted" dir="ltr">
+                          {l.referenceType === "Bid" && l.referenceId ? t("bidRef", { id: l.referenceId }) : `#${l.id}`}
+                        </td>
                         <td>{t(`reasonLabel.${l.reason}`)}</td>
                         <td className={cn("tabular font-medium", l.amount < 0 ? "text-rust" : "text-ok")} dir="ltr">{l.amount > 0 ? "+" : ""}{money(l.amount, locale)}</td>
                         <td className="tabular">{money(l.balanceAfter, locale)}</td>
@@ -140,12 +166,13 @@ export default async function Wallet({ searchParams }: { searchParams: Promise<R
               label: t("tabRequests"),
               content: (
                 <>
-                  <DataTable head={[t("date"), t("reference"), t("amount"), t("status"), t("receipt")]} empty={t("requestsEmpty")} count={txs.items.length}>
+                  <DataTable head={[t("date"), t("reference"), t("type"), t("amount"), t("status"), t("receipt")]} empty={t("requestsEmpty")} count={txs.items.length}>
                     {txs.items.map((x) => (
                       <tr key={x.id}>
                         <td className="text-muted">{date(x.createdAtUtc, locale)}</td>
                         <td className="tabular text-muted" dir="ltr">#{x.id}</td>
-                        <td className="tabular font-medium">{money(x.amount, locale)}</td>
+                        <td>{t(`kindLabel.${x.type}`)}</td>
+                        <td className={cn("tabular font-medium", x.type === "Withdrawal" && "text-rust")} dir="ltr">{x.type === "Withdrawal" ? "−" : ""}{money(x.amount, locale)}</td>
                         <td><Badge tone={statusTone[x.status]}>{t(`statusLabel.${x.status}`)}</Badge></td>
                         <td>{x.proofFileId ? <a href={fileUrl(x.proofFileId)} target="_blank" rel="noopener" className="text-patina hover:underline">{t("view")}</a> : <span className="text-muted">—</span>}</td>
                       </tr>

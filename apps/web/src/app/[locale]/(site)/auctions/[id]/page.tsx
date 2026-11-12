@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
 import { AuctionGrid, PhaseBadge } from "@/components/auction/auction-card";
+import { BidHistory, BidHistoryLabel } from "@/components/auction/bid-history";
 import { BidPanel } from "@/components/auction/bid-panel";
 import { Gallery } from "@/components/auction/gallery";
 import { FavoriteButton, WatchButton } from "@/components/auction/toggles";
@@ -126,6 +127,11 @@ export default async function AuctionPage({ params }: Params) {
         <p className="text-sm text-muted">{t("noDocuments")}</p>
       ),
     },
+    {
+      value: "bids",
+      label: <BidHistoryLabel auctionId={c.id} initialCount={c.bidCount} />,
+      content: <BidHistory auctionId={c.id} startPrice={c.startPrice} />,
+    },
   ];
 
   return (
@@ -180,7 +186,7 @@ export default async function AuctionPage({ params }: Params) {
             )}
           </div>
 
-          <dl className="grid gap-4 rounded-lg border border-line bg-surface p-4 text-sm sm:grid-cols-3">
+          <dl className="grid gap-4 rounded-lg border border-line bg-surface p-4 text-sm sm:grid-cols-2">
             <div>
               <dt className="flex items-center gap-1.5 text-muted">
                 <CalendarClock className="h-4 w-4" aria-hidden /> {t("starts")}
@@ -192,10 +198,6 @@ export default async function AuctionPage({ params }: Params) {
                 <CalendarClock className="h-4 w-4" aria-hidden /> {t("ends")}
               </dt>
               <dd className="mt-0.5 font-medium">{c.endsAtUtc ? dateTime(c.endsAtUtc, locale) : t("noEnd")}</dd>
-            </div>
-            <div>
-              <dt className="text-muted">{t("country")}</dt>
-              <dd className="mt-0.5 font-medium">{pick(locale, a.countryNameEn, a.countryNameAr)}</dd>
               {days && <dd className="text-xs text-muted">{t("duration", { days })}</dd>}
             </div>
           </dl>
@@ -216,7 +218,7 @@ export default async function AuctionPage({ params }: Params) {
             insurance={c.insuranceAmount}
             bidCount={c.bidCount}
             serverNow={serverNow}
-            viewer={{ isOwner: a.viewer.isOwner, walletBalance: a.viewer.walletBalance ?? null, isLeading: a.viewer.isLeading, heldByViewer: a.viewer.heldByViewer ?? 0, debitsWallet: a.viewer.debitsWallet ?? false }}
+            viewer={{ isOwner: a.viewer.isOwner, walletBalance: a.viewer.walletBalance ?? null, isLeading: a.viewer.isLeading, heldByViewer: a.viewer.heldByViewer ?? 0, debitsWallet: a.viewer.debitsWallet ?? false, isWinner: a.viewer.isWinner ?? false, saleStatus: a.viewer.saleStatus ?? null }}
           />
           {a.publisher && (
             <section className="relative flex items-center gap-3 rounded-lg border border-line bg-surface p-4">

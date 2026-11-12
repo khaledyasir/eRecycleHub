@@ -76,7 +76,7 @@
     "submit": "Submit request",
     "submitted": "Request submitted — waiting for approval.",
     "requests": "Top-up requests",
-    "requestsEmpty": "No top-up requests yet.",
+    "requestsEmpty": "No top-up or withdrawal requests yet.",
     "ledger": "Balance history",
     "ledgerEmpty": "No balance changes yet.",
     "date": "Date",
@@ -96,7 +96,14 @@
       "MigrationOpeningBalance": "Opening balance",
       "TopUpApproved": "Top-up approved",
       "AdminCredit": "Credit by eRecycleHub",
-      "CreditReversed": "Credit reversed"
+      "CreditReversed": "Credit reversed",
+      "WithdrawalPaid": "Withdrawal paid",
+      "BidDeduction": "Bid deduction",
+      "BidRefund": "Bid refund",
+      "AuctionRefund": "Auction refund",
+      "AuctionRehold": "Auction hold renewed",
+      "AuctionPayment": "Auction payment",
+      "HoldConversion": "Auction payment from held money"
     },
     "pendingTitle": "Pending top-ups",
     "pendingCount": "{count, plural, =0 {none} one {# request} other {# requests}}",
@@ -111,9 +118,30 @@
     "processing": "Top-ups are reviewed by our team, usually within {time}. Your balance updates as soon as the request is approved and you get a notification.",
     "processingDefault": "Top-ups are reviewed by our team. Your balance updates as soon as the request is approved and you get a notification, so top up before an auction you want is about to end.",
     "tabHistory": "Transaction history",
-    "tabRequests": "Top-up requests",
+    "tabRequests": "Requests",
     "reference": "Reference",
-    "type": "Type"
+    "type": "Type",
+    "available": "Available",
+    "availableHint": "What you can bid or withdraw right now.",
+    "balanceTotal": "Balance",
+    "held": "Held for your leading bids",
+    "pendingWithdrawals": "Pending withdrawals",
+    "explainHold": "When you bid, the amount is held from your available balance. It's released if someone outbids you, and charged only if you win. Pending withdrawals also count against your available balance until they are paid.",
+    "withdrawTitle": "Withdraw",
+    "withdrawBody": "We pay withdrawals to the bank account on your profile once an administrator approves them. Until then the amount stays reserved.",
+    "withdrawAmountHint": "Up to {max} is available.",
+    "withdrawSubmit": "Request withdrawal",
+    "withdrawSubmitted": "Withdrawal requested, waiting for approval.",
+    "withdrawTo": "Paid to {bank}, {account}",
+    "bankMissing": "Add your bank name and account number (IBAN) to your profile to withdraw.",
+    "bankMissingLink": "Open profile",
+    "max": "Max",
+    "kindLabel": {
+      "Credit": "Top-up",
+      "Withdrawal": "Withdrawal"
+    },
+    "bidRef": "Bid #{id}",
+    "withdrawAmount": "Amount to withdraw"
   },
   "lists": {
     "favoritesTitle": "Favourites",
@@ -149,7 +177,9 @@
       "paymentFailed": "You won {title} at {amount}, but your wallet doesn't cover it. Top up your wallet to complete the payment.",
       "generic": "Notification",
       "sellerApproved": "Your seller application was approved. You can now publish auctions.",
-      "sellerRejected": "Your seller application was not approved. Open it to see why."
+      "sellerRejected": "Your seller application was not approved. Open it to see why.",
+      "withdrawalPaid": "Your withdrawal of {amount} was paid",
+      "withdrawalRejected": "Your withdrawal request of {amount} was rejected"
     }
   },
   "settings": {
@@ -179,7 +209,17 @@
     "save": "Save changes",
     "saved": "Profile saved.",
     "accountHolder": "Account holder name",
-    "changePassword": "Change password"
+    "changePassword": "Change password",
+    "delete": {
+      "title": "Delete account",
+      "description": "Remove your account and data.",
+      "confirmTitle": "Are you sure you want to delete your account?",
+      "confirmBody": "This cannot be undone. Your personal data is removed and you are signed out on every device.",
+      "done": "Your account has been deleted.",
+      "blockedTitle": "Your account can't be deleted yet",
+      "blockedHelp": "Withdraw or use your wallet money first, and wait for pending withdrawals and auctions you are leading to finish. Then try again.",
+      "openWallet": "Open wallet"
+    }
   },
   "password": {
     "title": "Change password",

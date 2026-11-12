@@ -58,14 +58,11 @@ public static partial class AuthEndpoints
             if (await db.Users.AnyAsync(u => u.Email == email, ct)) throw MobileAccount.Invalid("email", "email.taken");
             if (await db.Users.AnyAsync(u => u.Phone == phone && !u.IsDeleted, ct)) throw MobileAccount.Invalid("phone", "phone.taken");
 
-            // The app always sends countryId 1 (docs M3) and the platform serves Jordan only: an unknown id falls back to the allowed country.
-            var countryId = await db.Countries.Allowed().Where(c => c.IsActive && c.Id == req.CountryId).Select(c => (int?)c.Id).FirstOrDefaultAsync(ct)
-                ?? await db.Countries.Allowed().Where(c => c.IsActive).OrderBy(c => c.Id).Select(c => (int?)c.Id).FirstOrDefaultAsync(ct)
-                ?? throw new AppException("country.invalid");
+            // The app always sends countryId 1 (docs M3); it is ignored: the platform serves Jordan only and RegisterCustomerAsync assigns it.
 
             // Proof that this phone passed /auth/otp/verify in the last 30 minutes (single use).
             await otp.ConsumeVerifiedAsync(phone, ct);
-            var user = await auth.RegisterCustomerAsync(new RegisterInput(name, email, req.Password!, phone, countryId, null, null, null, null, null, null),
+            var user = await auth.RegisterCustomerAsync(new RegisterInput(name, email, req.Password!, phone, null, null, null, null, null, null),
                 new RegisterFiles(null, null, null, null), ct);
             var token = await sessions.IssueAsync(user.Id, ct);
             return Reply.Data(new AuthTokenDto(token.Token, token.ExpiresAtUtc));

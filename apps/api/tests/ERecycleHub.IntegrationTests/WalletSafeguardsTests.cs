@@ -233,7 +233,7 @@ public class WalletSafeguardsTests(ApiFactory f)
     {
         var admin = await AdminAsync();
         var email = $"open{Guid.NewGuid():N}@test.local";
-        AccountFieldsInput Input() => new("Opening Test", email, "079" + Random.Shared.Next(1_000_000, 9_999_999), 1, ApiFactory.Password, true, null, null, null, null, null, null);
+        AccountFieldsInput Input() => new("Opening Test", email, "079" + Random.Shared.Next(1_000_000, 9_999_999), ApiFactory.Password, true, null, null, null, null, null, null);
 
         f.Failure.Armed = true;   // the ledger write of the credit fails
         try

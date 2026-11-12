@@ -7,7 +7,7 @@ namespace ERecycleHub.Application;
 
 public sealed record UserRow(int Id, string FullName, string Email, string? Phone, string? CountryNameEn, string? CountryNameAr, decimal WalletBalance,
     bool IsActive, bool IsFeaturedClient, int BidCount, DateTime CreatedAtUtc, Guid? AvatarFileId);
-public sealed record AccountFieldsInput(string FullName, string Email, string? Phone, int CountryId, string? Password, bool IsActive,
+public sealed record AccountFieldsInput(string FullName, string Email, string? Phone, string? Password, bool IsActive,
     string? CompanyName, string? CrNumber, string? VatNumber, string? BankName, string? AccountNumber, string? CardNumber);
 public sealed record AdminUserDetails(ProfileDto Profile, bool IsActive, bool IsFeaturedClient, DateTime CreatedAtUtc, DateTime? LastLoginAtUtc,
     int BidCount, int Won, IReadOnlyList<MyBid> RecentBids);
@@ -190,8 +190,8 @@ public sealed class AdminPeople(AppDbContext db, PasswordService passwords, File
         p.LastName = Normalize.Text(input.LastName) ?? "";
         p.Address = Normalize.Text(input.Address);
         p.SecondMobile = Normalize.Text(input.SecondMobile);
-        p.CountryId = input.Account.CountryId;
         await ApplyAccountFieldsAsync(p.User!, input.Account with { FullName = p.DisplayName }, ct);
+        p.CountryId = p.User!.CountryId;
         await ApplyKycFilesAsync(p.User!, null, uploads.CrDocument, uploads.VatCertificate, uploads.IdDocument, ct);
         p.LogoFileId = await files.SaveOptionalAsync(uploads.Logo, FileCategory.PublisherImage, p.UserId, p.LogoFileId, ct);
         p.BackgroundFileId = await files.SaveOptionalAsync(uploads.Background, FileCategory.PublisherImage, p.UserId, p.BackgroundFileId, ct);
@@ -365,7 +365,7 @@ public sealed class AdminPeople(AppDbContext db, PasswordService passwords, File
         var email = Normalize.Email(input.Email ?? "");
         if (!email.Contains('@') || email.Length > 256) throw new AppException("auth.email_invalid");
         if (email != u.Email && await db.Users.AnyAsync(x => x.Email == email && x.Id != u.Id, ct)) throw AppException.Conflict("auth.email_taken");
-        if (!await db.Countries.Allowed().AnyAsync(c => c.Id == input.CountryId, ct)) throw new AppException("country.invalid");
+        var countryId = await db.JordanIdAsync(ct);
         if (!string.IsNullOrEmpty(input.Password))
         {
             AuthService.ValidatePassword(input.Password);
@@ -376,7 +376,7 @@ public sealed class AdminPeople(AppDbContext db, PasswordService passwords, File
         u.FullName = name;
         u.Email = email;
         u.Phone = JordanPhone.Optional(input.Phone);
-        u.CountryId = input.CountryId;
+        u.CountryId = countryId;
         u.IsActive = input.IsActive;
         u.CompanyName = Normalize.Text(input.CompanyName);
         u.CrNumber = Normalize.Text(input.CrNumber);

@@ -4,6 +4,7 @@ using System.Text.Json;
 using ERecycleHub.Application;
 using ERecycleHub.Domain;
 using ERecycleHub.Infrastructure;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
 namespace ERecycleHub.Api.Mobile;
@@ -109,9 +110,10 @@ public sealed class AuctionSockets(ILogger<AuctionSockets> log)
 
 /// <summary>
 /// Every few seconds, looks at the auctions somebody is listening to and announces changes: auction.started (upcoming → live),
-/// auction.ended (with the winner), auction.extended (end date moved while running).
+/// auction.ended (with the winner), auction.extended (end date moved while running). Listeners are the app's raw sockets and the
+/// website's SignalR hub (AuctionHub), which gets the same events without the winner.
 /// </summary>
-public sealed class AuctionLifecycleWatcher(IServiceScopeFactory scopes, AuctionSockets sockets, TimeProvider clock, IConfiguration config,
+public sealed class AuctionLifecycleWatcher(IServiceScopeFactory scopes, AuctionSockets sockets, IHubContext<AuctionHub> hub, TimeProvider clock, IConfiguration config,
     ILogger<AuctionLifecycleWatcher> log) : BackgroundService
 {
     private sealed record Seen(AuctionPhase Phase, DateTime? EndsAtUtc);
@@ -133,7 +135,7 @@ public sealed class AuctionLifecycleWatcher(IServiceScopeFactory scopes, Auction
 
     private async Task TickAsync(CancellationToken ct)
     {
-        var watched = sockets.WatchedAuctions;
+        var watched = sockets.WatchedAuctions.Union(AuctionHub.WatchedAuctions).ToList();
         foreach (var gone in _seen.Keys.Except(watched).ToList()) _seen.Remove(gone);
         if (watched.Count == 0) return;
 
@@ -153,13 +155,29 @@ public sealed class AuctionLifecycleWatcher(IServiceScopeFactory scopes, Auction
             if (_seen.TryGetValue(a.Id, out var before))
             {
                 if (before.Phase == AuctionPhase.Upcoming && phase != AuctionPhase.Upcoming)
+                {
                     await sockets.BroadcastAsync(a.Id, "auction.started", new { });
+                    await HubAsync(a.Id, "auction.started", new { });
+                }
                 if (phase != AuctionPhase.Ended && a.EndsAtUtc != before.EndsAtUtc && a.EndsAtUtc is not null)
+                {
                     await sockets.BroadcastAsync(a.Id, "auction.extended", new { endDate = a.EndsAtUtc });
+                    await HubAsync(a.Id, "auction.extended", new { endDate = a.EndsAtUtc });
+                }
                 if (before.Phase != AuctionPhase.Ended && phase == AuctionPhase.Ended)
+                {
                     await sockets.BroadcastAsync(a.Id, "auction.ended", new { winnerUserId = a.Winner, finalPrice = a.CurrentPrice });
+                    await HubAsync(a.Id, "auction.ended", new { finalPrice = a.CurrentPrice });   // the hub is anonymous: no winner id
+                }
             }
             _seen[a.Id] = current;
         }
+    }
+
+    /// <summary>The same event for the website's hub group. Never throws: a missed event is covered by the page's own refetch.</summary>
+    private async Task HubAsync(int auctionId, string eventName, object data)
+    {
+        try { await hub.Clients.Group(AuctionHub.Room(auctionId)).SendAsync(eventName, data, CancellationToken.None); }
+        catch (Exception ex) { log.LogDebug("Hub {Event} for auction {AuctionId} failed: {Error}", eventName, auctionId, ex.Message); }
     }
 }

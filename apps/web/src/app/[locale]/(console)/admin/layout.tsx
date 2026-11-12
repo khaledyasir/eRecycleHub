@@ -28,7 +28,6 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     { label: t("content"), items: [
       { href: "/admin/hero", label: t("hero"), icon: "PanelTop" },
       { href: "/admin/categories", label: t("categories"), icon: "Shapes" },
-      { href: "/admin/countries", label: t("countries"), icon: "Flag" },
       { href: "/admin/sliders", label: t("sliders"), icon: "ImageIcon" },
       { href: "/admin/announcements", label: t("announcements"), icon: "Megaphone" },
       { href: "/admin/about", label: t("about"), icon: "BookOpen" },

@@ -9,7 +9,7 @@ import { useAction } from "@/components/manage/manage-actions";
 import { PasswordInput } from "@/components/public/auth-forms";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/display";
-import { Checkbox, Field, FileInput, Input, PhoneInput, Select, Textarea } from "@/components/ui/form";
+import { Checkbox, Field, FileInput, Input, PhoneInput, Textarea } from "@/components/ui/form";
 import { ConfirmDialog } from "@/components/ui/overlay";
 import { Switch } from "@/components/ui/controls";
 import { useRouter } from "@/i18n/navigation";
@@ -17,8 +17,6 @@ import { api, call, sendForm, sendJson } from "@/lib/api/client";
 import type { Schema } from "@/lib/api/types";
 import { money } from "@/lib/format";
 import { useForm, useValidators } from "@/lib/use-form";
-
-type Country = { id: number; nameEn: string; nameAr: string };
 
 /** On/off switch that POSTs {[field]: value} to `path` (activation, featured flag). */
 export function FlagSwitch({ path, field, value, label, on, off }: { path: string; field: "active" | "featured"; value: boolean; label: string; on: string; off: string }) {
@@ -46,7 +44,7 @@ export function FlagSwitch({ path, field, value, label, on, off }: { path: strin
 }
 
 type AccountInitial = {
-  fullName?: string; email?: string; phone?: string | null; countryId?: number; isActive?: boolean; companyName?: string | null; crNumber?: string | null;
+  fullName?: string; email?: string; phone?: string | null; isActive?: boolean; companyName?: string | null; crNumber?: string | null;
   vatNumber?: string | null; bankName?: string | null; accountNumber?: string | null; cardNumber?: string | null;
   firstName?: string; lastName?: string | null; address?: string | null; secondMobile?: string | null;
   crDocument?: Schema<"FileRef"> | null; vatCertificate?: Schema<"FileRef"> | null; idDocument?: Schema<"FileRef"> | null;
@@ -56,17 +54,16 @@ type AccountInitial = {
  * Create/edit form for customers (kind="user") and publishers (kind="publisher"). Wallet is never part of it:
  * balances only change through wallet transactions (an opening credit on create becomes an approved, ledgered credit).
  */
-export function AccountForm({ kind, id, initial, countries }: { kind: "user" | "publisher"; id?: number; initial?: AccountInitial; countries: Country[] }) {
+export function AccountForm({ kind, id, initial }: { kind: "user" | "publisher"; id?: number; initial?: AccountInitial }) {
   const t = useTranslations("admin.users");
   const tp = useTranslations("admin.publishers");
   const tc = useTranslations("admin.common");
   const ts = useTranslations("account.settings");
-  const locale = useLocale();
   const v = useValidators();
   const router = useRouter();
   const editing = id !== undefined;
   const f = useForm({
-    fullName: initial?.fullName ?? "", email: initial?.email ?? "", phone: initial?.phone ?? "", countryId: String(initial?.countryId ?? countries[0]?.id ?? ""),
+    fullName: initial?.fullName ?? "", email: initial?.email ?? "", phone: initial?.phone ?? "",
     password: "", isActive: initial?.isActive ?? true, companyName: initial?.companyName ?? "", crNumber: initial?.crNumber ?? "", vatNumber: initial?.vatNumber ?? "",
     bankName: initial?.bankName ?? "", accountNumber: initial?.accountNumber ?? "", cardNumber: initial?.cardNumber ?? "",
     firstName: initial?.firstName ?? "", lastName: initial?.lastName ?? "", address: initial?.address ?? "", secondMobile: initial?.secondMobile ?? "", openingCredit: "",
@@ -85,13 +82,12 @@ export function AccountForm({ kind, id, initial, countries }: { kind: "user" | "
           fullName: kind === "user" ? v.required(x.fullName) : undefined,
           firstName: kind === "publisher" ? v.required(x.firstName) : undefined,
           email: v.email(x.email),
-          countryId: v.required(x.countryId),
           password: editing ? (x.password ? v.min(x.password, 8) : undefined) : v.min(x.password, 8),
           openingCredit: !editing && kind === "user" && x.openingCredit ? v.amount(x.openingCredit) : undefined,
         }),
         async (x) => {
           const account = {
-            fullName: kind === "user" ? x.fullName : `${x.firstName} ${x.lastName}`.trim(), email: x.email, phone: x.phone || null, countryId: Number(x.countryId),
+            fullName: kind === "user" ? x.fullName : `${x.firstName} ${x.lastName}`.trim(), email: x.email, phone: x.phone || null,
             password: x.password || null, isActive: x.isActive, companyName: x.companyName || null, crNumber: x.crNumber || null, vatNumber: x.vatNumber || null,
             bankName: x.bankName || null, accountNumber: x.accountNumber || null, cardNumber: x.cardNumber || null,
           };
@@ -129,13 +125,6 @@ export function AccountForm({ kind, id, initial, countries }: { kind: "user" | "
           <Field label={tc("email")} error={f.errors.email} required>{(p) => <Input {...p} {...f.text("email")} type="email" autoComplete="off" />}</Field>
           <Field label={tc("phone")}>{(p) => <PhoneInput {...p} {...f.text("phone")} />}</Field>
           {kind === "publisher" && <Field label={tp("secondMobile")}>{(p) => <Input {...p} {...f.text("secondMobile")} type="tel" dir="ltr" />}</Field>}
-          <Field label={tc("country")} error={f.errors.countryId} required>
-            {(p) => (
-              <Select {...p} {...f.text("countryId")}>
-                {countries.map((c) => <option key={c.id} value={c.id}>{locale === "ar" ? c.nameAr : c.nameEn}</option>)}
-              </Select>
-            )}
-          </Field>
           <Field label={editing ? t("passwordNew") : t("password")} hint={editing ? t("passwordKeep") : t("passwordHint")} error={f.errors.password} required={!editing}>
             {(p) => <PasswordInput {...p} {...f.text("password")} autoComplete="new-password" />}
           </Field>
@@ -270,11 +259,15 @@ export function TransactionActions({ tx }: { tx: Schema<"WalletTransactionDto"> 
     <div className="flex flex-wrap items-center gap-1.5">
       {tx.status === "Pending" && (
         <>
-          <ConfirmDialog tone="primary" trigger={<Button size="sm">{t("approve")}</Button>} title={t("approveTitle", args)} body={t("approveBody")} confirmLabel={t("approve")} onConfirm={post("approve", t("approved"))} />
+          {tx.type === "Withdrawal" ? (
+            <ConfirmDialog tone="primary" trigger={<Button size="sm">{t("approve")}</Button>} title={t("approveWithdrawalTitle", args)} body={t("approveWithdrawalBody")} confirmLabel={t("approve")} onConfirm={post("approve", t("approvedWithdrawal"))} />
+          ) : (
+            <ConfirmDialog tone="primary" trigger={<Button size="sm">{t("approve")}</Button>} title={t("approveTitle", args)} body={t("approveBody")} confirmLabel={t("approve")} onConfirm={post("approve", t("approved"))} />
+          )}
           <ConfirmDialog trigger={<Button size="sm" variant="secondary">{t("reject")}</Button>} title={t("rejectTitle", args)} body={t("rejectBody")} confirmLabel={t("reject")} onConfirm={post("reject", t("rejected"))} />
         </>
       )}
-      {tx.status === "Approved" && (
+      {tx.status === "Approved" && tx.type !== "Withdrawal" && (
         <ConfirmDialog
           trigger={<Button size="sm" variant="secondary"><RotateCcw className="h-4 w-4" aria-hidden /> {t("reverse")}</Button>}
           title={t("reverseTitle", args)}

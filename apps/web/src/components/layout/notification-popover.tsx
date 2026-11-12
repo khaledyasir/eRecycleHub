@@ -38,6 +38,8 @@ export function NotificationBell() {
       case "wallet.topup_approved": return tn("kind.topupApproved", args);
       case "wallet.topup_rejected": return tn("kind.topupRejected", args);
       case "wallet.credit_reversed": return tn("kind.creditReversed", args);
+      case "wallet.withdrawal_approved": return tn("kind.withdrawalPaid", args);
+      case "wallet.withdrawal_rejected": return tn("kind.withdrawalRejected", args);
       case "auction.won": return tn("kind.won", args);
       case "auction.joined": return tn("kind.joined", args);
       case "auction.ended": return tn("kind.ended", args);
@@ -48,10 +50,13 @@ export function NotificationBell() {
     }
   };
 
+  const refresh = () => Promise.all([qc.invalidateQueries({ queryKey: ["unread-count"] }), qc.invalidateQueries({ queryKey: ["notifications-latest"] })]);
   const markAll = async () => {
     await call(() => api.POST("/api/account/notifications/read-all"));
-    await Promise.all([qc.invalidateQueries({ queryKey: ["unread-count"] }), qc.invalidateQueries({ queryKey: ["notifications-latest"] })]);
+    await refresh();
   };
+  /** Opening a notification marks it read, like tapping one in the app. A failure only leaves it unread. */
+  const markRead = (id: number) => call(() => api.POST("/api/account/notifications/{id}/read", { params: { path: { id } } })).then(refresh, () => undefined);
 
   return (
     <P.Root open={open} onOpenChange={setOpen}>
@@ -82,12 +87,27 @@ export function NotificationBell() {
               <p className="px-4 py-8 text-center text-sm text-muted">{tn("empty")}</p>
             ) : (
               <ul className="divide-y divide-line">
-                {items.map((n) => (
-                  <li key={n.id} className={cn("px-4 py-3", !n.isRead && "bg-patina-50/70")}>
-                    <p className={cn("text-sm", !n.isRead && "font-bold")}>{text(n)}</p>
-                    <p className="mt-0.5 text-xs text-muted">{relativeTime(n.createdAtUtc, locale, list.dataUpdatedAt)}</p>
-                  </li>
-                ))}
+                {items.map((n) => {
+                  const body = (
+                    <>
+                      <p className={cn("text-sm", !n.isRead && "font-bold")}>{text(n)}</p>
+                      <p className="mt-0.5 text-xs text-muted">{relativeTime(n.createdAtUtc, locale, list.dataUpdatedAt)}</p>
+                    </>
+                  );
+                  return (
+                    <li key={n.id} className={cn(!n.isRead && "bg-patina-50/70")}>
+                      {n.url?.startsWith("/") ? (
+                        <P.Close asChild>
+                          <Link href={n.url} onClick={() => !n.isRead && void markRead(n.id)} className="block px-4 py-3 hover:bg-sunken">
+                            {body}
+                          </Link>
+                        </P.Close>
+                      ) : (
+                        <div className="px-4 py-3">{body}</div>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </div>

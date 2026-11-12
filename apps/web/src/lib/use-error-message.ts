@@ -5,7 +5,7 @@ import { useCallback } from "react";
 import { ApiError } from "./api/types";
 import { money } from "./format";
 
-const MONEY_ARGS = new Set(["minimum", "insurance", "max"]);
+const MONEY_ARGS = new Set(["minimum", "insurance", "max", "available", "required"]);
 
 /** Turns any thrown error into a sentence in the UI language: API codes → errors.json, then HTTP status, then generic. */
 export function useErrorMessage() {

@@ -48,7 +48,14 @@
     "not_approved": "Only approved credits can be reversed.",
     "delete_not_allowed": "Approved credits can't be deleted. Reverse the credit instead.",
     "conflict": "This request was submitted twice. Reload to see its status.",
-    "invalid_idempotency_key": "The request couldn't be identified. Reload and try again."
+    "invalid_idempotency_key": "The request couldn't be identified. Reload and try again.",
+    "insufficient": "Only {available} is available. Money held for your leading bids and pending withdrawals can't be withdrawn.",
+    "too_many_pending": "You have too many requests waiting for approval. Wait for them to be reviewed.",
+    "idempotency_key_reused": "This request could not be completed. Reload and try again.",
+    "reverse_not_allowed": "Only approved top-ups can be reversed.",
+    "owner_inactive": "This account is inactive or deleted.",
+    "self_approval_not_allowed": "You can't approve your own request.",
+    "self_credit_not_allowed": "You can't credit your own wallet."
   },
   "auction": {
     "not_found": "This auction doesn't exist or isn't public.",
@@ -178,7 +185,17 @@
     "date": "Choose a date and time.",
     "endAfterStart": "The end must be after the start.",
     "phone": "Please enter a valid Jordanian phone number starting with 07 and containing exactly 10 digits.",
-    "noSpaces": "Passwords can't contain spaces."
+    "noSpaces": "Passwords can't contain spaces.",
+    "passwordWeak": "Your password doesn't meet all the requirements."
+  },
+  "otp": {
+    "invalid": "The verification code is not correct.",
+    "unavailable": "We couldn't send the code right now. Please try again shortly.",
+    "too_many": "Too many codes were requested. Try again in an hour.",
+    "not_verified": "Please verify your phone number first."
+  },
+  "account": {
+    "delete_blocked": "Your account can't be deleted while it has money in the wallet. Withdraw or use it first."
   },
   "phone": {
     "invalid": "Please enter a valid Jordanian phone number starting with 07 and containing exactly 10 digits."

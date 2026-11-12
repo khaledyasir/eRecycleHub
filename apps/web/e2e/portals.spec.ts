@@ -93,7 +93,7 @@ test.describe("wallet: request, approval, idempotency", () => {
 
     // Request through the form.
     await cust.goto("/en/account/wallet");
-    await cust.getByLabel("Amount").fill(amount);
+    await cust.getByLabel(/^Amount(?! to)/) /* the top-up field, not "Amount to withdraw" */.fill(amount);
     await cust.getByRole("button", { name: "Submit request" }).click();
     await expect(cust.getByText("Request submitted — waiting for approval.")).toBeVisible();
     expect(await balance()).toBe(before); // pending: nothing credited yet
@@ -148,13 +148,13 @@ test.describe("admin content management", () => {
     await page.getByRole("button", { name: "Add a category" }).click();
     let dlg = page.getByRole("dialog");
     await dlg.getByRole("button", { name: "Create" }).click();
-    await expect(dlg.getByRole("alert")).toHaveCount(3); // country and both titles are required
-    await dlg.getByLabel("Country").selectOption({ index: 0 });
+    await expect(dlg.getByRole("alert")).toHaveCount(2); // both titles are required; there is no country to choose
+    await expect(dlg.getByLabel("Country")).toHaveCount(0);
     await dlg.getByLabel("Title (English)").fill(name);
     await dlg.getByLabel("Title (Arabic)").fill("فئة اختبار");
     await dlg.getByRole("button", { name: "Create" }).click();
     await expect(page.getByRole("cell", { name, exact: true })).toBeVisible();
-    const publicCategories = await (await page.request.get("/api/categories?countryId=1")).json();
+    const publicCategories = await (await page.request.get("/api/categories")).json();
     expect(JSON.stringify(publicCategories)).toContain(name); // the public site's category list follows immediately
 
     await page.goto("/en/admin/categories");

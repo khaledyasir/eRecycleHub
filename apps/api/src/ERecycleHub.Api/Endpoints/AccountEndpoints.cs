@@ -1,8 +1,14 @@
 using ERecycleHub.Application;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 
 namespace ERecycleHub.Api.Endpoints;
 
-public sealed record WalletSummary(decimal Balance, int PendingRequests, decimal PendingAmount, decimal MaxTopUp);
+/// <summary>The web wallet. <c>Available</c> = balance − pending withdrawals − held: what can be bid or withdrawn (the mobile <c>/wallet/balance</c> figures).
+/// <c>PendingRequests</c>/<c>PendingAmount</c> are top-ups waiting for approval. <c>DebitsWallet</c> says whether bids hold money (server switch).</summary>
+public sealed record WalletSummary(decimal Balance, int PendingRequests, decimal PendingAmount, decimal MaxTopUp,
+    decimal Held, decimal PendingWithdrawals, decimal Available, bool DebitsWallet);
+public sealed record WithdrawalRequest(decimal Amount, string? IdempotencyKey);
 public sealed record TopUpRequest(decimal Amount, string? IdempotencyKey);
 public sealed record CountResponse(int Count);
 
@@ -26,6 +32,15 @@ public static class AccountEndpoints
             return await a.UpdateProfileAsync(ctx.Actor().UserId, data,
                 new ProfileFiles(files.Upload("avatar"), files.Upload("crDocument"), files.Upload("vatCertificate"), files.Upload("idDocument")), ct);
         }).Accepts<ProfileInput>("multipart/form-data").Produces<ProfileDto>();
+        // The app's DELETE /api/v1/profile for the website: same rules (409 account.delete_blocked while money is unsettled), then the cookie session ends.
+        g.MapDelete("/profile", async (HttpContext ctx, ERecycleHub.Application.Mobile.MobileAccount m, CancellationToken ct) =>
+        {
+            var actor = ctx.Actor();
+            if (actor.Role == ERecycleHub.Domain.UserRole.Admin) throw AppException.Forbidden();
+            await m.DeleteAccountAsync(actor.UserId, ct);
+            await ctx.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            return new MeResponse(null, Security.IssueCsrfToken(ctx, new System.Security.Claims.ClaimsPrincipal(new System.Security.Claims.ClaimsIdentity())));
+        }).RequireRateLimiting(RateLimits.Forms);
 
         // ---- become a seller: customers apply with their documents; an admin approves (see /admin/applications) ----
         g.MapGet("/seller-application", (HttpContext ctx, AccountService a, CancellationToken ct) => a.SellerStatusAsync(ctx.Actor(), ct));
@@ -37,12 +52,17 @@ public static class AccountEndpoints
             return Results.Created($"/api/account/seller-application", new IdResponse(id));
         }).RequireRateLimiting(RateLimits.Forms).Accepts<SellerApplicationInput>("multipart/form-data").Produces<IdResponse>(201);
 
-        g.MapGet("/wallet", async (HttpContext ctx, AccountService a, WalletService w, CancellationToken ct) =>
+        g.MapGet("/wallet", async (HttpContext ctx, WalletService w, IBiddingSettings bidding, CancellationToken ct) =>
         {
             var id = ctx.Actor().UserId;
+            var b = await w.BalanceAsync(id, ct);
             var pending = await w.ListAsync(id, ERecycleHub.Domain.WalletTransactionStatus.Pending, null, null, null, new PageQuery(1, 100), ct);
-            return new WalletSummary((await a.DashboardAsync(id, ct)).WalletBalance, pending.Total, pending.Items.Sum(t => t.Amount), WalletService.MaxTopUp);
+            var topUps = pending.Items.Where(t => t.Type == ERecycleHub.Domain.WalletTransactionType.Credit).ToList();
+            return new WalletSummary(b.Balance, topUps.Count, topUps.Sum(t => t.Amount), WalletService.MaxTopUp, b.Held, b.PendingWithdrawals, b.Available, bidding.DebitWallet);
         });
+        // Same rules as the app's POST /api/v1/wallet/withdraw: counts against the available balance until an administrator pays it out.
+        g.MapPost("/wallet/withdrawals", (WithdrawalRequest req, HttpContext ctx, WalletService w, CancellationToken ct) =>
+            w.RequestWithdrawalAsync(ctx.Actor().UserId, req.Amount, req.IdempotencyKey, ct)).RequireRateLimiting(RateLimits.Forms).Produces<WalletTransactionDto>();
         g.MapGet("/wallet/transactions", (int? page, HttpContext ctx, WalletService w, CancellationToken ct) =>
             w.ListAsync(ctx.Actor().UserId, null, null, null, null, new PageQuery(page ?? 1, 10), ct));
         g.MapGet("/wallet/ledger", (int? page, HttpContext ctx, WalletService w, CancellationToken ct) => w.LedgerAsync(ctx.Actor().UserId, new PageQuery(page ?? 1, 10), ct));

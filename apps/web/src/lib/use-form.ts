@@ -58,6 +58,14 @@ export function useForm<T extends Values>(initial: T, live?: (v: T) => FieldErro
   return { values, set, text, errors, setErrors, formError, setFormError, busy, submit };
 }
 
+/** The app's password rule (its PasswordCriteria in validation_mixin.dart): which of the four criteria a password meets. */
+export const passwordCriteria = (p: string) => ({
+  length: p.length >= 8,
+  case: /[a-z]/.test(p) && /[A-Z]/.test(p),
+  number: /\d/.test(p),
+  symbol: /[^A-Za-z0-9\s]/.test(p),
+});
+
 /** Client-side checks with messages from errors.validation (the API re-validates everything). */
 export function useValidators() {
   const t = useTranslations("errors.validation");
@@ -78,6 +86,9 @@ export function useValidators() {
     phoneOptional: (v: string) => (!v?.trim() ? undefined : /^07\d{8}$/.test(v) ? undefined : t("phone")),
     /** At least `min` characters and no spaces anywhere. */
     password: (v: string, min: number) => (!v || v.length < min ? t("min", { min }) : /\s/.test(v) ? t("noSpaces") : undefined),
+    /** New passwords: every one of `passwordCriteria` and no spaces. Stricter than the API, which keeps accepting older passwords. */
+    strongPassword: (v: string) =>
+      !v ? t("required") : /\s/.test(v) ? t("noSpaces") : Object.values(passwordCriteria(v)).every(Boolean) ? undefined : t("passwordWeak"),
     url: (v: string) => (!v?.trim() ? undefined : /^(https?:\/\/|\/[^/])/i.test(v.trim()) ? undefined : t("url")),
   };
 }

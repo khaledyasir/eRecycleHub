@@ -78,6 +78,44 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/auth/otp/send": {
+        parameters: { query?: never; header?: never; path?: never; cookie?: never };
+        get?: never;
+        put?: never;
+        /** Password reset by phone, step 1: send the code */
+        post: {
+            parameters: { query?: never; header?: never; path?: never; cookie?: never };
+            requestBody: { content: { "application/json": components["schemas"]["OtpSendRequest"] } };
+            responses: {
+                /** @description No Content */
+                204: { headers: { [name: string]: unknown }; content?: never };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/otp/verify": {
+        parameters: { query?: never; header?: never; path?: never; cookie?: never };
+        get?: never;
+        put?: never;
+        /** Password reset by phone, step 2: check the code */
+        post: {
+            parameters: { query?: never; header?: never; path?: never; cookie?: never };
+            requestBody: { content: { "application/json": components["schemas"]["OtpVerifyRequest"] } };
+            responses: {
+                /** @description OK */
+                200: { headers: { [name: string]: unknown }; content: { "application/json": components["schemas"]["OtpVerifyResponse"] } };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/logout": {
         parameters: {
             query?: never;
@@ -1453,7 +1491,27 @@ export interface paths {
             };
         };
         post?: never;
-        delete?: never;
+        /** Deletes the signed-in account (409 account.delete_blocked while money is unsettled) and ends the session. */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MeResponse"];
+                    };
+                };
+            };
+        };
         options?: never;
         head?: never;
         patch?: never;
@@ -1645,6 +1703,45 @@ export interface paths {
             requestBody: {
                 content: {
                     "multipart/form-data": components["schemas"]["TopUpRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["WalletTransactionDto"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/account/wallet/withdrawals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["WithdrawalRequest"];
                 };
             };
             responses: {
@@ -6195,9 +6292,14 @@ export interface components {
             walletTransactionId: null | number;
             /** Format: date-time */
             createdAtUtc: string;
+            /** Format: double */
+            balanceBefore?: null | number;
+            referenceType?: null | string;
+            /** Format: int64 */
+            referenceId?: null | number;
         };
         /** @enum {unknown} */
-        LedgerReason: "MigrationOpeningBalance" | "TopUpApproved" | "AdminCredit" | "CreditReversed";
+        LedgerReason: "MigrationOpeningBalance" | "TopUpApproved" | "AdminCredit" | "CreditReversed" | "WithdrawalPaid" | "BidDeduction" | "BidRefund" | "AuctionRefund" | "AuctionRehold" | "AuctionPayment" | "HoldConversion";
         LoginRequest: {
             email: string;
             password: string;
@@ -6699,6 +6801,16 @@ export interface components {
             winnerName: null | string;
             winnerPhone: null | string;
         };
+        OtpSendRequest: {
+            phone: string;
+        };
+        OtpVerifyRequest: {
+            phone: string;
+            code: string;
+        };
+        OtpVerifyResponse: {
+            resetToken: string;
+        };
         ResetPasswordRequest: {
             token: string;
             password: string;
@@ -6948,6 +7060,8 @@ export interface components {
             /** Format: double */
             heldByViewer?: number;
             debitsWallet?: boolean;
+            isWinner?: boolean;
+            saleStatus?: null | string;
         };
         WalletSummary: {
             /** Format: double */
@@ -6958,6 +7072,18 @@ export interface components {
             pendingAmount: number;
             /** Format: double */
             maxTopUp: number;
+            /** Format: double */
+            held: number;
+            /** Format: double */
+            pendingWithdrawals: number;
+            /** Format: double */
+            available: number;
+            debitsWallet: boolean;
+        };
+        WithdrawalRequest: {
+            /** Format: double */
+            amount: number;
+            idempotencyKey?: null | string;
         };
         WalletTransactionDto: {
             /** Format: int32 */
@@ -6978,7 +7104,10 @@ export interface components {
             createdAtUtc: string;
             /** Format: date-time */
             decidedAtUtc: null | string;
+            type: components["schemas"]["WalletTransactionType"];
         };
+        /** @enum {unknown} */
+        WalletTransactionType: "Credit" | "Withdrawal";
         /** @enum {unknown} */
         WalletTransactionStatus: "Pending" | "Approved" | "Rejected" | "Reversed";
         WinnerGroup: {
